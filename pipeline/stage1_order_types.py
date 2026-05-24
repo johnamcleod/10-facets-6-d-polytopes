@@ -117,7 +117,10 @@ def _generate_random_order_types(n, num_samples=100000, seed=42, coord_range=100
     return seen
 
 
-def _generate_small_exhaustive(n, coord_range=100, num_attempts=5000, seed=0):
+def _generate_small_exhaustive(n, coord_range=100, num_attempts=None, seed=0):
+    # Default sample count scales down for larger n (Stage 2 cost grows with n)
+    if num_attempts is None:
+        num_attempts = max(500, 5000 - (n - 8) * 1500)
     """Generate order types by random sampling (not exhaustive for large n).
 
     Uses raw chirotope tuples as keys — fast, no n! canonicalization.

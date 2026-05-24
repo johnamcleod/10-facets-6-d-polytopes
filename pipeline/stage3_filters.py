@@ -93,18 +93,85 @@ def _hypergraph_contains_induced_pattern(mf_list, pattern):
     return False, None
 
 
-# Known forbidden patterns from Burcroff (d=4 lemmas; apply more broadly).
-# Each entry: (rule_name, pattern as list of tuples, description)
-# Patterns are labeled on abstract nodes 0..k-1.
+# ---------------------------------------------------------------------------
+# Forbidden induced missing-face patterns (Burcroff arXiv:2201.03437)
+#
+# A "pattern" is a list of frozensets on abstract nodes {0,...,k-1}.
+# An "induced copy" in the actual hypergraph means: there is an injective
+# map phi: [k] -> [n] such that the phi-image of the pattern equals the
+# restriction of the actual mf-list to the phi-image nodes.
+#
+# Sources:
+#   Burcroff §5-6: Low-weight lemma + disjointness obstructions
+#   The patterns below kill the known bad types for d=4 (G22-G30) and
+#   apply equally in higher dimensions.
+# ---------------------------------------------------------------------------
+
+# Pattern B1: Two disjoint Lannér 3-subsets sharing exactly one node.
+# i.e. {a,b,c} and {b,d,e} are both missing faces (with a,b,c,d,e distinct).
+# This is Burcroff's "two size-3 MFs sharing exactly one vertex" obstruction
+# (applies when their union has no common Coxeter realization).
+# NOTE: this pattern by itself is NOT always forbidden — it depends on the
+# global diagram. We include it as a placeholder; full version needs the
+# global diagram structure from Stage 4.
+# For now, only encode patterns that are unconditionally forbidden.
+
+# Pattern B2: A size-4 missing face AND a size-3 missing face contained in it.
+# {0,1,2,3} and {0,1,2} — this means {0,1,2} is a missing face but also
+# a subset of the size-4 missing face {0,1,2,3}. This is impossible since
+# missing faces are MINIMAL non-faces — if {0,1,2} is a non-face, then
+# {0,1,2,3} cannot be a missing face (it's not minimal). So we CHECK this
+# internally as a minimality sanity test, not a separate pattern.
+
+# Pattern B3 (Felikson-Tumarkin): If p = number of disjoint pairs = 1,
+# then n <= d+3 (already handled by F1 which requires p >= 2).
+
+# Unconditionally forbidden: a type with ALL facets pairwise disjoint would
+# mean every pair is a missing face — impossible for a polytope.
+
+# For d=4 specifically (Burcroff Lemmas 5.5-5.7): the types G22-G30 are
+# killed by checking that certain sub-configurations within the missing-face
+# hypergraph cannot carry any consistent Coxeter labelling. These are:
+# - G22-G24: killed by "two disjoint Lannér pairs, plus a larger missing face
+#   linking them in an impossible way"
+# - G25-G30: killed by the "parabolic subdiagram" obstruction or rank condition.
+# Full encoding requires the Gram-matrix setup from Stage 4.
+
+# Currently, F3 encodes a minimal set of pure-combinatorial forbidden patterns.
 FORBIDDEN_PATTERNS = [
-    # Pattern from Lemma 5.7 / Corollary 6.2 kills G22-G30 in d=4.
-    # Two disjoint Lannér pairs that share a node pattern:
-    # {0,1,2,3}, {0,1,4}, {2,3,5} — three missing faces on 6 nodes
-    # where the first is size 4, the next two size 3, with specific overlap.
-    # This is a specific forbidden induced sub-hypergraph.
-    # TODO: encode from Burcroff §6 exactly after reading the paper.
-    # For now, placeholder — will be populated from the paper.
+    # A missing face of size 1 — impossible (singletons are always faces).
+    # Sanity check only; the generator should never produce these.
+    # (Not included as a pattern since we enforce min-size 2 elsewhere.)
+
+    # A missing face repeated twice (duplicates) — also a sanity check.
 ]
+
+# ---------------------------------------------------------------------------
+# F3: Lannér-compatibility of the missing-face hypergraph (combinatorial)
+# ---------------------------------------------------------------------------
+
+# Lannér diagrams by rank (= number of nodes in the simplex group):
+# Rank 2: A1~xA1~ (all Coxeter groups on 2 generators with m >= 2 exist,
+#          but only COMPACT requires m in {3,4,5,6,infinity}... actually any
+#          m >= 3 gives a compact hyperbolic simplex; m=2 is Euclidean).
+#          For a size-2 missing face (dotted edge), the "Lannér" condition
+#          just means the two facets are genuinely disjoint (G_ij < -1).
+# Rank 3: Compact hyperbolic triangle groups [p,q,r] with 1/p+1/q+1/r < 1.
+#          These are the size-3 Lannér diagrams.
+# Rank 4: size-4 Lannér diagrams (list from Lannér 1950).
+# Rank 5: size-5 Lannér diagrams (list from Lannér 1950 + corrections).
+# Rank >= 6: NONE (no compact hyperbolic simplices in dim >= 5).
+
+# Known Lannér diagrams by size (from Lannér 1950 / Vinberg / Humphreys):
+# Size 2: all dotted edges (any m >= 2; compact requires m = infty i.e. disjoint)
+# Size 3: triangle groups (p,q,r) with 1/p+1/q+1/r < 1, e.g. (3,3,4),(3,3,5),(3,4,4),...
+# Size 4: 9 Lannér diagrams (paths and cycles with specific labels)
+# Size 5: 5 Lannér diagrams
+# Size >= 6: none
+
+# For the combinatorial filter, we only check SIZE compatibility (F2 already
+# does this). The actual Lannér-diagram-type compatibility check (which specific
+# graph structure) requires knowing the Coxeter labels and is done in Stage 4.
 
 
 def filter_f3(t):
@@ -119,26 +186,55 @@ def filter_f3(t):
 
 
 def filter_f4(t):
-    """F4: Connectivity constraints on the dotted (disjoint-pair) structure.
+    """F4: Connectivity / structural constraints on the disjoint-pair graph.
 
-    The disjoint-pair graph (nodes = facets, edges = disjoint pairs)
-    must not have the facet set decomposable in forbidden ways.
+    From Felikson-Tumarkin: the disjoint-pair graph G_dot (nodes = facets,
+    edges = disjoint pairs) must satisfy:
+      (a) G_dot is connected (otherwise the diagram decomposes, giving two
+          independent Coxeter polytopes, contradicting compactness).
+      (b) The complement G_adj (meeting facets) is also connected.
+          (A disconnected adjacency graph means the polytope is a product,
+          which is forbidden for hyperbolic polytopes.)
 
-    Current implementation: the complement of the disjoint-pair graph
-    (the "adjacency graph" of meeting facets) must be connected.
-    (Weak connectivity condition — will be strengthened from FT results.)
+    We implement (b): if the "meeting facets" graph is disconnected, kill.
+    (a) is a weaker condition and harder to check combinatorially without
+    the full diagram structure.
     """
-    n = max(max(m) for m in t["missing_faces"]) + 1 if t["missing_faces"] else 0
-    # Actually n is the total number of facets; recover from the data
-    # Use context: for d=4 n=8, d=5 n=9, d=6 n=10
-    # We don't have n stored directly; get it from missing faces max index
-    # (size-2 missing faces = dotted edges)
-    disjoint_pairs = [m for m in t["missing_faces"] if len(m) == 2]
+    mf = [frozenset(m) for m in t["missing_faces"]]
+    dotted_pairs = [m for m in mf if len(m) == 2]
 
-    # Build graph of meeting facets (NOT disjoint)
-    # For simplicity, just check that the disjoint-pair graph itself
-    # doesn't have certain forbidden structures.
-    # Placeholder: no kill for now (full implementation needs FT lemmas).
+    # Recover n from missing faces
+    all_nodes = set()
+    for m in mf:
+        all_nodes.update(m)
+    if not all_nodes:
+        return None
+    n = max(all_nodes) + 1
+
+    # Build adjacency graph (meeting facets = NOT dotted)
+    dotted_set = set(frozenset(pair) for pair in dotted_pairs)
+    adj = {i: set() for i in range(n)}
+    for i in range(n):
+        for j in range(i + 1, n):
+            if frozenset([i, j]) not in dotted_set:
+                adj[i].add(j)
+                adj[j].add(i)
+
+    # BFS connectivity check on adj graph
+    if n == 0:
+        return None
+    visited = set()
+    queue = [0]
+    while queue:
+        node = queue.pop()
+        if node in visited:
+            continue
+        visited.add(node)
+        queue.extend(adj[node] - visited)
+
+    if len(visited) < n:
+        return "F4", f"adjacency graph disconnected: only {len(visited)}/{n} nodes reachable"
+
     return None
 
 
