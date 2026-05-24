@@ -4,39 +4,64 @@ Stage 3: Combinatorial filtering.
 Applies elimination rules to combinatorial types from Stage 2, in increasing
 order of cost. Every elimination is logged with the rule and witness.
 
-Rules (from the spec and Burcroff arXiv:2201.03437):
-  F1 - Disjoint-pair count: p >= 2 (already enforced in Stage 2, kept as sanity)
-  F2 - Missing face size: every missing face has size in [2, 5]
-       (Lannér diagrams exist only in ranks 2..5)
-  F3 - Forbidden induced missing-face patterns (Burcroff §5-6 pattern library)
-  F4 - Connectivity of the dotted (disjoint) structure
-  F5 - Rank/signature feasibility (Vinberg combinatorial precheck)
+Rules implemented (all cite Burcroff arXiv:2201.03437 unless noted):
+  F1  - Disjoint-pair count p >= 2 for all d (FT p=1 theorem)
+  F1b - For d=4, n=8 only: p >= 3 (Corollary 5.3 from Theorem 5.2)
+  F2  - Every missing face has size in [2,5] (no rank->=6 Lannér diagrams exist)
+  F3a - Forbidden induced pattern {0123,014,235} (Lemma 5.7 / Corollary 6.3)
+        Kills G22-G24 in d=4; applied to all d per spec §6.
+  F3b - For d=6, n=10: any type with ALL missing faces of size in {2,5} is
+        forbidden (Theorem 8.1 — "no compact Coxeter 6-polytope with 10 facets
+        has missing faces of orders only 2 and 5").
+  F4  - Adjacency graph connectivity: the graph of mutually-meeting facets must
+        be connected (a disconnected adjacency graph implies a product structure,
+        forbidden for compact hyperbolic polytopes).
+  F5  - (placeholder) Rank/signature Vinberg precheck.
 """
 
 import json
 from pathlib import Path
+from itertools import combinations, permutations
 
 from pipeline.utils.manifest import write_manifest
 
 # ---------------------------------------------------------------------------
-# Lannér diagram constraints
+# F1 — Disjoint-pair count (p >= 2, universal)
 # ---------------------------------------------------------------------------
 
-# Lannér diagrams (compact hyperbolic simplex groups) exist in ranks 2..5
-# A missing face of size s needs a rank-s Lannér subdiagram => s in [2,5]
+def filter_f1(t, d=None):
+    """F1: p >= 2 (Felikson-Tumarkin p=1 theorem, n=d+4 requires p>=2)."""
+    if t["p_count"] < 2:
+        return "F1", f"p={t['p_count']} < 2 (FT theorem: n=d+4 requires p>=2)"
+    return None
+
+
+def filter_f1b(t, d):
+    """F1b: For d=4 only, p >= 3 (Burcroff Corollary 5.3 / Theorem 5.2).
+
+    Theorem 5.2 (Felikson-Tumarkin [15, Thm 7.1]):
+    Any compact hyperbolic Coxeter 4-polytope with n facets having at most
+    n-6 pairs of disjoint facets satisfies n <= 7.
+    For d=4, n=8: at most n-6=2 pairs => n<=7, contradiction. So p >= 3.
+    """
+    if d != 4:
+        return None
+    if t["p_count"] < 3:
+        return "F1b", (f"d=4: p={t['p_count']} < 3 "
+                       f"(Corollary 5.3: compact 4-polytopes with 8 facets need p>=3)")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# F2 — Missing face size in [2,5]
+# ---------------------------------------------------------------------------
+
 LANNER_MIN_SIZE = 2
 LANNER_MAX_SIZE = 5
 
 
-def filter_f1(t):
-    """F1: p >= 2 (at least 2 disjoint pairs)."""
-    if t["p_count"] < 2:
-        return "F1", f"p={t['p_count']} < 2"
-    return None
-
-
-def filter_f2(t):
-    """F2: All missing faces have size in [2, 5]."""
+def filter_f2(t, d=None):
+    """F2: All missing faces have size in [2,5] (Lannér diagrams, ranks 2-5 only)."""
     for mf in t["missing_faces"]:
         s = len(mf)
         if s < LANNER_MIN_SIZE or s > LANNER_MAX_SIZE:
@@ -45,165 +70,134 @@ def filter_f2(t):
 
 
 # ---------------------------------------------------------------------------
-# Forbidden induced missing-face patterns (F3)
-# From Burcroff arXiv:2201.03437, §5-6
+# F3a — Forbidden induced pattern {0123, 014, 235}
+# ---------------------------------------------------------------------------
+# Source: Burcroff Lemma 5.7 (= Tumarkin [28, Lemma 4.14]):
+# "There is no compact Coxeter 4-polytope containing a subdiagram with
+# induced missing face list isomorphic to {0123, 014, 235}."
+# Applied here to all d (per spec §6: "treat it as data, extensible").
 #
-# A "pattern" is an abstract hypergraph on k nodes (k <= n).
-# We check whether the missing-face hypergraph contains an induced sub-hypergraph
-# isomorphic to any forbidden pattern.
-#
-# The patterns below are from the d=4 case (Burcroff's Lemmas 5.4-5.7 and §6).
-# Some apply more generally; port them as the pattern library.
+# The pattern on 6 abstract nodes {0,1,2,3,4,5}:
+#   {0,1,2,3}  — size-4 missing face
+#   {0,1,4}    — size-3 missing face (shares {0,1} with the size-4 face)
+#   {2,3,5}    — size-3 missing face (shares {2,3} with the size-4 face)
+# Note: {0,1,4} and {2,3,5} are vertex-disjoint from each other.
 # ---------------------------------------------------------------------------
 
-def _hypergraph_contains_induced_pattern(mf_list, pattern):
+PATTERN_0123_014_235 = [
+    frozenset([0, 1, 2, 3]),
+    frozenset([0, 1, 4]),
+    frozenset([2, 3, 5]),
+]
+
+
+def _check_induced_pattern(mf_list, pattern, n_total):
     """Check if mf_list contains an induced copy of pattern.
 
-    pattern: list of frozensets on abstract nodes {0,...,k-1}
-    mf_list: list of frozensets on {0,...,n-1}
+    An induced copy: an injective map phi from abstract pattern nodes to [n_total]
+    such that the phi-image of pattern equals the restriction of mf_list to
+    the phi-image nodes.
 
-    An induced copy means: there exists an injective map phi: [k] -> [n]
-    such that the image of pattern under phi equals the restriction of
-    mf_list to the image nodes.
+    Args:
+        mf_list: list of frozensets (missing faces of the type)
+        pattern: list of frozensets on abstract nodes {0,...,k-1}
+        n_total: total number of facets
 
-    This is a subhypergraph isomorphism check — NP-hard in general,
-    but k <= 5 and n <= 10 so brute force (C(10,k) * k!) is feasible.
+    Returns:
+        (True, witness_dict) if found, (False, None) otherwise.
     """
-    from itertools import permutations, combinations as combs
-    n_total = max(max(m) for m in mf_list) + 1 if mf_list else 0
     k = max(max(m) for m in pattern) + 1 if pattern else 0
-
+    mf_set = set(frozenset(m) for m in mf_list)
     pattern_set = frozenset(frozenset(m) for m in pattern)
 
-    for subset in combs(range(n_total), k):
-        # All bijections from [k] -> subset
+    for subset in combinations(range(n_total), k):
+        subset_set = set(subset)
+        # Restriction of mf_list to this subset
+        restriction = frozenset(
+            m for m in mf_set if m <= subset_set
+        )
+        if len(restriction) != len(pattern):
+            continue
+        # Try all bijections from abstract nodes to subset
         for perm in permutations(subset):
             phi = {i: perm[i] for i in range(k)}
-            # Image of pattern under phi
             image = frozenset(frozenset(phi[i] for i in m) for m in pattern)
-            # Restriction of mf_list to subset nodes
-            restriction = frozenset(
-                frozenset(x for x in m if x in subset)
-                for m in mf_list
-                if all(x in subset for x in m)
-            )
             if image == restriction:
-                return True, {phi[i]: perm[i] for i in range(k)}
-
+                return True, phi
     return False, None
 
 
-# ---------------------------------------------------------------------------
-# Forbidden induced missing-face patterns (Burcroff arXiv:2201.03437)
-#
-# A "pattern" is a list of frozensets on abstract nodes {0,...,k-1}.
-# An "induced copy" in the actual hypergraph means: there is an injective
-# map phi: [k] -> [n] such that the phi-image of the pattern equals the
-# restriction of the actual mf-list to the phi-image nodes.
-#
-# Sources:
-#   Burcroff §5-6: Low-weight lemma + disjointness obstructions
-#   The patterns below kill the known bad types for d=4 (G22-G30) and
-#   apply equally in higher dimensions.
-# ---------------------------------------------------------------------------
-
-# Pattern B1: Two disjoint Lannér 3-subsets sharing exactly one node.
-# i.e. {a,b,c} and {b,d,e} are both missing faces (with a,b,c,d,e distinct).
-# This is Burcroff's "two size-3 MFs sharing exactly one vertex" obstruction
-# (applies when their union has no common Coxeter realization).
-# NOTE: this pattern by itself is NOT always forbidden — it depends on the
-# global diagram. We include it as a placeholder; full version needs the
-# global diagram structure from Stage 4.
-# For now, only encode patterns that are unconditionally forbidden.
-
-# Pattern B2: A size-4 missing face AND a size-3 missing face contained in it.
-# {0,1,2,3} and {0,1,2} — this means {0,1,2} is a missing face but also
-# a subset of the size-4 missing face {0,1,2,3}. This is impossible since
-# missing faces are MINIMAL non-faces — if {0,1,2} is a non-face, then
-# {0,1,2,3} cannot be a missing face (it's not minimal). So we CHECK this
-# internally as a minimality sanity test, not a separate pattern.
-
-# Pattern B3 (Felikson-Tumarkin): If p = number of disjoint pairs = 1,
-# then n <= d+3 (already handled by F1 which requires p >= 2).
-
-# Unconditionally forbidden: a type with ALL facets pairwise disjoint would
-# mean every pair is a missing face — impossible for a polytope.
-
-# For d=4 specifically (Burcroff Lemmas 5.5-5.7): the types G22-G30 are
-# killed by checking that certain sub-configurations within the missing-face
-# hypergraph cannot carry any consistent Coxeter labelling. These are:
-# - G22-G24: killed by "two disjoint Lannér pairs, plus a larger missing face
-#   linking them in an impossible way"
-# - G25-G30: killed by the "parabolic subdiagram" obstruction or rank condition.
-# Full encoding requires the Gram-matrix setup from Stage 4.
-
-# Currently, F3 encodes a minimal set of pure-combinatorial forbidden patterns.
-FORBIDDEN_PATTERNS = [
-    # A missing face of size 1 — impossible (singletons are always faces).
-    # Sanity check only; the generator should never produce these.
-    # (Not included as a pattern since we enforce min-size 2 elsewhere.)
-
-    # A missing face repeated twice (duplicates) — also a sanity check.
-]
-
-# ---------------------------------------------------------------------------
-# F3: Lannér-compatibility of the missing-face hypergraph (combinatorial)
-# ---------------------------------------------------------------------------
-
-# Lannér diagrams by rank (= number of nodes in the simplex group):
-# Rank 2: A1~xA1~ (all Coxeter groups on 2 generators with m >= 2 exist,
-#          but only COMPACT requires m in {3,4,5,6,infinity}... actually any
-#          m >= 3 gives a compact hyperbolic simplex; m=2 is Euclidean).
-#          For a size-2 missing face (dotted edge), the "Lannér" condition
-#          just means the two facets are genuinely disjoint (G_ij < -1).
-# Rank 3: Compact hyperbolic triangle groups [p,q,r] with 1/p+1/q+1/r < 1.
-#          These are the size-3 Lannér diagrams.
-# Rank 4: size-4 Lannér diagrams (list from Lannér 1950).
-# Rank 5: size-5 Lannér diagrams (list from Lannér 1950 + corrections).
-# Rank >= 6: NONE (no compact hyperbolic simplices in dim >= 5).
-
-# Known Lannér diagrams by size (from Lannér 1950 / Vinberg / Humphreys):
-# Size 2: all dotted edges (any m >= 2; compact requires m = infty i.e. disjoint)
-# Size 3: triangle groups (p,q,r) with 1/p+1/q+1/r < 1, e.g. (3,3,4),(3,3,5),(3,4,4),...
-# Size 4: 9 Lannér diagrams (paths and cycles with specific labels)
-# Size 5: 5 Lannér diagrams
-# Size >= 6: none
-
-# For the combinatorial filter, we only check SIZE compatibility (F2 already
-# does this). The actual Lannér-diagram-type compatibility check (which specific
-# graph structure) requires knowing the Coxeter labels and is done in Stage 4.
-
-
-def filter_f3(t):
-    """F3: No forbidden induced missing-face patterns."""
+def filter_f3a(t, d=None):
+    """F3a: Forbidden induced pattern {0123,014,235} (Burcroff Lemma 5.7)."""
     mf = [frozenset(m) for m in t["missing_faces"]]
-    for rule_name, pattern, desc in FORBIDDEN_PATTERNS:
-        pat_fs = [frozenset(m) for m in pattern]
-        found, witness = _hypergraph_contains_induced_pattern(mf, pat_fs)
-        if found:
-            return "F3", f"{rule_name}: {desc}, witness={witness}"
+    if not mf:
+        return None
+
+    # Quick pre-check: need at least one size-4 and two size-3 missing faces
+    has_size4 = any(len(m) == 4 for m in mf)
+    size3_count = sum(1 for m in mf if len(m) == 3)
+    if not has_size4 or size3_count < 2:
+        return None
+
+    # Recover n from type data or missing faces
+    all_nodes = set()
+    for m in mf:
+        all_nodes.update(m)
+    n_total = max(all_nodes) + 1 if all_nodes else 0
+
+    found, phi = _check_induced_pattern(mf, PATTERN_0123_014_235, n_total)
+    if found:
+        witness = {
+            "pattern": "{0123,014,235}",
+            "mapping": {str(k): v for k, v in phi.items()},
+            "mapped_faces": [
+                sorted(phi[i] for i in m) for m in PATTERN_0123_014_235
+            ]
+        }
+        return "F3a", f"Burcroff Lemma 5.7 pattern {{0123,014,235}} found, witness={witness}"
     return None
 
 
-def filter_f4(t):
-    """F4: Connectivity / structural constraints on the disjoint-pair graph.
+# ---------------------------------------------------------------------------
+# F3b — d=6 specific: no missing faces of size in {2,5} only (Theorem 8.1)
+# ---------------------------------------------------------------------------
+# Source: Burcroff Theorem 8.1:
+# "There are no compact Coxeter 6-polytopes with 10 facets having missing
+# faces of orders only 2 and 5."
+# The two specific combinatorial types with this property are:
+#   I1: missing face list {01, 02, 13, 24567, 34567, 89}
+#   I2: missing face list {01, 02, 13, 24, 34, 56789}
+# But the theorem applies to ALL types with only size-2 and size-5 missing faces.
+# ---------------------------------------------------------------------------
 
-    From Felikson-Tumarkin: the disjoint-pair graph G_dot (nodes = facets,
-    edges = disjoint pairs) must satisfy:
-      (a) G_dot is connected (otherwise the diagram decomposes, giving two
-          independent Coxeter polytopes, contradicting compactness).
-      (b) The complement G_adj (meeting facets) is also connected.
-          (A disconnected adjacency graph means the polytope is a product,
-          which is forbidden for hyperbolic polytopes.)
+def filter_f3b(t, d):
+    """F3b: d=6 only: kill if all missing faces have size in {2,5} (Theorem 8.1)."""
+    if d != 6:
+        return None
+    mf = t["missing_faces"]
+    if not mf:
+        return None
+    sizes = {len(m) for m in mf}
+    if sizes <= {2, 5}:
+        return "F3b", (f"Burcroff Theorem 8.1: d=6 type has missing face sizes only {sorted(sizes)}. "
+                       f"No compact Coxeter 6-polytope with 10 facets has missing faces of "
+                       f"orders only 2 and 5.")
+    return None
 
-    We implement (b): if the "meeting facets" graph is disconnected, kill.
-    (a) is a weaker condition and harder to check combinatorially without
-    the full diagram structure.
+
+# ---------------------------------------------------------------------------
+# F4 — Adjacency-graph connectivity
+# ---------------------------------------------------------------------------
+
+def filter_f4(t, d=None):
+    """F4: The adjacency graph (meeting facets) must be connected.
+
+    A disconnected adjacency graph implies the polytope decomposes as a
+    product, which is impossible for compact hyperbolic polytopes.
     """
     mf = [frozenset(m) for m in t["missing_faces"]]
     dotted_pairs = [m for m in mf if len(m) == 2]
 
-    # Recover n from missing faces
     all_nodes = set()
     for m in mf:
         all_nodes.update(m)
@@ -211,7 +205,6 @@ def filter_f4(t):
         return None
     n = max(all_nodes) + 1
 
-    # Build adjacency graph (meeting facets = NOT dotted)
     dotted_set = set(frozenset(pair) for pair in dotted_pairs)
     adj = {i: set() for i in range(n)}
     for i in range(n):
@@ -220,9 +213,6 @@ def filter_f4(t):
                 adj[i].add(j)
                 adj[j].add(i)
 
-    # BFS connectivity check on adj graph
-    if n == 0:
-        return None
     visited = set()
     queue = [0]
     while queue:
@@ -233,32 +223,31 @@ def filter_f4(t):
         queue.extend(adj[node] - visited)
 
     if len(visited) < n:
-        return "F4", f"adjacency graph disconnected: only {len(visited)}/{n} nodes reachable"
-
+        return "F4", f"adjacency graph disconnected: {len(visited)}/{n} nodes reachable from 0"
     return None
 
 
-def filter_f5(t):
-    """F5: Rank/signature feasibility precheck.
+# ---------------------------------------------------------------------------
+# F5 — Rank/signature precheck (placeholder)
+# ---------------------------------------------------------------------------
 
-    Vinberg's conditions: no induced finite-type subdiagram of rank > 7
-    (since Gram matrix has rank 7). Also: no affine/parabolic subdiagram
-    incompatible with signature (6,1).
-
-    Placeholder: implementing the Vinberg combinatorial conditions requires
-    knowing the diagram structure (which ordinary edges exist), which is
-    determined only partially at the combinatorial stage.
-    For now: accept all (full check in Stage 4).
-    """
+def filter_f5(t, d=None):
+    """F5: Rank/signature feasibility (Vinberg conditions). Placeholder."""
     return None
 
+
+# ---------------------------------------------------------------------------
+# Filter dispatch
+# ---------------------------------------------------------------------------
 
 ALL_FILTERS = [
-    ("F1", filter_f1),
-    ("F2", filter_f2),
-    ("F3", filter_f3),
-    ("F4", filter_f4),
-    ("F5", filter_f5),
+    ("F1",  lambda t, d: filter_f1(t, d)),
+    ("F1b", lambda t, d: filter_f1b(t, d)),
+    ("F2",  lambda t, d: filter_f2(t, d)),
+    ("F3b", lambda t, d: filter_f3b(t, d)),
+    ("F3a", lambda t, d: filter_f3a(t, d)),
+    ("F4",  lambda t, d: filter_f4(t, d)),
+    ("F5",  lambda t, d: filter_f5(t, d)),
 ]
 
 
@@ -278,27 +267,24 @@ def run_stage3(d, stage2_results, output_dir=None, verbose=True):
     for t in stage2_results:
         killed = False
         for rule_name, filter_fn in ALL_FILTERS:
-            result = filter_fn(t)
+            result = filter_fn(t, d)
             if result is not None:
                 applied_rule, witness = result
                 elimination_log.append({
                     "type_id": t["type_id"],
                     "rule": applied_rule,
-                    "witness": witness,
+                    "witness": str(witness),
                 })
                 killed = True
                 break
-
         if not killed:
             survivors.append(t)
 
     if verbose:
         print(f"  Survivors: {len(survivors)} / {len(stage2_results)}")
-        rule_counts = {}
-        for entry in elimination_log:
-            r = entry["rule"]
-            rule_counts[r] = rule_counts.get(r, 0) + 1
-        for rule in ["F1", "F2", "F3", "F4", "F5"]:
+        from collections import Counter
+        rule_counts = Counter(e["rule"] for e in elimination_log)
+        for rule in ["F1", "F1b", "F2", "F3a", "F3b", "F4", "F5"]:
             if rule in rule_counts:
                 print(f"    {rule}: killed {rule_counts[rule]}")
 

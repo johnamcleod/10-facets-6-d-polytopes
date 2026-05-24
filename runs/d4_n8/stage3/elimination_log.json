@@ -1,1 +1,62 @@
-[]
+[
+  {
+    "type_id": 3,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 6,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 7,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 10,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 11,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
+  },
+  {
+    "type_id": 15,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 20,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 21,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 22,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
+  },
+  {
+    "type_id": 26,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
+  },
+  {
+    "type_id": 32,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
+  },
+  {
+    "type_id": 41,
+    "rule": "F4",
+    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+  }
+]
