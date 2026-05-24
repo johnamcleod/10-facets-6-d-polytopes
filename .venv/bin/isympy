@@ -1,0 +1,6 @@
+#!/Users/jam/dev/sandbox/10-facet-6-polytopes/.venv/bin/python3
+import sys
+from isympy import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())

@@ -1,0 +1,14 @@
+{
+  "stage": "stage1",
+  "timestamp": "2026-05-24T07:25:25.409364+00:00",
+  "git_hash": "30942483a4674e2b51ee0dbc3c6a1c110e779c99",
+  "python_version": "3.10.0 (v3.10.0:b494f5935c, Oct  4 2021, 14:59:19) [Clang 12.0.5 (clang-1205.0.22.11)]",
+  "params": {
+    "d": 4,
+    "n": 8,
+    "source": "random_sampling"
+  },
+  "counts": {
+    "num_order_types": 4940
+  }
+}
