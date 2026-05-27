@@ -196,8 +196,15 @@ def _check_signature_float(G_numpy, d):
 # Backtracking label enumeration
 # ---------------------------------------------------------------------------
 
-def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list):
-    """Return list of (v_sorted_tuple, vertex_ordinary_pairs_frozenset)."""
+def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list,
+                          sub_size_threshold=4):
+    """Return list of (v_sorted_tuple, vertex_ordinary_pairs_frozenset).
+
+    For large vertices (k pairs where 4^k > 2^20), also include sub-vertex
+    groups of size sub_size_threshold to get precomputable forward-checking
+    constraints (sub-matrices of a PD matrix are also PD).
+    """
+    seen_groups = set()
     groups = []
     for v in vertex_sets_list:
         v_sorted = tuple(sorted(v))
@@ -207,7 +214,27 @@ def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list):
             for b in range(a + 1, len(v_sorted))
             if (v_sorted[a], v_sorted[b]) in ordinary_pairs_set
         )
-        groups.append((v_sorted, vp))
+        # Add the full vertex group if not too large to precompute
+        k = len(vp)
+        if (v_sorted, vp) not in seen_groups:
+            groups.append((v_sorted, vp))
+            seen_groups.add((v_sorted, vp))
+
+        # For large vertices, also add sub-vertex groups of smaller size
+        # so they can be precomputed and forward-checked
+        if 4 ** k > (1 << 20):
+            d = len(v_sorted)
+            for sub_size in range(3, min(sub_size_threshold + 1, d + 1)):
+                for sub in itertools.combinations(v_sorted, sub_size):
+                    sub_vp = frozenset(
+                        (sub[a], sub[b])
+                        for a in range(sub_size)
+                        for b in range(a + 1, sub_size)
+                        if (sub[a], sub[b]) in ordinary_pairs_set
+                    )
+                    if (sub, sub_vp) not in seen_groups:
+                        groups.append((sub, sub_vp))
+                        seen_groups.add((sub, sub_vp))
     return groups
 
 
@@ -314,10 +341,180 @@ def _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups):
     return ordered
 
 
+# Module-level cache: valid label assignments for sub-vertex groups.
+# Key: d (number of facets in the group, all pairs ordinary).
+# Value: numpy array of shape (N, C(d,2)) dtype int8 of valid label-index combos,
+#   or None if 4^C(d,2) > max_combos.
+# Valid combos are the same for every group of the same size (canonical structure).
+_VG_VALID_CACHE: dict = {}
+
+# Lannér cache: key = k (group size), value = valid combos array.
+_LG_VALID_CACHE: dict = {}
+
+
+def _canonical_pd_valid(d, max_combos=1 << 20):
+    """Compute valid label-index combos for a d-node all-ordinary vertex (PD condition).
+
+    Returns numpy array of shape (N, k) dtype int8, or None if 4^k > max_combos.
+    Cached globally — same result for every vertex group of the same size.
+    """
+    if d in _VG_VALID_CACHE:
+        return _VG_VALID_CACHE[d]
+
+    k = d * (d - 1) // 2  # = C(d,2) pairs, in lex order
+    if 4 ** k > max_combos:
+        _VG_VALID_CACHE[d] = None
+        return None
+
+    label_f = [_GRAM_FLOAT[m] for m in VALID_LABELS]
+    # Canonical pair ordering: (0,1),(0,2),...,(0,d-1),(1,2),...
+    pair_idx = 0
+    pos_map = {}
+    for a in range(d):
+        for b in range(a + 1, d):
+            pos_map[pair_idx] = (a, b)
+            pair_idx += 1
+
+    valid_rows = []
+    for combo in itertools.product(range(4), repeat=k):
+        M = np.eye(d, dtype=float)
+        for pi, (a, b) in pos_map.items():
+            v = label_f[combo[pi]]
+            M[a, b] = v
+            M[b, a] = v
+        try:
+            np.linalg.cholesky(M)
+            valid_rows.append(combo)
+        except np.linalg.LinAlgError:
+            pass
+
+    arr = np.array(valid_rows, dtype=np.int8) if valid_rows else np.zeros((0, k), dtype=np.int8)
+    _VG_VALID_CACHE[d] = arr
+    return arr
+
+
+def _canonical_lanner_valid(k, max_combos=1 << 20):
+    """Compute valid label-index combos for a k-node all-ordinary Lannér group.
+
+    Returns numpy array of shape (N, C(k,2)) dtype int8, or None if too large.
+    Cached globally.
+    """
+    if k in _LG_VALID_CACHE:
+        return _LG_VALID_CACHE[k]
+
+    num_pairs = k * (k - 1) // 2
+    if 4 ** num_pairs > max_combos:
+        _LG_VALID_CACHE[k] = None
+        return None
+
+    label_f = [_GRAM_FLOAT[m] for m in VALID_LABELS]
+    pos_map = {}
+    pi = 0
+    for a in range(k):
+        for b in range(a + 1, k):
+            pos_map[pi] = (a, b)
+            pi += 1
+
+    valid_rows = []
+    for combo in itertools.product(range(4), repeat=num_pairs):
+        M = np.eye(k, dtype=float)
+        for pi, (a, b) in pos_map.items():
+            v = label_f[combo[pi]]
+            M[a, b] = v
+            M[b, a] = v
+        evals = np.linalg.eigvalsh(M)
+        if int(np.sum(evals < -1e-8)) == 1:
+            valid_rows.append(combo)
+
+    arr = np.array(valid_rows, dtype=np.int8) if valid_rows else np.zeros((0, num_pairs), dtype=np.int8)
+    _LG_VALID_CACHE[k] = arr
+    return arr
+
+
+def _prepare_vertex_precomputed(vertex_groups):
+    """Prepare forward-checking data for all vertex groups.
+
+    For groups with 4^k ≤ 2^20 (k = C(d,2) pairs), loads from the global
+    cache (computed once per process per group size).  No per-type
+    precomputation cost.
+
+    Returns list of (v_sorted, v_pairs_list, pair_to_pos, valid_array_or_None).
+    """
+    result = []
+    for v_sorted, vp in vertex_groups:
+        d = len(v_sorted)
+        v_sorted_list = list(v_sorted)
+        v_pairs = sorted(vp)
+        # Build mapping from v_pairs order → canonical pair order within d×d matrix
+        # Canonical: pair index pi = a*(2d-a-1)//2 + (b-a-1) for a<b in 0..d-1
+        k = len(v_pairs)
+        # All pairs within an ordinary vertex are ordinary → use cached valid array
+        # Map v_pairs → canonical position index in the cached array
+        canonical_idx = []
+        for p in v_pairs:
+            a = v_sorted_list.index(p[0])
+            b = v_sorted_list.index(p[1])
+            # Canonical pair position in canonical ordering (a < b guaranteed)
+            # Canonical ordering: (0,1),(0,2),...,(0,d-1),(1,2),...
+            pi = a * (2 * d - a - 1) // 2 + (b - a - 1)
+            canonical_idx.append(pi)
+        canonical_idx = np.array(canonical_idx, dtype=np.int32)
+
+        # Get cached valid array for this group size
+        valid_arr_full = _canonical_pd_valid(d)
+        if valid_arr_full is not None and len(v_pairs) == d * (d - 1) // 2:
+            # Select only the columns corresponding to v_pairs, in v_pairs order
+            valid_arr = valid_arr_full[:, canonical_idx]
+        elif valid_arr_full is not None and len(v_pairs) < d * (d - 1) // 2:
+            # Group has fewer pairs than C(d,2) — some pairs are dotted (unexpected
+            # for ordinary vertices, but handle gracefully)
+            valid_arr = valid_arr_full[:, canonical_idx]
+        else:
+            valid_arr = None  # too large to precompute
+
+        pair_to_pos = {p: i for i, p in enumerate(v_pairs)}
+        result.append((v_sorted, v_pairs, pair_to_pos, valid_arr))
+    return result
+
+
+def _prepare_lanner_precomputed(lanner_groups):
+    """Prepare forward-checking data for all Lannér groups.
+
+    Returns list of (face_sorted, l_pairs_list, pair_to_pos, k, valid_array_or_None).
+    """
+    result = []
+    for face_sorted, lp, k in lanner_groups:
+        face_list = list(face_sorted)
+        l_pairs = sorted(lp)
+        # Map l_pairs → canonical position in cached Lannér array
+        canonical_idx = []
+        for p in l_pairs:
+            a = face_list.index(p[0])
+            b = face_list.index(p[1])
+            pi = a * (2 * k - a - 1) // 2 + (b - a - 1)
+            canonical_idx.append(pi)
+        canonical_idx = np.array(canonical_idx, dtype=np.int32)
+
+        valid_arr_full = _canonical_lanner_valid(k)
+        if valid_arr_full is not None:
+            valid_arr = valid_arr_full[:, canonical_idx]
+        else:
+            valid_arr = None
+
+        pair_to_pos = {p: i for i, p in enumerate(l_pairs)}
+        result.append((face_sorted, l_pairs, pair_to_pos, k, valid_arr))
+    return result
+
+
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
                                 max_count=50000, timeout=60.0):
-    """Generator: backtracking over label assignments with vertex PD pruning
-    and Lannér subdiagram checks on missing faces of size ≥ 3.
+    """Generator: backtracking with forward-checking using precomputed vertex
+    and Lannér valid-assignment tables.
+
+    For each group with 4^k ≤ 2^20 pairs, valid assignments are precomputed
+    once and forward-checked at every assignment step via numpy boolean masking.
+    Groups too large to precompute fall back to on-the-fly PD checking when
+    the group is fully assigned.
 
     Yields dicts {(i,j): m} for each valid assignment.
     """
@@ -325,57 +522,152 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
         lanner_groups = []
 
     pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
+    n_pairs = len(pairs_list)
+    pair_idx = {p: i for i, p in enumerate(pairs_list)}
 
-    pair_to_vg = {p: [] for p in pairs_list}
-    for g_idx, (_, vp) in enumerate(vertex_groups):
-        for p in vp:
-            if p in pair_to_vg:
-                pair_to_vg[p].append(g_idx)
+    # Precompute valid arrays for all groups
+    vg_precomp = _prepare_vertex_precomputed(vertex_groups)
+    lg_precomp = _prepare_lanner_precomputed(lanner_groups)
 
-    pair_to_lg = {p: [] for p in pairs_list}
-    for g_idx, (_, lp, _) in enumerate(lanner_groups):
-        for p in lp:
-            if p in pair_to_lg:
-                pair_to_lg[p].append(g_idx)
+    # Map each pair -> [(group_list, group_idx, pos_in_group), ...]
+    pair_to_vg_fc = [[] for _ in range(n_pairs)]    # forward-check (precomputed)
+    pair_to_vg_bt = [[] for _ in range(n_pairs)]    # fallback (on-the-fly)
+    for g_idx, (v_sorted, v_pairs, pair_to_pos, valid_arr) in enumerate(vg_precomp):
+        for p, pos in pair_to_pos.items():
+            if p in pair_idx:
+                pi = pair_idx[p]
+                if valid_arr is not None:
+                    pair_to_vg_fc[pi].append((g_idx, pos))
+                else:
+                    pair_to_vg_bt[pi].append(g_idx)
 
-    assignment = {}
+    pair_to_lg_fc = [[] for _ in range(n_pairs)]
+    pair_to_lg_bt = [[] for _ in range(n_pairs)]
+    for g_idx, (face_sorted, l_pairs, pair_to_pos, k, valid_arr) in enumerate(lg_precomp):
+        for p, pos in pair_to_pos.items():
+            if p in pair_idx:
+                pi = pair_idx[p]
+                if valid_arr is not None:
+                    pair_to_lg_fc[pi].append((g_idx, pos))
+                else:
+                    pair_to_lg_bt[pi].append(g_idx)
+
+    # Build bitmask filter tables for fast forward checking.
+    # filter_vg[g_idx][pos][li] = int bitmask of valid-combo indices where
+    #   position pos has label index li.  Zero means no valid combo for that label.
+    # full_vg[g_idx] = all-ones bitmask (all valid combos active).
+    filter_vg = []
+    full_vg = []
+    for g_idx, (v_sorted, v_pairs, pair_to_pos, valid_arr) in enumerate(vg_precomp):
+        if valid_arr is None:
+            filter_vg.append(None)
+            full_vg.append(None)
+            continue
+        k_pairs = len(v_pairs)
+        n_combos = len(valid_arr)
+        full = (1 << n_combos) - 1
+        full_vg.append(full)
+        filters = [[0] * 4 for _ in range(k_pairs)]
+        for i in range(n_combos):
+            bit = 1 << i
+            for pos in range(k_pairs):
+                filters[pos][valid_arr[i, pos]] |= bit
+        filter_vg.append(filters)
+
+    filter_lg = []
+    full_lg = []
+    for g_idx, (face_sorted, l_pairs, pair_to_pos, k, valid_arr) in enumerate(lg_precomp):
+        if valid_arr is None:
+            filter_lg.append(None)
+            full_lg.append(None)
+            continue
+        k_pairs = len(l_pairs)
+        n_combos = len(valid_arr)
+        full = (1 << n_combos) - 1
+        full_lg.append(full)
+        filters = [[0] * 4 for _ in range(k_pairs)]
+        for i in range(n_combos):
+            bit = 1 << i
+            for pos in range(k_pairs):
+                filters[pos][valid_arr[i, pos]] |= bit
+        filter_lg.append(filters)
+
+    # Current valid masks as Python integers (bitmask over valid-combo indices).
+    vg_masks = [full_vg[g] for g in range(len(vg_precomp))]
+    lg_masks = [full_lg[g] for g in range(len(lg_precomp))]
+
+    assignment = [-1] * n_pairs
     state = {"count": 0, "start": time.time()}
+    trail = []  # (g_idx, is_lanner, old_int_mask)
 
-    def backtrack(idx):
-        if (state["count"] >= max_count or
-                time.time() - state["start"] > timeout):
+    def _backtrack(depth):
+        if state["count"] >= max_count or time.time() - state["start"] > timeout:
             return
-        if idx == len(pairs_list):
+        if depth == n_pairs:
             state["count"] += 1
-            yield dict(assignment)
+            yield {pairs_list[i]: VALID_LABELS[assignment[i]] for i in range(n_pairs)}
             return
-        pair = pairs_list[idx]
-        for m in VALID_LABELS:
-            assignment[pair] = m
+
+        pi = depth
+        trail_mark = len(trail)
+
+        for li in range(4):   # label index 0..3
+            assignment[pi] = li
             ok = True
 
-            # Vertex PD checks for complete vertices
-            for g_idx in pair_to_vg.get(pair, []):
-                v_sorted, vp = vertex_groups[g_idx]
-                if all(p in assignment for p in vp):
-                    if not _is_vertex_pd_float(v_sorted, assignment):
+            # Forward-check vertex groups
+            for g_idx, pos in pair_to_vg_fc[pi]:
+                old_m = vg_masks[g_idx]
+                new_m = old_m & filter_vg[g_idx][pos][li]
+                trail.append((g_idx, False, old_m))
+                vg_masks[g_idx] = new_m
+                if not new_m:
+                    ok = False
+                    break
+
+            # Forward-check Lannér groups
+            if ok:
+                for g_idx, pos in pair_to_lg_fc[pi]:
+                    old_m = lg_masks[g_idx]
+                    new_m = old_m & filter_lg[g_idx][pos][li]
+                    trail.append((g_idx, True, old_m))
+                    lg_masks[g_idx] = new_m
+                    if not new_m:
                         ok = False
                         break
 
-            # Lannér checks for complete missing faces (size ≥ 3)
-            if ok:
-                for g_idx in pair_to_lg.get(pair, []):
-                    face_sorted, lp, k = lanner_groups[g_idx]
-                    if all(p in assignment for p in lp):
-                        if not _is_lanner_float(face_sorted, assignment, k):
+            # Fallback: on-the-fly checks for groups too large to precompute
+            if ok and (pair_to_vg_bt[pi] or pair_to_lg_bt[pi]):
+                assign_dict = {pairs_list[i]: VALID_LABELS[assignment[i]]
+                               for i in range(depth + 1)}
+                for g_idx in pair_to_vg_bt[pi]:
+                    v_sorted, vp_set = vertex_groups[g_idx]
+                    if all(p in assign_dict for p in vp_set):
+                        if not _is_vertex_pd_float(v_sorted, assign_dict):
                             ok = False
                             break
+                if ok:
+                    for g_idx in pair_to_lg_bt[pi]:
+                        face_sorted, lp, k = lanner_groups[g_idx]
+                        if all(p in assign_dict for p in lp):
+                            if not _is_lanner_float(face_sorted, assign_dict, k):
+                                ok = False
+                                break
 
             if ok:
-                yield from backtrack(idx + 1)
-        del assignment[pair]
+                yield from _backtrack(depth + 1)
 
-    yield from backtrack(0)
+            # Restore trail
+            while len(trail) > trail_mark:
+                g_idx, is_lanner, old_m = trail.pop()
+                if is_lanner:
+                    lg_masks[g_idx] = old_m
+                else:
+                    vg_masks[g_idx] = old_m
+
+        assignment[pi] = -1
+
+    yield from _backtrack(0)
 
 
 # ---------------------------------------------------------------------------
