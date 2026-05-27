@@ -92,6 +92,11 @@ def process_order_type(chi_key, points, d, exact_dedup=False):
 
         gd = GaleDiagram(pts, pos, d)
 
+        # All n points must be genuine facets: each singleton {i} must be a face.
+        # (Filtering degenerate diagrams from random sampling.)
+        if not all(gd.is_face(frozenset([i])) for i in range(n)):
+            continue
+
         # Compute missing faces up to size 5 (Lannér bound, filter F2)
         mf = gd._compute_missing_faces_correct(max_size=5)
         p = sum(1 for m in mf if len(m) == 2)

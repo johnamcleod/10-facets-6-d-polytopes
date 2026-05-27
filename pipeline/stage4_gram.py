@@ -1,36 +1,44 @@
 """
 Stage 4: Coxeter label assignment + exact Gram-matrix realizability.
 
-For each surviving combinatorial type:
-  1. Determine which pairs of facets meet (ordinary edges in Coxeter diagram)
-     vs. are disjoint (dotted edges).
-  2. Enumerate integer-label assignments m_ij in {2,3,4,5,...} on ordinary edges
-     (with proven caps from Burcroff/Esselmann/FT lemmas).
-  3. For each labelling, check local positive-definiteness of all vertex blocks.
-  4. Set up the Gram matrix G symbolically with unknowns for dotted-edge weights.
-  5. Enforce rank(G) = d+1 = 7 (all (d+2)x(d+2) = 8x8 minors vanish).
-  6. Solve for dotted weights exactly (Gröbner basis / substitution).
-  7. Check signature (d,1) = (6,1) and x_ab > 1 for dotted entries.
+Pipeline per surviving combinatorial type:
 
-This stage uses SymPy for exact symbolic computation.
+  1. Reconstruct vertex sets from the stored Gale diagram example.
+  2. Enumerate integer-label assignments m ∈ {2,3,4,5} on ordinary edges
+     (all non-dotted pairs) using backtracking with vertex PD pruning.
+     For a simple polytope every non-disjoint pair of facets is ridge-sharing
+     and therefore ordinary, so vertex PD covers all pairs.
+  3. For each labelled diagram that passes vertex PD:
+       a. NUMERICAL SCREEN — use scipy to minimise the (n-d-1) smallest
+          singular values of G over dotted weights x > 1.  If the minimum
+          residual is above a threshold the type is skipped (fast: ~ms).
+       b. EXACT SOLVE — SymPy Gröbner basis / solve on the numerically
+          promising cases.  Verifies rank, signature (d,1) and x > 1 exactly.
+
+  Float arithmetic may only REJECT; it cannot accept. Exact arithmetic is the
+  final arbiter for every polytope that survives numerical screening.
 """
 
 import json
 import itertools
+import time
 from pathlib import Path
-from fractions import Fraction
 
 from pipeline.utils.manifest import write_manifest
 
 try:
+    import numpy as np
+    import scipy.optimize as _scipy_opt
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+try:
     import sympy
     from sympy import (
-        Matrix, symbols, Rational, cos, pi, sqrt, simplify,
-        groebner, solve, Poly, factor, zeros, eye, det,
-        Symbol, Abs, sign, N, Interval, oo, S
+        Matrix, symbols, Rational, sqrt, eye, S, cos, pi,
+        solve, Poly, groebner
     )
-    from sympy.matrices import Matrix
-    from sympy.polys.numberfields import field_isomorphism
     SYMPY_AVAILABLE = True
 except ImportError:
     SYMPY_AVAILABLE = False
@@ -38,20 +46,22 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Gram matrix entries: exact cosines
+# Gram-entry tables
 # ---------------------------------------------------------------------------
 
-def gram_entry_adjacent(m):
-    """G_ij for facets meeting at angle pi/m: -cos(pi/m).
+_GRAM_FLOAT = {
+    2: 0.0,
+    3: -0.5,
+    4: -0.7071067811865476,   # -√2/2
+    5: -0.8090169943749474,   # -(1+√5)/4
+}
 
-    Returns exact SymPy expression.
-    Uses exact values:
-      m=2: 0
-      m=3: -1/2
-      m=4: -sqrt(2)/2
-      m=5: -(1+sqrt(5))/4 = -cos(pi/5)
-      m=6: -sqrt(3)/2
-    """
+LABEL_CAP = 5
+VALID_LABELS = [2, 3, 4, 5]
+
+
+def gram_entry_adjacent(m):
+    """Exact SymPy value of G_ij = -cos(π/m) for integer m."""
     if not SYMPY_AVAILABLE:
         raise RuntimeError("SymPy required for Stage 4")
     if m == 2:
@@ -62,416 +72,631 @@ def gram_entry_adjacent(m):
         return -sqrt(2) / 2
     elif m == 5:
         return -(1 + sqrt(5)) / 4
-    elif m == 6:
-        return -sqrt(3) / 2
     else:
         return -cos(pi / m)
 
 
 # ---------------------------------------------------------------------------
-# Edge label bounds
+# Numpy Gram matrix builder (for numerical screening)
 # ---------------------------------------------------------------------------
 
-# From Burcroff's low-weight lemma and compactness constraints,
-# labels m_ij are bounded. The default global cap is m <= 5
-# (from Felikson-Tumarkin for compact polytopes with d+4 facets).
-# We use cap 5 as the conservative bound (can be raised if needed).
-LABEL_CAP = 5
-LABEL_MIN = 2  # orthogonal
+def _build_gram_numpy(ordinary_float, dotted_pairs, x_vals, n):
+    """Build n×n numpy float Gram matrix.
 
-VALID_LABELS = list(range(LABEL_MIN, LABEL_CAP + 1))
-# Label 2 = orthogonal (no edge in diagram)
-# Label 3,4,5 = ordinary edge with those labels
-
-
-# ---------------------------------------------------------------------------
-# Vertex positive-definiteness check
-# ---------------------------------------------------------------------------
-
-def check_vertex_pd(gram_matrix, vertex_set, n):
-    """Check that the principal submatrix of G indexed by vertex_set is PD.
-
-    vertex_set: set of d indices (the d facets meeting at this vertex)
-    gram_matrix: n x n SymPy Matrix
-
-    Returns True if the submatrix is positive definite (all leading minors > 0).
+    ordinary_float: dict (i,j) -> float (i<j), ordinary edges
+    dotted_pairs:   list of (i,j) with i<j, in same order as x_vals
+    x_vals:         numpy array of -G_ij values for dotted edges (> 1)
     """
-    if not SYMPY_AVAILABLE:
-        raise RuntimeError("SymPy required")
-    idx = sorted(vertex_set)
-    d = len(idx)
-    sub = gram_matrix.extract(idx, idx)
-    # Check all leading principal minors > 0
-    for k in range(1, d + 1):
-        minor = sub[:k, :k].det()
-        # minor should be a rational number (no unknowns at this stage)
-        minor_val = minor
-        try:
-            minor_val = float(minor)
-        except Exception:
-            pass
-        if minor_val <= 0:
-            return False, f"Leading {k}x{k} minor = {minor_val} <= 0"
-    return True, None
-
-
-# ---------------------------------------------------------------------------
-# Main Stage 4 logic
-# ---------------------------------------------------------------------------
-
-def build_gram_matrix(n, adjacent_pairs, dotted_pairs, label_assignment, dot_symbols):
-    """Build the symbolic Gram matrix.
-
-    Args:
-        n: number of facets
-        adjacent_pairs: dict (i,j) -> m_ij (integer label, i<j)
-        dotted_pairs: list of (i,j) pairs (i<j), dotted edges with unknowns
-        label_assignment: dict (i,j) -> m value for ordinary edges
-        dot_symbols: dict (i,j) -> SymPy symbol for -G_ij > 1
-
-    Returns:
-        n x n SymPy Matrix
-    """
-    if not SYMPY_AVAILABLE:
-        raise RuntimeError("SymPy required")
-
-    G = eye(n)  # Diagonal = 1
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            pair = (i, j)
-            if pair in dotted_pairs or (j, i) in dotted_pairs:
-                key = pair if pair in dot_symbols else (j, i)
-                x = dot_symbols[key]
-                G[i, j] = -x
-                G[j, i] = -x
-            elif pair in label_assignment:
-                m = label_assignment[pair]
-                entry = gram_entry_adjacent(m)
-                G[i, j] = entry
-                G[j, i] = entry
-            else:
-                # Not adjacent, not dotted = orthogonal (m=2 => entry=0)
-                # (already 0 from eye init)
-                pass
-
+    G = np.eye(n, dtype=float)
+    for (i, j), v in ordinary_float.items():
+        G[i, j] = v
+        G[j, i] = v
+    for (i, j), x in zip(dotted_pairs, x_vals):
+        G[i, j] = -x
+        G[j, i] = -x
     return G
 
 
-def enumerate_label_assignments(ordinary_pairs, vertex_sets, n):
-    """Enumerate valid integer-label assignments for ordinary edges.
+# ---------------------------------------------------------------------------
+# Vertex positive-definiteness check (float)
+# ---------------------------------------------------------------------------
 
-    Returns generator of label dicts {(i,j): m_ij}.
-    Applies local elliptic (vertex PD) pre-pruning.
+def _build_vertex_matrix_float(v_sorted, assignment):
+    d = len(v_sorted)
+    M = np.eye(d, dtype=float)
+    for a in range(d):
+        for b in range(a + 1, d):
+            pair = (v_sorted[a], v_sorted[b])
+            m = assignment.get(pair, 2)
+            val = _GRAM_FLOAT[m]
+            M[a, b] = val
+            M[b, a] = val
+    return M
 
-    For each vertex (set of d facets), the corresponding Coxeter diagram
-    must be of finite type (positive definite). We use this to prune
-    label combinations per vertex.
+
+def _is_vertex_pd_float(v_sorted, assignment):
+    """Cholesky-based PD test (float).  Conservative pruner."""
+    M = _build_vertex_matrix_float(v_sorted, assignment)
+    try:
+        np.linalg.cholesky(M)
+        return True
+    except np.linalg.LinAlgError:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Numerical rank-7 screener
+# ---------------------------------------------------------------------------
+
+def _numerical_screen(ordinary_float, dotted_pairs, n, d,
+                      residual_threshold=1e-6):
+    """Check numerically whether rank(G) = d+1 is achievable with x > 1.
+
+    Two-stage strategy:
+      Stage 1 (fast, <0.5ms): Evaluate the objective (sum-of-squares of the
+        num_zero = n-d-1 smallest singular values) at several probe points
+        x ∈ {1.1, 1.5, 2.0, 3.0}.  If the minimum is > 0.5, reject
+        immediately — the rank condition is nowhere near satisfied.
+      Stage 2 (slow, ~10ms): scipy L-BFGS-B from the best probe, to find an
+        actual numerical zero.  Only runs if a probe gives objective < 0.5.
+
+    Returns (x_approx, residual).  residual > residual_threshold ⟹ infeasible.
     """
-    # Build: which pairs are in which vertex
-    pair_to_vertices = {}
-    for pair in ordinary_pairs:
-        for v_idx, v in enumerate(vertex_sets):
-            if pair[0] in v and pair[1] in v:
-                pair_to_vertices.setdefault(pair, []).append(v_idx)
+    num_zero = n - d - 1
+    k = len(dotted_pairs)
 
-    # Simple enumeration: try all combinations of VALID_LABELS for each pair
-    pairs_list = list(ordinary_pairs)
-    # Remove m=2 from pairs that should be non-orthogonal edges
-    # (m=2 means no Coxeter edge; we include it for completeness)
-    label_ranges = [VALID_LABELS for _ in pairs_list]
+    def objective(x_vals):
+        G = _build_gram_numpy(ordinary_float, dotted_pairs, x_vals, n)
+        s = np.linalg.svd(G, compute_uv=False)
+        return float(np.sum(s[-num_zero:] ** 2))
 
-    total = 1
-    for r in label_ranges:
-        total *= len(r)
+    # Stage 1: multi-point probe (each < 0.1ms)
+    best_x = np.full(k, 1.5)
+    best_val = np.inf
+    for x0_val in [1.5, 1.1, 2.0, 3.0]:
+        x0 = np.full(k, x0_val)
+        val = objective(x0)
+        if val < best_val:
+            best_val = val
+            best_x = x0.copy()
 
-    for combo in itertools.product(*label_ranges):
-        assignment = {pairs_list[i]: combo[i] for i in range(len(pairs_list))}
-        yield assignment
+    if best_val > 0.5:
+        return best_x, best_val   # fast reject
+
+    # Stage 2: optimise from best probe
+    bounds = [(1.001, 30.0)] * k
+    for x0_val in [best_x[0], 1.5, 2.0]:
+        try:
+            res = _scipy_opt.minimize(
+                objective, np.full(k, x0_val),
+                bounds=bounds,
+                method='L-BFGS-B',
+                options={'maxiter': 200, 'ftol': 1e-20, 'gtol': 1e-12},
+            )
+            if res.fun < best_val:
+                best_val = res.fun
+                best_x = res.x
+        except Exception:
+            pass
+        if best_val < residual_threshold:
+            break
+
+    return best_x, best_val
 
 
-def process_type_stage4(t, d):
-    """Process one combinatorial type through Stage 4.
+def _check_signature_float(G_numpy, d):
+    """Check signature (d,1): exactly one negative eigenvalue."""
+    evals = np.linalg.eigvalsh(G_numpy)
+    neg = int(np.sum(evals < -1e-8))
+    pos = int(np.sum(evals > 1e-8))
+    return neg == 1 and pos == d
 
-    Returns list of valid (label_assignment, gram_matrix, dot_values) triples.
+
+# ---------------------------------------------------------------------------
+# Backtracking label enumeration
+# ---------------------------------------------------------------------------
+
+def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list):
+    """Return list of (v_sorted_tuple, vertex_ordinary_pairs_frozenset)."""
+    groups = []
+    for v in vertex_sets_list:
+        v_sorted = tuple(sorted(v))
+        vp = frozenset(
+            (v_sorted[a], v_sorted[b])
+            for a in range(len(v_sorted))
+            for b in range(a + 1, len(v_sorted))
+            if (v_sorted[a], v_sorted[b]) in ordinary_pairs_set
+        )
+        groups.append((v_sorted, vp))
+    return groups
+
+
+def _build_lanner_groups(ordinary_pairs_set, mf_list):
+    """Return list of (face_sorted_tuple, face_pairs_frozenset) for each
+    missing face of size ≥ 3 whose pairs are all ordinary.
+
+    For each such face the Gram submatrix must have signature (k-1, 1)
+    (compact Lannér diagram condition).
     """
-    if not SYMPY_AVAILABLE:
+    groups = []
+    for mf in mf_list:
+        k = len(mf)
+        if k < 3:
+            continue
+        face_sorted = tuple(sorted(mf))
+        pairs = frozenset(
+            (face_sorted[a], face_sorted[b])
+            for a in range(k)
+            for b in range(a + 1, k)
+        )
+        # All pairs must be ordinary (guaranteed if mf is a missing face of size ≥ 3,
+        # since it can't contain a size-2 missing face as a subset)
+        if not pairs.issubset(ordinary_pairs_set):
+            continue   # some pair is dotted → skip (shouldn't happen for valid MF)
+        groups.append((face_sorted, pairs, k))
+    return groups
+
+
+def _is_lanner_float(face_sorted, assignment, k):
+    """Check that the k×k Gram submatrix of face_sorted has signature (k-1, 1).
+
+    Lannér condition: exactly one negative eigenvalue.  Float-based (for pruning).
+    """
+    M = np.eye(k, dtype=float)
+    for a in range(k):
+        for b in range(a + 1, k):
+            pair = (face_sorted[a], face_sorted[b])
+            m = assignment.get(pair, 2)
+            val = _GRAM_FLOAT[m]
+            M[a, b] = val
+            M[b, a] = val
+    evals = np.linalg.eigvalsh(M)
+    neg = int(np.sum(evals < -1e-8))
+    return neg == 1
+
+
+def _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups):
+    """Order pairs so that vertex PD checks fire as early as possible.
+
+    Strategy: greedily process vertices in order of most-shared pairs with
+    already-seen pairs.  This ensures the first vertex completes at level d
+    (= len(first vertex's pairs)), and each subsequent vertex adds roughly
+    1 new pair, triggering a PD check at almost every backtracking level.
+    Lannér pairs (if any) are pulled to the front of their vertex blocks.
+    """
+    ordinary_set = set(ordinary_pairs)
+    ordered = []
+    seen = set()
+
+    # Lannér pairs — process first so Lannér checks fire early
+    lanner_pairs = set()
+    for _, lp, _ in lanner_groups:
+        lanner_pairs.update(lp)
+    for p in sorted(lanner_pairs & ordinary_set):
+        if p not in seen:
+            ordered.append(p)
+            seen.add(p)
+
+    if not vertex_groups:
+        for p in sorted(ordinary_set - seen):
+            ordered.append(p)
+        return ordered
+
+    remaining_vg = list(range(len(vertex_groups)))
+
+    # Seed with the vertex that has the most Lannér-seeded pairs already seen
+    def _score(idx):
+        _, vp = vertex_groups[idx]
+        return sum(1 for p in vp if p in seen)
+
+    first = max(remaining_vg, key=_score)
+    _, vp0 = vertex_groups[first]
+    for p in sorted(vp0):
+        if p not in seen:
+            ordered.append(p)
+            seen.add(p)
+    remaining_vg.remove(first)
+
+    # Greedily add the vertex that maximises overlap with already-seen pairs
+    while remaining_vg:
+        best = max(remaining_vg, key=lambda idx: sum(1 for p in vertex_groups[idx][1] if p in seen))
+        _, vp = vertex_groups[best]
+        for p in sorted(vp):
+            if p not in seen:
+                ordered.append(p)
+                seen.add(p)
+        remaining_vg.remove(best)
+
+    # Remaining ordinary pairs not in any vertex
+    for p in sorted(ordinary_set - seen):
+        ordered.append(p)
+
+    return ordered
+
+
+def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
+                                max_count=50000, timeout=60.0):
+    """Generator: backtracking over label assignments with vertex PD pruning
+    and Lannér subdiagram checks on missing faces of size ≥ 3.
+
+    Yields dicts {(i,j): m} for each valid assignment.
+    """
+    if lanner_groups is None:
+        lanner_groups = []
+
+    pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
+
+    pair_to_vg = {p: [] for p in pairs_list}
+    for g_idx, (_, vp) in enumerate(vertex_groups):
+        for p in vp:
+            if p in pair_to_vg:
+                pair_to_vg[p].append(g_idx)
+
+    pair_to_lg = {p: [] for p in pairs_list}
+    for g_idx, (_, lp, _) in enumerate(lanner_groups):
+        for p in lp:
+            if p in pair_to_lg:
+                pair_to_lg[p].append(g_idx)
+
+    assignment = {}
+    state = {"count": 0, "start": time.time()}
+
+    def backtrack(idx):
+        if (state["count"] >= max_count or
+                time.time() - state["start"] > timeout):
+            return
+        if idx == len(pairs_list):
+            state["count"] += 1
+            yield dict(assignment)
+            return
+        pair = pairs_list[idx]
+        for m in VALID_LABELS:
+            assignment[pair] = m
+            ok = True
+
+            # Vertex PD checks for complete vertices
+            for g_idx in pair_to_vg.get(pair, []):
+                v_sorted, vp = vertex_groups[g_idx]
+                if all(p in assignment for p in vp):
+                    if not _is_vertex_pd_float(v_sorted, assignment):
+                        ok = False
+                        break
+
+            # Lannér checks for complete missing faces (size ≥ 3)
+            if ok:
+                for g_idx in pair_to_lg.get(pair, []):
+                    face_sorted, lp, k = lanner_groups[g_idx]
+                    if all(p in assignment for p in lp):
+                        if not _is_lanner_float(face_sorted, assignment, k):
+                            ok = False
+                            break
+
+            if ok:
+                yield from backtrack(idx + 1)
+        del assignment[pair]
+
+    yield from backtrack(0)
+
+
+# ---------------------------------------------------------------------------
+# Symbolic Gram matrix
+# ---------------------------------------------------------------------------
+
+def build_gram_matrix(n, ordinary_assignment, dotted_set, dot_syms):
+    """Build symbolic n×n Gram matrix.
+
+    ordinary_assignment: dict (i,j)->m, i<j (m=2 ⟹ G_ij=0)
+    dotted_set:          frozenset of (i,j) pairs, i<j
+    dot_syms:            dict (i,j) -> SymPy symbol (= -G_ij)
+    """
+    G = eye(n)
+    for i in range(n):
+        for j in range(i + 1, n):
+            pair = (i, j)
+            if pair in dotted_set:
+                x = dot_syms[pair]
+                G[i, j] = -x
+                G[j, i] = -x
+            else:
+                m = ordinary_assignment.get(pair, 2)
+                entry = gram_entry_adjacent(m)
+                G[i, j] = entry
+                G[j, i] = entry
+    return G
+
+
+# ---------------------------------------------------------------------------
+# Exact rank-condition solver
+# ---------------------------------------------------------------------------
+
+def _collect_minor_eqs(G, n, minor_size, sym_list, unknown_rows,
+                        max_eqs, deadline):
+    """Collect distinct non-trivial (minor_size)×(minor_size) minor equations."""
+    other_rows = [i for i in range(n) if i not in unknown_rows]
+    extra_count = minor_size - len(unknown_rows)
+
+    eqs, eq_strs = [], set()
+
+    def try_rows(rows):
+        if time.time() > deadline:
+            return
+        sub = G.extract(rows, rows)
+        eq = sub.det().expand()
+        if eq == 0 or eq.is_number:
+            return
+        try:
+            key = str(Poly(eq, *sym_list))
+        except Exception:
+            key = str(eq)[:300]
+        if key in eq_strs:
+            return
+        eq_strs.add(key)
+        eqs.append(eq)
+
+    if extra_count >= 0:
+        for extra in itertools.combinations(other_rows, extra_count):
+            if time.time() > deadline or len(eqs) >= max_eqs:
+                break
+            try_rows(sorted(list(unknown_rows) + list(extra)))
+    else:
+        for rows in itertools.combinations(range(n), minor_size):
+            if time.time() > deadline or len(eqs) >= max_eqs:
+                break
+            try_rows(list(rows))
+
+    return eqs
+
+
+def _validate_solutions(sols_raw, sym_list, G, d, deadline):
+    """Filter raw SymPy solutions: x > 1, correct signature, correct rank."""
+    valid = []
+    for sol in sols_raw:
+        if time.time() > deadline:
+            break
+        if not all(s in sol for s in sym_list):
+            continue
+        vals = [sol[s] for s in sym_list]
+        try:
+            floats = [float(v.evalf()) for v in vals]
+        except Exception:
+            continue
+        if not all(f > 1.0 + 1e-9 for f in floats):
+            continue
+        G_sub = G.subs(list(zip(sym_list, vals)))
+        n = G_sub.shape[0]
+        G_np = np.array([[float(G_sub[i, j]) for j in range(n)]
+                         for i in range(n)], dtype=float)
+        if not _check_signature_float(G_np, d):
+            continue
+        try:
+            if G_sub.rank() != d + 1:
+                continue
+        except Exception:
+            pass
+        valid.append({str(s): v for s, v in zip(sym_list, vals)})
+    return valid
+
+
+def solve_rank_condition(G, d, dot_syms, dotted_pairs, n, timeout=60.0):
+    """Find dotted weights making rank(G) = d+1 and signature (d,1).
+
+    Returns list of solution dicts {str(sym): SymPy_value}.
+    """
+    sym_list = [dot_syms[p] for p in dotted_pairs]
+    k = len(sym_list)
+    if k == 0:
+        return []
+
+    minor_size = d + 2
+    unknown_rows = sorted({idx for p in dotted_pairs for idx in p})
+    deadline = time.time() + timeout
+
+    eqs = _collect_minor_eqs(G, n, minor_size, sym_list, unknown_rows,
+                              max_eqs=k + 5, deadline=deadline)
+    if not eqs:
+        return []
+
+    try:
+        if k == 1:
+            x = sym_list[0]
+            roots = solve(eqs[0], x)
+            raw = [{x: r} for r in roots if r.is_real]
+            return _validate_solutions(raw, sym_list, G, d, deadline)
+
+        elif k <= 4:
+            try:
+                raw = solve(eqs[: k + 1], sym_list, dict=True)
+            except Exception:
+                raw = []
+            valid = _validate_solutions(raw, sym_list, G, d, deadline)
+            if valid or time.time() > deadline:
+                return valid
+            # Gröbner fallback
+            try:
+                basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
+                                 order='lex')
+                raw2 = solve(list(basis), sym_list, dict=True)
+                return _validate_solutions(raw2, sym_list, G, d, deadline)
+            except Exception:
+                return valid
+
+        else:
+            try:
+                basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
+                                 order='lex')
+                raw = solve(list(basis), sym_list, dict=True)
+                return _validate_solutions(raw, sym_list, G, d, deadline)
+            except Exception:
+                return []
+
+    except Exception:
+        return []
+
+
+# ---------------------------------------------------------------------------
+# Per-type Stage 4 driver
+# ---------------------------------------------------------------------------
+
+def process_type_stage4(t, d,
+                         max_assignments=50000,
+                         enum_timeout=60.0,
+                         solve_timeout=60.0,
+                         numerical_threshold=1e-6,
+                         verbose=False):
+    """Run Stage 4 on one surviving combinatorial type.
+
+    Returns list of valid Gram configurations (dicts).
+    """
+    if not SYMPY_AVAILABLE or not NUMPY_AVAILABLE:
         return []
 
     n = d + 4
     mf_list = [frozenset(m) for m in t["missing_faces"]]
-    # Size-2 missing faces = dotted edges
+
     dotted_pairs = [tuple(sorted(m)) for m in mf_list if len(m) == 2]
+    dotted_set = frozenset(dotted_pairs)
+    all_pairs = frozenset((i, j) for i in range(n) for j in range(i + 1, n))
+    ordinary_pairs = all_pairs - dotted_set
 
-    # All pairs
-    all_pairs = set(
-        (i, j) for i in range(n) for j in range(i + 1, n)
-    )
-    dotted_set = set(dotted_pairs)
-
-    # Ordinary edges = pairs that are neither dotted nor forced orthogonal.
-    # In principle, non-dotted pairs can be orthogonal (m=2) OR have m>=3.
-    # We enumerate both possibilities (m=2 = orthogonal included in labels).
-    ordinary_pairs = [p for p in all_pairs if p not in dotted_set]
-
-    # Vertex sets: sets of d facets that form a face (from Stage 2 data)
-    # We need to recompute them from the GaleDiagram
     from pipeline.utils.gale import GaleDiagram
     pts = [tuple(p) for p in t["example_points"]]
     pos = frozenset(t["example_positive"])
     gd = GaleDiagram(pts, pos, d)
-    vertex_sets = gd.vertex_sets()
-
-    if not vertex_sets:
+    vertex_sets_list = gd.vertex_sets()
+    if not vertex_sets_list:
         return []
 
-    # Create symbols for dotted edges
+    vertex_groups = _build_vertex_groups(ordinary_pairs, vertex_sets_list)
+    lanner_groups = _build_lanner_groups(ordinary_pairs, mf_list)
+
+    # Fast pre-filter: if any Lannér face is a subset of a vertex, Sylvester's
+    # criterion forces the vertex PD and Lannér conditions to conflict → no
+    # valid labeling can exist, skip immediately.
+    vertex_sets_frozen = [frozenset(v) for v in vertex_sets_list]
+    for face_sorted, _, _ in lanner_groups:
+        face_set = frozenset(face_sorted)
+        for v in vertex_sets_frozen:
+            if face_set <= v:
+                if verbose:
+                    print(f"    Lannér face {face_sorted} inside vertex {sorted(v)} → infeasible")
+                return []
+
     dot_syms = {
         pair: symbols(f'x_{pair[0]}_{pair[1]}', positive=True)
         for pair in dotted_pairs
     }
 
     results = []
-    label_count = 0
+    t_start = time.time()
+    stats = {"screened": 0, "passed_screen": 0, "exact_attempts": 0}
 
-    for label_assign in enumerate_label_assignments(ordinary_pairs, vertex_sets, n):
-        label_count += 1
+    for label_assign in enumerate_labels_backtrack(
+        ordinary_pairs, vertex_groups, lanner_groups,
+        max_count=max_assignments,
+        timeout=enum_timeout,
+    ):
+        elapsed = time.time() - t_start
+        if elapsed > enum_timeout + solve_timeout:
+            break
 
-        # Build full gram matrix for vertex PD check
-        # (with dotted unknowns temporarily set to a placeholder)
-        # First check local elliptic conditions on vertices
-        vertex_ok = True
-        for v in vertex_sets:
-            v_list = sorted(v)
-            # Sub-Gram matrix of just the vertex's facets
-            # Pairs within the vertex
-            v_pairs = [(v_list[i], v_list[j])
-                       for i in range(len(v_list))
-                       for j in range(i + 1, len(v_list))]
+        stats["screened"] += 1
+        ordinary_float = {p: _GRAM_FLOAT[m]
+                          for p, m in label_assign.items()}
 
-            # Build d x d Gram matrix for this vertex
-            sub = eye(d) if SYMPY_AVAILABLE else None
-            for a_idx in range(d):
-                for b_idx in range(a_idx + 1, d):
-                    i, j = v_list[a_idx], v_list[b_idx]
-                    pair = (min(i, j), max(i, j))
-                    if pair in dotted_set:
-                        # Dotted pairs within a vertex are impossible
-                        # (dotted = non-intersecting, but vertex facets all meet)
-                        vertex_ok = False
-                        break
-                    m = label_assign.get(pair, 2)
-                    entry = gram_entry_adjacent(m)
-                    sub[a_idx, b_idx] = entry
-                    sub[b_idx, a_idx] = entry
-                if not vertex_ok:
-                    break
-
-            if not vertex_ok:
-                break
-
-            # Check positive definiteness
-            ok, msg = check_vertex_pd(sub, list(range(d)), d)
-            if not ok:
-                vertex_ok = False
-                break
-
-        if not vertex_ok:
-            continue
-
-        # Build full Gram matrix with unknowns
-        G = build_gram_matrix(n, set(ordinary_pairs), dotted_set, label_assign, dot_syms)
-
-        # Enforce rank(G) = d+1 = 7: all (d+2)x(d+2) = 8x8 minors = 0
-        # For d=6, n=10: G is 10x10, rank must be 7, so all 8x8 minors vanish.
-        # This gives the polynomial equations for the unknowns.
         if dotted_pairs:
-            try:
-                candidate = _solve_gram_rank(G, d, dot_syms, dotted_pairs)
-                if candidate:
-                    results.append({
-                        "label_assignment": {str(k): v for k, v in label_assign.items()},
-                        "gram_candidates": candidate,
-                    })
-            except Exception as e:
-                # Log but don't crash
-                pass
+            # Step 3a: numerical screen
+            x_approx, residual = _numerical_screen(
+                ordinary_float, dotted_pairs, n, d,
+                residual_threshold=numerical_threshold,
+            )
+            if residual > numerical_threshold:
+                continue  # numerically infeasible
+
+            # Quick signature check at the numerical solution
+            G_np = _build_gram_numpy(ordinary_float, dotted_pairs, x_approx, n)
+            if not _check_signature_float(G_np, d):
+                continue
+
+            stats["passed_screen"] += 1
+
+            # Step 3b: exact symbolic solve
+            stats["exact_attempts"] += 1
+            G_sym = build_gram_matrix(n, label_assign, dotted_set, dot_syms)
+            remaining = max(10.0,
+                            enum_timeout + solve_timeout - (time.time() - t_start))
+            solutions = solve_rank_condition(
+                G_sym, d, dot_syms, dotted_pairs, n,
+                timeout=min(solve_timeout, remaining),
+            )
+            for sol in solutions:
+                results.append({
+                    "type_id":          t["type_id"],
+                    "label_assignment": {str(k): v
+                                         for k, v in label_assign.items()},
+                    "dot_values":       {k: str(v) for k, v in sol.items()},
+                })
+
         else:
-            # No unknowns: check rank directly
-            rank = G.rank()
-            if rank == d + 1:
-                # Check signature
-                sig = _check_signature(G, d)
-                if sig:
+            # No dotted pairs — check rank and signature directly (float OK
+            # for rank/sig since there are no free parameters)
+            G_np = _build_gram_numpy(ordinary_float, [], np.array([]), n)
+            evals = np.linalg.eigvalsh(G_np)
+            rank_approx = int(np.sum(np.abs(evals) > 1e-8))
+            if rank_approx == d + 1 and _check_signature_float(G_np, d):
+                # Confirm with exact rank (no unknowns so SymPy is fast)
+                G_sym = build_gram_matrix(n, label_assign, dotted_set, {})
+                if G_sym.rank() == d + 1:
                     results.append({
-                        "label_assignment": {str(k): v for k, v in label_assign.items()},
-                        "gram_candidates": [{"values": {}, "gram": str(G)}],
+                        "type_id":          t["type_id"],
+                        "label_assignment": {str(k): v
+                                             for k, v in label_assign.items()},
+                        "dot_values":       {},
                     })
+
+    if verbose:
+        print(f"    screened={stats['screened']} "
+              f"passed_screen={stats['passed_screen']} "
+              f"exact_attempts={stats['exact_attempts']}")
 
     return results
 
 
-def _solve_gram_rank(G, d, dot_syms, dotted_pairs):
-    """Solve for dotted-edge weights enforcing rank(G) = d+1.
+# ---------------------------------------------------------------------------
+# Stage 4 runner
+# ---------------------------------------------------------------------------
 
-    Returns list of solution dicts {sym_name: value} if solutions exist
-    with all x_ab > 1. Returns empty list otherwise.
-    """
-    if not SYMPY_AVAILABLE:
-        return []
-
-    rank_constraint = d + 1
-    n = G.shape[0]
-    minor_size = rank_constraint + 1  # = d+2
-
-    if len(dotted_pairs) == 0:
-        return []
-
-    # Get all (d+2) x (d+2) minors
-    # For n=10, d=6: minor_size=8, C(10,8)^2 = 45^2 = 2025 minors — heavy
-    # Use a smarter approach: take the first minor_size rows and all
-    # subsets of minor_size columns (or use the rank condition differently).
-    # For small numbers of unknowns, direct solve may work.
-
-    sym_list = list(dot_syms.values())
-
-    if len(sym_list) == 1:
-        # Single unknown: solve det of (d+1)x(d+1) principal submatrix = 0
-        # Actually solve rank condition more carefully
-        x = sym_list[0]
-        # Use characteristic polynomial approach for small cases
-        eqs = []
-        # The determinant of G must be 0 (rank < n = 10 if d+1 = 7)
-        # More precisely, all (rank_constraint+1)-minors must be 0
-        # For speed, use the fact that with 1 unknown, det(G)=0 gives a poly
-        det_G = G.det()
-        det_eq = Poly(det_G, x)
-        solutions = solve(det_G, x)
-        valid = []
-        for sol in solutions:
-            if sol.is_real and sol > 1:
-                # Verify rank and signature
-                G_sub = G.subs(x, sol)
-                r = G_sub.rank()
-                if r == d + 1:
-                    if _check_signature(G_sub, d):
-                        valid.append({str(x): sol})
-        return valid
-
-    elif len(sym_list) == 2:
-        x, y = sym_list
-        # Use two independent minor equations
-        eqs = []
-        from itertools import combinations as combs
-        for rows in combs(range(n), minor_size):
-            for cols in combs(range(n), minor_size):
-                sub = G.extract(list(rows), list(cols))
-                eq = sub.det()
-                if eq != 0:
-                    eqs.append(eq)
-                    if len(eqs) >= 5:
-                        break
-            if len(eqs) >= 5:
-                break
-
-        if not eqs:
-            return []
-
-        try:
-            sols = solve(eqs[:3], [x, y], dict=True)
-            valid = []
-            for sol in sols:
-                x_val = sol.get(x)
-                y_val = sol.get(y)
-                if (x_val is not None and y_val is not None and
-                        x_val.is_real and y_val.is_real and
-                        x_val > 1 and y_val > 1):
-                    G_sub = G.subs([(x, x_val), (y, y_val)])
-                    if G_sub.rank() == d + 1 and _check_signature(G_sub, d):
-                        valid.append({str(x): x_val, str(y): y_val})
-            return valid
-        except Exception:
-            return []
-
-    else:
-        # General case: Gröbner basis approach
-        # Build ideal from minor equations
-        eqs = []
-        from itertools import combinations as combs
-        for rows in combs(range(n), minor_size):
-            for cols in combs(range(n), minor_size):
-                sub = G.extract(list(rows), list(cols))
-                eq = sub.det()
-                if eq != 0 and not eq.is_number:
-                    eqs.append(eq)
-                    if len(eqs) >= 10:
-                        break
-            if len(eqs) >= 10:
-                break
-
-        if not eqs:
-            return []
-
-        try:
-            sols = solve(eqs, sym_list, dict=True)
-            valid = []
-            for sol in sols:
-                if all(sym_list[i] in sol for i in range(len(sym_list))):
-                    vals = [sol[s] for s in sym_list]
-                    if all(v.is_real and v > 1 for v in vals):
-                        G_sub = G.subs(list(zip(sym_list, vals)))
-                        if G_sub.rank() == d + 1 and _check_signature(G_sub, d):
-                            valid.append({str(s): v for s, v in zip(sym_list, vals)})
-            return valid
-        except Exception:
-            return []
-
-
-def _check_signature(G, d):
-    """Check that G has signature (d, 1): exactly one negative eigenvalue.
-
-    Uses the exact inertia (sign of leading minors of LDL^T decomposition).
-    Returns True if signature is (d, 1).
-    """
-    if not SYMPY_AVAILABLE:
-        return False
-    try:
-        n = G.shape[0]
-        # Count positive and negative eigenvalues via Sylvester's criterion
-        # Use the LDL^T decomposition or just compute eigenvalues symbolically
-        # For numeric checking (all entries should be known at this point)
-        G_float = [[float(G[i, j]) for j in range(n)] for i in range(n)]
-        import numpy as np
-        eigenvalues = np.linalg.eigvalsh(np.array(G_float, dtype=float))
-        neg_count = sum(1 for e in eigenvalues if e < -1e-10)
-        pos_count = sum(1 for e in eigenvalues if e > 1e-10)
-        return neg_count == 1 and pos_count == d
-    except Exception:
-        return False
-
-
-def run_stage4(d, stage3_results, output_dir=None, verbose=True):
-    """Run Stage 4: exact Gram realizability.
-
-    Returns list of dicts with valid Gram matrices.
-    """
+def run_stage4(d, stage3_results, output_dir=None, verbose=True,
+               per_type_timeout=180.0):
+    """Run Stage 4: Coxeter label enumeration + exact Gram realizability."""
     n = d + 4
     print(f"Stage 4: d={d}, n={n}")
     print(f"  Input: {len(stage3_results)} surviving types")
 
     if not SYMPY_AVAILABLE:
-        print("  ERROR: SymPy not available. Cannot run Stage 4.")
+        print("  ERROR: SymPy not available. Skipping Stage 4.")
+        return []
+    if not NUMPY_AVAILABLE:
+        print("  ERROR: NumPy not available. Skipping Stage 4.")
         return []
 
     all_results = []
+    t0 = time.time()
 
-    for t in stage3_results:
-        results = process_type_stage4(t, d)
-        if results:
-            print(f"  Type {t['type_id']}: {len(results)} valid Gram configurations")
-            for r in results:
-                r["type_id"] = t["type_id"]
-                all_results.append(r)
+    for idx, t in enumerate(stage3_results):
+        type_results = process_type_stage4(
+            t, d,
+            max_assignments=50000,
+            enum_timeout=per_type_timeout * 0.5,
+            solve_timeout=per_type_timeout * 0.5,
+            verbose=verbose,
+        )
+        if type_results:
+            print(f"  Type {t['type_id']}: {len(type_results)} valid config(s)")
+            all_results.extend(type_results)
+        elif verbose and (idx % 25 == 0):
+            elapsed = time.time() - t0
+            print(f"  ... {idx}/{len(stage3_results)} types "
+                  f"({elapsed:.0f}s elapsed, {len(all_results)} found)")
 
     print(f"  Total valid Gram configurations: {len(all_results)}")
 
@@ -481,9 +706,17 @@ def run_stage4(d, stage3_results, output_dir=None, verbose=True):
         (out / "gram_matrices.json").write_text(
             json.dumps(all_results, indent=2, default=str)
         )
-        write_manifest(out, "stage4", {"d": d, "n": n},
-                       {"num_surviving": len(stage3_results),
-                        "num_valid_grams": len(all_results)})
+        write_manifest(
+            out, "stage4", {"d": d, "n": n},
+            {"num_surviving": len(stage3_results),
+             "num_valid_grams": len(all_results)},
+        )
         print(f"  Written to {out}/")
 
     return all_results
+
+
+def load_stage4(output_dir):
+    """Load Stage 4 results from disk."""
+    path = Path(output_dir) / "gram_matrices.json"
+    return json.loads(path.read_text())

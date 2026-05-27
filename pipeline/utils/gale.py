@@ -217,6 +217,41 @@ def _convex_hull_2d(pts):
     return hull
 
 
+def _segments_cross_2d(a, b, c, d):
+    """True iff segments [a,b] and [c,d] intersect (including endpoints)."""
+    d1 = _cross2(c, d, a)
+    d2 = _cross2(c, d, b)
+    d3 = _cross2(a, b, c)
+    d4 = _cross2(a, b, d)
+    if _sign(d1) * _sign(d2) < 0 and _sign(d3) * _sign(d4) < 0:
+        return True
+    if d1 == 0 and _on_segment(a, c, d):
+        return True
+    if d2 == 0 and _on_segment(b, c, d):
+        return True
+    if d3 == 0 and _on_segment(c, a, b):
+        return True
+    if d4 == 0 and _on_segment(d, a, b):
+        return True
+    return False
+
+
+def _segment_meets_conv_hull_2d(a, b, hull_pts):
+    """True iff segment [a,b] intersects conv(hull_pts) in R^2 (exact arithmetic)."""
+    if point_in_convex_hull_2d(a, hull_pts, fast=False):
+        return True
+    if point_in_convex_hull_2d(b, hull_pts, fast=False):
+        return True
+    hull = _convex_hull_2d(hull_pts)
+    if hull is None or len(hull) <= 2:
+        return False
+    h = len(hull)
+    return any(
+        _segments_cross_2d(a, b, hull[i], hull[(i + 1) % h])
+        for i in range(h)
+    )
+
+
 def point_strictly_in_convex_hull_2d(pt, hull_pts, fast=True):
     """Test whether pt is in the INTERIOR of conv(hull_pts) in R^2."""
     m = len(hull_pts)
@@ -277,28 +312,42 @@ class GaleDiagram:
         pos_T = [self.points[i] for i in sorted(T) if i in self.positive]
         neg_T = [self.points[i] for i in sorted(T) if i in self.negative]
 
-        if not pos_T:
-            # No positive points in T => vacuously satisfied => face
+        if not T:
+            # Empty complement (S = [n]): the empty face — vacuously a face
             result = True
+        elif not pos_T:
+            # T non-empty but no positive points: in the 3D Gale space all
+            # vectors in T have the same sign (z = -1), so 0 ∉ relint(conv(T)).
+            # Equivalently the two positive facets cannot both lie on a common face.
+            result = False
         elif not neg_T:
             # Positive points but no negative => cannot be captured
             result = False
         else:
-            result = all(
-                point_in_convex_hull_2d(p, neg_T) for p in pos_T
-            )
+            # Affine Gale criterion: conv(pos_T) ∩ conv(neg_T) ≠ ∅.
+            # For 1 positive point: p₀ ∈ conv(neg_T).
+            # For 2 positive points: segment [p₀,p₁] meets conv(neg_T)
+            # (weaker than "both inside"; correct per Ziegler §6 since
+            # the conic-hull condition translates to segment intersection).
+            if len(pos_T) == 1:
+                result = point_in_convex_hull_2d(pos_T[0], neg_T, fast=False)
+            else:
+                result = _segment_meets_conv_hull_2d(pos_T[0], pos_T[1], neg_T)
 
         self._face_cache[S] = result
         return result
 
     def valid_gale_diagram(self):
-        """Check that all positive points lie strictly in conv(negative points).
+        """Check that the diagram is valid for a bounded polytope.
 
-        This is required for the empty set to be a face (and for the
-        diagram to represent a genuine bounded polytope).
+        The empty face (S=∅) must be a face strictly: conv(pos) meets
+        conv(neg) in the interior.  For the 2-positive-point case, the
+        segment [p₀,p₁] must have a point strictly inside conv(neg).
         """
         pos_pts = [self.points[i] for i in self.positive]
         neg_pts = [self.points[i] for i in self.negative]
+        # Each positive pt strictly inside conv(neg) is sufficient
+        # (implies segment meets interior of hull).
         return all(
             point_strictly_in_convex_hull_2d(p, neg_pts) for p in pos_pts
         )
