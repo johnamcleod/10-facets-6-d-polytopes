@@ -21,10 +21,34 @@ Pipeline per surviving combinatorial type:
 
 import json
 import itertools
+import signal
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from pipeline.utils.manifest import write_manifest
+
+
+class _SympyTimeout(Exception):
+    pass
+
+
+@contextmanager
+def _hard_timeout(seconds):
+    """SIGALRM-based hard timeout. Raises _SympyTimeout if the block exceeds `seconds`."""
+    seconds = max(1, int(seconds))
+
+    def _handler(signum, frame):
+        raise _SympyTimeout()
+
+    old = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
 
 try:
     import numpy as np
@@ -50,14 +74,20 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 _GRAM_FLOAT = {
-    2: 0.0,
+    2:  0.0,
     3: -0.5,
     4: -0.7071067811865476,   # -√2/2
     5: -0.8090169943749474,   # -(1+√5)/4
+    6: -0.8660254037844387,   # -√3/2
+    7: -0.9009688679024191,   # -cos(π/7)
+    8: -0.9238795325112867,   # -cos(π/8)
+    9: -0.9396926207859084,   # -cos(π/9)
+    10: -0.9510565162951535,  # -cos(π/10)
+    12: -0.9659258262890682,  # -cos(π/12)
 }
 
-LABEL_CAP = 5
-VALID_LABELS = [2, 3, 4, 5]
+LABEL_CAP = 12
+VALID_LABELS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]   # covers all known d=4 labels incl. π/7, π/12
 
 
 def gram_entry_adjacent(m):
@@ -164,7 +194,8 @@ def _numerical_screen(ordinary_float, dotted_pairs, n, d,
         return best_x, best_val   # fast reject
 
     # Stage 2: optimise from best probe
-    bounds = [(1.001, 30.0)] * k
+    # Upper bound 1000 covers large dotted weights such as w≈34.9 in d=6 polytopes.
+    bounds = [(1.001, 1000.0)] * k
     for x0_val in [best_x[0], 1.5, 2.0]:
         try:
             res = _scipy_opt.minimize(
@@ -184,11 +215,250 @@ def _numerical_screen(ordinary_float, dotted_pairs, n, d,
     return best_x, best_val
 
 
-def _check_signature_float(G_numpy, d):
-    """Check signature (d,1): exactly one negative eigenvalue."""
+def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=40):
+    """Refine a float64 approximate solution to high (dps-digit) precision.
+
+    Uses Gauss-Newton iteration on the nk=(n-d-1) kernel conditions
+    (chosen (d+2)×(d+2) minor determinants) with mpmath arithmetic.
+
+    label_assign: dict mapping (i,j) pair -> integer m (Coxeter label).
+    The ordinary Gram entries are computed EXACTLY in mpmath (-cos(π/m)),
+    so the only imprecision is in the dotted weights being refined.
+
+    For genuine isolated Coxeter polytopes the solution is zero-dimensional
+    and this converges to the unique nearby exact algebraic values.
+    For spurious points on a positive-dimensional variety, the mpmath
+    residual stays bounded away from the convergence threshold.
+
+    Returns a list of mpmath.mpf values (length k), or None on failure.
+    """
+    try:
+        import mpmath
+    except ImportError:
+        return None
+
+    mpmath.mp.dps = dps
+    k = len(dotted_pairs)
+    nk = n - d - 1          # kernel dimension = 3 for d=5,n=9
+    minor_size = d + 2      # = 7 for d=5
+
+    # Build the ordinary-edge base matrix with EXACT mpmath entries.
+    # This is the key: -cos(π/m) in mpmath is exact to dps digits, not
+    # limited by float64 precision (1e-16), so the refinement can converge
+    # to dps-digit accuracy for the dotted weights.
+    def exact_gram(m):
+        if m == 2:  return mpmath.mpf(0)
+        if m == 3:  return mpmath.mpf(-1) / 2
+        if m == 4:  return -mpmath.sqrt(2) / 2
+        if m == 5:  return -(1 + mpmath.sqrt(5)) / 4
+        return -mpmath.cos(mpmath.pi / m)
+
+    base = mpmath.zeros(n)
+    for i in range(n):
+        base[i, i] = mpmath.mpf(1)
+    for (i, j), m in label_assign.items():
+        val = exact_gram(m)
+        base[i, j] = base[j, i] = val
+
+    def build_G(x_list):
+        G = mpmath.matrix(base)
+        for m, (i, j) in enumerate(dotted_pairs):
+            G[i, j] = G[j, i] = -x_list[m]
+        return G
+
+    def sub_det(G, rows):
+        return mpmath.det(
+            mpmath.matrix([[G[rows[r], rows[c]]
+                            for c in range(len(rows))]
+                           for r in range(len(rows))])
+        )
+
+    # Use ALL consecutive (d+2)×(d+2) minor windows as the GN system.
+    # n-minor_size+1 windows; when k < this, system is overdetermined (normal
+    # equations); when k > this, underdetermined (minimum-norm via J J^T).
+    minor_rows = [list(range(s, s + minor_size))
+                  for s in range(n - minor_size + 1)]
+    m_eqs = len(minor_rows)
+
+    tol = mpmath.power(10, -(dps - 8))
+    x = [mpmath.mpf(xi) for xi in x_approx]
+
+    def compute_f(x_list):
+        G = build_G(x_list)
+        return [sub_det(G, mr) for mr in minor_rows]
+
+    eps_fd = mpmath.power(10, -(dps // 2))
+
+    for _ in range(max_iter):
+        f_val = compute_f(x)
+        f_norm = mpmath.norm(mpmath.matrix(f_val))
+        if f_norm < tol:
+            break
+
+        J = mpmath.zeros(m_eqs, k)
+        for col in range(k):
+            x_p = list(x)
+            x_p[col] = x_p[col] + eps_fd
+            fp = compute_f(x_p)
+            for row in range(m_eqs):
+                J[row, col] = (fp[row] - f_val[row]) / eps_fd
+
+        if k <= m_eqs:
+            # Overdetermined or square: normal equations
+            JTJ = J.T * J
+            JTf = J.T * mpmath.matrix(f_val)
+            try:
+                dx = mpmath.lu_solve(JTJ, JTf)
+            except Exception:
+                return None
+        else:
+            # Underdetermined: minimum-norm step
+            JJT = J * J.T
+            try:
+                rhs = mpmath.lu_solve(JJT, mpmath.matrix(f_val))
+            except Exception:
+                return None
+            dx = J.T * rhs
+
+        for col in range(k):
+            x[col] = x[col] - dx[col]
+            if x[col] < mpmath.mpf('1.0001'):
+                x[col] = mpmath.mpf('1.0001')
+
+    # Accept only if the GN-minor residual is genuinely tiny.
+    f_final = compute_f(x)
+    f_norm_final = mpmath.norm(mpmath.matrix(f_final))
+    if f_norm_final > mpmath.power(10, -(dps // 2)):
+        return None
+    return x
+
+
+def _pslq_identify(xi_mp, dps=60):
+    """Identify a high-precision mpmath value as a closed-form algebraic expression.
+
+    Uses mpmath.identify (PSLQ) then falls back to sympy.nsimplify with a
+    broad basis.  Returns a SymPy expression or None.
+
+    Correctness note: we require the candidate to be a *symbolic* expression
+    (contain at least one irrational/algebraic operation), not a plain decimal.
+    This prevents the trivial passthrough where mpmath.identify returns the
+    decimal representation and sympify() turns it into a SymPy Float.
+    """
+    import mpmath
+    from sympy import sympify, sqrt as _sqrt, nsimplify, Float as SympyFloat, Number
+
+    xi_f = float(xi_mp)
+    if xi_f <= 1.0:
+        return None
+
+    def is_symbolic(expr):
+        """Return True iff expr contains irrational/sqrt structure (not a plain number)."""
+        from sympy import Rational
+        return not expr.is_number or not isinstance(expr, (SympyFloat, Rational))
+
+    def close_to_xi(expr):
+        """Check agreement with xi_mp at high precision (dps//2 digits)."""
+        try:
+            val_mp = mpmath.mpf(str(expr.evalf(dps)))
+            return abs(val_mp - xi_mp) < mpmath.power(10, -(dps // 2))
+        except Exception:
+            return False
+
+    # 1. mpmath PSLQ identification
+    # mpmath.identify can return symbolic strings like "(1+sqrt(5))/2"
+    # OR plain decimal strings when it fails to find a pattern.
+    # We only accept results that parse to a genuinely symbolic form.
+    for tol_exp in [-(dps - 5), -(dps // 2), -25]:
+        tol_mp = mpmath.power(10, tol_exp)
+        result_str = mpmath.identify(xi_mp, tol=tol_mp)
+        if result_str is not None and ("sqrt" in result_str or "/" in result_str
+                                       or "pi" in result_str):
+            try:
+                expr = sympify(result_str)
+                if is_symbolic(expr) and close_to_xi(expr):
+                    return expr
+            except Exception:
+                pass
+
+    # 2. nsimplify with progressively wider bases.
+    # Pass xi_mp as a high-precision string so nsimplify gets > 15 digits of
+    # information rather than the ~15-digit float64 value.
+    xi_str = mpmath.nstr(xi_mp, dps - 5, strip_zeros=False)
+    basis_sets = [
+        [_sqrt(5)],
+        [_sqrt(2), _sqrt(5)],
+        [_sqrt(2), _sqrt(3), _sqrt(5)],
+        [_sqrt(2), _sqrt(3), _sqrt(5), _sqrt(6), _sqrt(10)],
+    ]
+    for basis in basis_sets:
+        for tol in [1e-30, 1e-20, 1e-12]:
+            try:
+                candidate = nsimplify(xi_str, basis, rational=False, tolerance=tol)
+                if is_symbolic(candidate) and close_to_xi(candidate):
+                    return candidate
+            except Exception:
+                pass
+
+    return None
+
+
+def _recognize_highprec_and_verify(x_hp, sym_list, G_sym, d, timeout=120.0):
+    """Run PSLQ identification on high-precision x values, then verify exactly.
+
+    x_hp: list of mpmath.mpf values (from _refine_mpmath).
+    Returns a list of solution dicts (same format as solve_rank_condition),
+    or [] if any component cannot be identified or verification fails.
+    """
+    deadline = time.time() + timeout
+    exact_vals = []
+    for xi_mp in x_hp:
+        if time.time() > deadline:
+            return []
+        expr = _pslq_identify(xi_mp)
+        if expr is None:
+            return []
+        exact_vals.append(expr)
+
+    # All components identified; verify x_i > 1
+    try:
+        floats = [float(v.evalf()) for v in exact_vals]
+    except Exception:
+        return []
+    if not all(f > 1.0 + 1e-9 for f in floats):
+        return []
+
+    # Substitute into symbolic Gram matrix and verify rank + signature
+    try:
+        if time.time() > deadline:
+            return []
+        G_sub = G_sym.subs(list(zip(sym_list, exact_vals)))
+        n_mat = G_sub.shape[0]
+        G_np = np.array([[float(G_sub[i, j].evalf())
+                          for j in range(n_mat)]
+                         for i in range(n_mat)], dtype=float)
+        if not _check_signature_float(G_np, d):
+            return []
+        with _hard_timeout(max(1, int(deadline - time.time()))):
+            rank_ok = G_sub.rank() == d + 1
+        if not rank_ok:
+            return []
+    except Exception:
+        return []
+
+    sol = {str(s): v for s, v in zip(sym_list, exact_vals)}
+    return [sol]
+
+
+def _check_signature_float(G_numpy, d, tol=1e-8):
+    """Check signature (d,1): exactly one negative eigenvalue.
+
+    tol: eigenvalues with |λ| < tol are treated as zero.  The default 1e-8 is
+    appropriate for exact solutions; use a larger value (e.g. 1e-3) when checking
+    numerically approximate x values where near-zero eigenvalues may be ~1e-7.
+    """
     evals = np.linalg.eigvalsh(G_numpy)
-    neg = int(np.sum(evals < -1e-8))
-    pos = int(np.sum(evals > 1e-8))
+    neg = int(np.sum(evals < -tol))
+    pos = int(np.sum(evals > tol))
     return neg == 1 and pos == d
 
 
@@ -197,12 +467,14 @@ def _check_signature_float(G_numpy, d):
 # ---------------------------------------------------------------------------
 
 def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list,
-                          sub_size_threshold=4):
+                          sub_size_threshold=5):
     """Return list of (v_sorted_tuple, vertex_ordinary_pairs_frozenset).
 
     For large vertices (k pairs where 4^k > 2^20), also include sub-vertex
-    groups of size sub_size_threshold to get precomputable forward-checking
-    constraints (sub-matrices of a PD matrix are also PD).
+    groups up to sub_size_threshold to enable precomputed forward-checking.
+    Default threshold=5: with label_indices=(0,1,2,3) the 5-node sub-vertex
+    has only 1,386 valid PD combos (well below the 4096 bitmask limit),
+    providing near-full-vertex PD pruning for d=6 polytopes.
     """
     seen_groups = set()
     groups = []
@@ -235,6 +507,135 @@ def _build_vertex_groups(ordinary_pairs_set, vertex_sets_list,
                     if (sub, sub_vp) not in seen_groups:
                         groups.append((sub, sub_vp))
                         seen_groups.add((sub, sub_vp))
+    return groups
+
+
+def _build_extended_lanner_groups(ordinary_pairs_set, mf_list, n, max_extra=3):
+    """Lannér (signature (k-1,1)) groups for "extended missing faces".
+
+    For each missing face M of size s ≥ 3 and each set E of 1..max_extra extra
+    nodes such that ALL C(s+|E|, 2) pairs are ordinary and no pair in E×M or
+    within E is itself a dotted pair (size-2 missing face), the sub-Gram
+    G_{M ∪ E} must have signature (s+|E|-1, 1) — same Lannér structure as G_M,
+    just embedded in a larger matrix.
+
+    These constraints are complementary to face-tuple (PD) groups: face-tuples
+    enforce ellipticity on face-sets, extended-Lannér groups enforce the
+    propagation of hyperbolicity through the diagram.
+
+    max_extra=3 is recommended: up to 4-node (size-3 MF + 1) and 5-node
+    (size-3 MF + 2) extended groups capture the main propagation constraints.
+    With max_extra=3 and max-size-3 MF we get groups up to size min(s+max_extra, n).
+    """
+    mf_as_frozensets = [frozenset(m) for m in mf_list]
+    dotted_pairs_set = frozenset(
+        tuple(sorted(m)) for m in mf_list if len(m) == 2
+    )
+
+    groups = []
+    seen = set()
+
+    for mf in mf_list:
+        s = len(mf)
+        if s < 3:
+            continue
+        mf_sorted = tuple(sorted(mf))
+        mf_set = frozenset(mf_sorted)
+
+        # Extra nodes: anything not in M
+        extra_candidates = [k for k in range(n) if k not in mf_set]
+
+        for extra_size in range(1, max_extra + 1):
+            for extra in itertools.combinations(extra_candidates, extra_size):
+                combo = tuple(sorted(mf_sorted + extra))
+                combo_fs = frozenset(combo)
+                if combo_fs in seen:
+                    continue
+
+                # Check: no SECOND missing face in the combo besides M itself
+                # (i.e., the combo should contain exactly M as a missing face,
+                #  not a second one — else the signature requirement changes)
+                second_mf = [
+                    mf2 for mf2 in mf_as_frozensets
+                    if mf2 <= combo_fs and mf2 != mf_set and not (mf2 < mf_set)
+                ]
+                if second_mf:
+                    continue  # combo contains a second distinct missing face
+
+                # All C(|combo|, 2) pairs must be ordinary
+                k = len(combo)
+                pairs = []
+                ok = True
+                for a in range(k):
+                    for b in range(a + 1, k):
+                        p = (combo[a], combo[b])
+                        if p not in ordinary_pairs_set:
+                            ok = False
+                            break
+                        pairs.append(p)
+                    if not ok:
+                        break
+                if not ok:
+                    continue
+
+                seen.add(combo_fs)
+                groups.append((combo, frozenset(pairs), k))
+
+    return groups
+
+
+def _build_face_tuple_groups(ordinary_pairs_set, mf_list, n, max_size=4):
+    """Elliptic (PD) groups for all face-tuples of size 3..max_size.
+
+    Vinberg: in a compact Coxeter polytope the Gram submatrix of any set of
+    mutually-meeting facets is positive definite (they span an elliptic
+    sub-diagram).  A set S of facets mutually meets iff no missing face of the
+    combinatorial type is a subset of S.
+
+    These groups feed into the same bitmask forward-checking as vertex groups.
+    The key gain for types with few missing triples: the ordinary-edge graph
+    (pairs with label ≥ 3) must be triangle-free except on size-3 missing
+    faces, which by Mantel's theorem caps it at ≤ 25 edges and drastically
+    prunes the search that previously generated millions of assignments.
+
+    max_size=4 is the recommended default: size-3 adds triangle-free pruning,
+    size-4 adds path/cycle pruning.  The existing _build_vertex_groups already
+    adds geometric-vertex sub-groups; this function adds the complementary
+    non-vertex face-tuples that those sub-groups miss.
+    """
+    mf_as_frozensets = [frozenset(m) for m in mf_list]
+
+    groups = []
+    seen = set()
+
+    for size in range(3, max_size + 1):
+        for combo in itertools.combinations(range(n), size):
+            combo_fs = frozenset(combo)
+            if combo_fs in seen:
+                continue
+            # Face check: no missing face may be a subset of this combo.
+            # Dotted pairs (size-2 missing faces) are automatically excluded here.
+            if any(mf <= combo_fs for mf in mf_as_frozensets):
+                continue
+            # All C(size,2) pairs must be ordinary (non-dotted).
+            # (Guaranteed by the face check above for valid types, but verified
+            # explicitly for safety.)
+            pairs = []
+            ok = True
+            for a in range(size):
+                for b in range(a + 1, size):
+                    p = (combo[a], combo[b])
+                    if p not in ordinary_pairs_set:
+                        ok = False
+                        break
+                    pairs.append(p)
+                if not ok:
+                    break
+            if not ok:
+                continue
+            seen.add(combo_fs)
+            groups.append((combo, frozenset(pairs)))
+
     return groups
 
 
@@ -295,11 +696,27 @@ def _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups):
     ordered = []
     seen = set()
 
-    # Lannér pairs — process first so Lannér checks fire early
+    # Lannér pairs — process first so Lannér checks fire early.
+    # Strategy: pairs that appear in EVERY Lannér group (universal pairs) are
+    # placed first because they constrain all groups simultaneously, giving
+    # maximum early pruning.  Remaining Lannér pairs keep their original
+    # lexicographic order so that types whose universal pairs are already lex-
+    # first (e.g. types 107/119/132) are not affected.
+    from collections import Counter as _Counter
     lanner_pairs = set()
+    lanner_pair_freq: _Counter = _Counter()
+    n_lg = len(lanner_groups)
     for _, lp, _ in lanner_groups:
         lanner_pairs.update(lp)
-    for p in sorted(lanner_pairs & ordinary_set):
+        for p in lp:
+            lanner_pair_freq[p] += 1
+    universal = {p for p, f in lanner_pair_freq.items() if f == n_lg} if n_lg > 0 else set()
+    # Universal pairs (appear in ALL Lannér groups) first, then remaining lex.
+    for p in sorted(universal & ordinary_set):
+        if p not in seen:
+            ordered.append(p)
+            seen.add(p)
+    for p in sorted((lanner_pairs - universal) & ordinary_set):
         if p not in seen:
             ordered.append(p)
             seen.add(p)
@@ -344,97 +761,122 @@ def _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups):
 # Module-level cache: valid label assignments for sub-vertex groups.
 # Key: d (number of facets in the group, all pairs ordinary).
 # Value: numpy array of shape (N, C(d,2)) dtype int8 of valid label-index combos,
-#   or None if 4^C(d,2) > max_combos.
+#   or None if nl^C(d,2) > max_combos.
 # Valid combos are the same for every group of the same size (canonical structure).
 _VG_VALID_CACHE: dict = {}
 
 # Lannér cache: key = k (group size), value = valid combos array.
 _LG_VALID_CACHE: dict = {}
 
+# Maximum number of valid combos before switching from bitmask forward-checking
+# to on-the-fly eigenvalue checks. A bitmask of N bits takes N/8 bytes and AND
+# operations scale linearly — above ~4096 combos it becomes noticeably slower.
+_BITMASK_COMBO_LIMIT = 4096
 
-def _canonical_pd_valid(d, max_combos=1 << 20):
+
+def _canonical_pd_valid(d, max_combos=1 << 22, label_indices=None):
     """Compute valid label-index combos for a d-node all-ordinary vertex (PD condition).
 
-    Returns numpy array of shape (N, k) dtype int8, or None if 4^k > max_combos.
-    Cached globally — same result for every vertex group of the same size.
+    label_indices: tuple of indices into VALID_LABELS to use (default: all).
+    Returns numpy array of shape (N, k) dtype int8, or None if nl^k > max_combos.
+    Cached by (d, label_indices).
     """
-    if d in _VG_VALID_CACHE:
-        return _VG_VALID_CACHE[d]
+    labels = VALID_LABELS if label_indices is None else [VALID_LABELS[i] for i in label_indices]
+    cache_key = (d, tuple(labels))
+    if cache_key in _VG_VALID_CACHE:
+        return _VG_VALID_CACHE[cache_key]
 
+    nl = len(labels)
     k = d * (d - 1) // 2  # = C(d,2) pairs, in lex order
-    if 4 ** k > max_combos:
-        _VG_VALID_CACHE[d] = None
+    if nl ** k >= max_combos:
+        _VG_VALID_CACHE[cache_key] = None
         return None
 
-    label_f = [_GRAM_FLOAT[m] for m in VALID_LABELS]
-    # Canonical pair ordering: (0,1),(0,2),...,(0,d-1),(1,2),...
-    pair_idx = 0
-    pos_map = {}
-    for a in range(d):
-        for b in range(a + 1, d):
-            pos_map[pair_idx] = (a, b)
-            pair_idx += 1
+    label_f = np.array([_GRAM_FLOAT[m] for m in labels], dtype=float)
+    # Pair positions: (a,b) for each of the k pairs in lex order
+    pairs_ab = [(a, b) for a in range(d) for b in range(a + 1, d)]
 
-    valid_rows = []
-    for combo in itertools.product(range(4), repeat=k):
-        M = np.eye(d, dtype=float)
-        for pi, (a, b) in pos_map.items():
-            v = label_f[combo[pi]]
-            M[a, b] = v
-            M[b, a] = v
-        try:
-            np.linalg.cholesky(M)
-            valid_rows.append(combo)
-        except np.linalg.LinAlgError:
-            pass
+    # Vectorised: build all nl^k combos, check PD in batches
+    N = nl ** k
+    # Generate combo array via base-nl decomposition
+    tmp = np.arange(N, dtype=np.int64)
+    combos = np.zeros((N, k), dtype=np.int8)
+    for j in range(k - 1, -1, -1):
+        combos[:, j] = (tmp % nl).astype(np.int8)
+        tmp //= nl
+    vals = label_f[combos]   # (N, k) float values
 
-    arr = np.array(valid_rows, dtype=np.int8) if valid_rows else np.zeros((0, k), dtype=np.int8)
-    _VG_VALID_CACHE[d] = arr
+    BATCH = 20_000
+    valid_list = []
+    for start in range(0, N, BATCH):
+        end = min(start + BATCH, N)
+        v = vals[start:end]          # (B, k)
+        mats = np.zeros((end - start, d, d), dtype=float)
+        mats[:, np.arange(d), np.arange(d)] = 1.0
+        for j, (a, b) in enumerate(pairs_ab):
+            mats[:, a, b] = v[:, j]
+            mats[:, b, a] = v[:, j]
+        evals = np.linalg.eigvalsh(mats)   # (B, d)
+        mask = np.all(evals > 1e-10, axis=1)
+        valid_list.append(combos[start:end][mask])
+
+    arr = np.concatenate(valid_list) if valid_list else np.zeros((0, k), dtype=np.int8)
+    _VG_VALID_CACHE[cache_key] = arr
     return arr
 
 
-def _canonical_lanner_valid(k, max_combos=1 << 20):
+def _canonical_lanner_valid(k, max_combos=1 << 22, label_indices=None):
     """Compute valid label-index combos for a k-node all-ordinary Lannér group.
 
+    label_indices: tuple of indices into VALID_LABELS to use (default: all).
     Returns numpy array of shape (N, C(k,2)) dtype int8, or None if too large.
-    Cached globally.
+    Cached by (k, label_indices).
     """
-    if k in _LG_VALID_CACHE:
-        return _LG_VALID_CACHE[k]
+    labels = VALID_LABELS if label_indices is None else [VALID_LABELS[i] for i in label_indices]
+    cache_key = (k, tuple(labels))
+    if cache_key in _LG_VALID_CACHE:
+        return _LG_VALID_CACHE[cache_key]
 
+    nl = len(labels)
     num_pairs = k * (k - 1) // 2
-    if 4 ** num_pairs > max_combos:
-        _LG_VALID_CACHE[k] = None
+    if nl ** num_pairs >= max_combos:
+        _LG_VALID_CACHE[cache_key] = None
         return None
 
-    label_f = [_GRAM_FLOAT[m] for m in VALID_LABELS]
-    pos_map = {}
-    pi = 0
-    for a in range(k):
-        for b in range(a + 1, k):
-            pos_map[pi] = (a, b)
-            pi += 1
+    label_f = np.array([_GRAM_FLOAT[m] for m in labels], dtype=float)
+    pairs_ab = [(a, b) for a in range(k) for b in range(a + 1, k)]
 
-    valid_rows = []
-    for combo in itertools.product(range(4), repeat=num_pairs):
-        M = np.eye(k, dtype=float)
-        for pi, (a, b) in pos_map.items():
-            v = label_f[combo[pi]]
-            M[a, b] = v
-            M[b, a] = v
-        evals = np.linalg.eigvalsh(M)
-        if int(np.sum(evals < -1e-8)) == 1:
-            valid_rows.append(combo)
+    N = nl ** num_pairs
+    tmp = np.arange(N, dtype=np.int64)
+    combos = np.zeros((N, num_pairs), dtype=np.int8)
+    for j in range(num_pairs - 1, -1, -1):
+        combos[:, j] = (tmp % nl).astype(np.int8)
+        tmp //= nl
+    vals = label_f[combos]   # (N, num_pairs)
 
-    arr = np.array(valid_rows, dtype=np.int8) if valid_rows else np.zeros((0, num_pairs), dtype=np.int8)
-    _LG_VALID_CACHE[k] = arr
+    BATCH = 20_000
+    valid_list = []
+    for start in range(0, N, BATCH):
+        end = min(start + BATCH, N)
+        v = vals[start:end]
+        mats = np.zeros((end - start, k, k), dtype=float)
+        mats[:, np.arange(k), np.arange(k)] = 1.0
+        for j, (a, b) in enumerate(pairs_ab):
+            mats[:, a, b] = v[:, j]
+            mats[:, b, a] = v[:, j]
+        evals = np.linalg.eigvalsh(mats)
+        mask = np.sum(evals < -1e-8, axis=1) == 1
+        valid_list.append(combos[start:end][mask])
+
+    arr = np.concatenate(valid_list) if valid_list else np.zeros((0, num_pairs), dtype=np.int8)
+    _LG_VALID_CACHE[cache_key] = arr
     return arr
 
 
-def _prepare_vertex_precomputed(vertex_groups):
+def _prepare_vertex_precomputed(vertex_groups, label_indices=None):
     """Prepare forward-checking data for all vertex groups.
 
-    For groups with 4^k ≤ 2^20 (k = C(d,2) pairs), loads from the global
+    For groups with nl^k ≤ 2^22 (k = C(d,2) pairs), loads from the global
     cache (computed once per process per group size).  No per-type
     precomputation cost.
 
@@ -461,14 +903,12 @@ def _prepare_vertex_precomputed(vertex_groups):
         canonical_idx = np.array(canonical_idx, dtype=np.int32)
 
         # Get cached valid array for this group size
-        valid_arr_full = _canonical_pd_valid(d)
-        if valid_arr_full is not None and len(v_pairs) == d * (d - 1) // 2:
-            # Select only the columns corresponding to v_pairs, in v_pairs order
+        valid_arr_full = _canonical_pd_valid(d, label_indices=label_indices)
+        if valid_arr_full is not None:
             valid_arr = valid_arr_full[:, canonical_idx]
-        elif valid_arr_full is not None and len(v_pairs) < d * (d - 1) // 2:
-            # Group has fewer pairs than C(d,2) — some pairs are dotted (unexpected
-            # for ordinary vertices, but handle gracefully)
-            valid_arr = valid_arr_full[:, canonical_idx]
+            # Bitmask forward-checking is efficient only for small valid sets.
+            if len(valid_arr) > _BITMASK_COMBO_LIMIT:
+                valid_arr = None  # fall back to on-the-fly PD check
         else:
             valid_arr = None  # too large to precompute
 
@@ -477,7 +917,7 @@ def _prepare_vertex_precomputed(vertex_groups):
     return result
 
 
-def _prepare_lanner_precomputed(lanner_groups):
+def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
     """Prepare forward-checking data for all Lannér groups.
 
     Returns list of (face_sorted, l_pairs_list, pair_to_pos, k, valid_array_or_None).
@@ -495,9 +935,11 @@ def _prepare_lanner_precomputed(lanner_groups):
             canonical_idx.append(pi)
         canonical_idx = np.array(canonical_idx, dtype=np.int32)
 
-        valid_arr_full = _canonical_lanner_valid(k)
+        valid_arr_full = _canonical_lanner_valid(k, label_indices=label_indices)
         if valid_arr_full is not None:
             valid_arr = valid_arr_full[:, canonical_idx]
+            if len(valid_arr) > _BITMASK_COMBO_LIMIT:
+                valid_arr = None  # fall back to on-the-fly Lannér check
         else:
             valid_arr = None
 
@@ -507,11 +949,14 @@ def _prepare_lanner_precomputed(lanner_groups):
 
 
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
-                                max_count=50000, timeout=60.0):
+                                max_count=50000, timeout=60.0, label_indices=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
-    For each group with 4^k ≤ 2^20 pairs, valid assignments are precomputed
+    label_indices: optional tuple of indices into VALID_LABELS to restrict the
+    label search (e.g. (0,1,2,3) for labels {2,3,4,5} only).  Default: all labels.
+
+    For each group with nl^k ≤ 2^22 pairs, valid assignments are precomputed
     once and forward-checked at every assignment step via numpy boolean masking.
     Groups too large to precompute fall back to on-the-fly PD checking when
     the group is fully assigned.
@@ -521,13 +966,19 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     if lanner_groups is None:
         lanner_groups = []
 
+    # Resolve label indices
+    if label_indices is None:
+        label_indices = tuple(range(len(VALID_LABELS)))
+    n_labels = len(label_indices)
+    actual_labels = [VALID_LABELS[i] for i in label_indices]
+
     pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
     n_pairs = len(pairs_list)
     pair_idx = {p: i for i, p in enumerate(pairs_list)}
 
-    # Precompute valid arrays for all groups
-    vg_precomp = _prepare_vertex_precomputed(vertex_groups)
-    lg_precomp = _prepare_lanner_precomputed(lanner_groups)
+    # Precompute valid arrays for all groups (filtered to label_indices)
+    vg_precomp = _prepare_vertex_precomputed(vertex_groups, label_indices)
+    lg_precomp = _prepare_lanner_precomputed(lanner_groups, label_indices)
 
     # Map each pair -> [(group_list, group_idx, pos_in_group), ...]
     pair_to_vg_fc = [[] for _ in range(n_pairs)]    # forward-check (precomputed)
@@ -567,7 +1018,7 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
         n_combos = len(valid_arr)
         full = (1 << n_combos) - 1
         full_vg.append(full)
-        filters = [[0] * 4 for _ in range(k_pairs)]
+        filters = [[0] * n_labels for _ in range(k_pairs)]
         for i in range(n_combos):
             bit = 1 << i
             for pos in range(k_pairs):
@@ -585,7 +1036,7 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
         n_combos = len(valid_arr)
         full = (1 << n_combos) - 1
         full_lg.append(full)
-        filters = [[0] * 4 for _ in range(k_pairs)]
+        filters = [[0] * n_labels for _ in range(k_pairs)]
         for i in range(n_combos):
             bit = 1 << i
             for pos in range(k_pairs):
@@ -597,7 +1048,7 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     lg_masks = [full_lg[g] for g in range(len(lg_precomp))]
 
     assignment = [-1] * n_pairs
-    state = {"count": 0, "start": time.time()}
+    state = {"count": 0, "start": time.time(), "exhausted": False}
     trail = []  # (g_idx, is_lanner, old_int_mask)
 
     def _backtrack(depth):
@@ -605,13 +1056,13 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
             return
         if depth == n_pairs:
             state["count"] += 1
-            yield {pairs_list[i]: VALID_LABELS[assignment[i]] for i in range(n_pairs)}
+            yield {pairs_list[i]: actual_labels[assignment[i]] for i in range(n_pairs)}
             return
 
         pi = depth
         trail_mark = len(trail)
 
-        for li in range(4):   # label index 0..3
+        for li in range(n_labels):
             assignment[pi] = li
             ok = True
 
@@ -638,7 +1089,7 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
 
             # Fallback: on-the-fly checks for groups too large to precompute
             if ok and (pair_to_vg_bt[pi] or pair_to_lg_bt[pi]):
-                assign_dict = {pairs_list[i]: VALID_LABELS[assignment[i]]
+                assign_dict = {pairs_list[i]: actual_labels[assignment[i]]
                                for i in range(depth + 1)}
                 for g_idx in pair_to_vg_bt[pi]:
                     v_sorted, vp_set = vertex_groups[g_idx]
@@ -668,6 +1119,10 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
         assignment[pi] = -1
 
     yield from _backtrack(0)
+    # After the recursive generator finishes: if neither timeout nor max_count
+    # fired, the search was fully exhausted (every branch explored).
+    if state["count"] < max_count and time.time() - state["start"] <= timeout:
+        state["exhausted"] = True
 
 
 # ---------------------------------------------------------------------------
@@ -730,7 +1185,11 @@ def _collect_minor_eqs(G, n, minor_size, sym_list, unknown_rows,
             if time.time() > deadline or len(eqs) >= max_eqs:
                 break
             try_rows(sorted(list(unknown_rows) + list(extra)))
-    else:
+
+    # Fall through to all C(n, minor_size) subsets if we haven't collected enough.
+    # Necessary when len(unknown_rows) >= minor_size (extra_count <= 0) because the
+    # prioritised loop above only covers a single row combination in that case.
+    if len(eqs) < max_eqs:
         for rows in itertools.combinations(range(n), minor_size):
             if time.time() > deadline or len(eqs) >= max_eqs:
                 break
@@ -788,41 +1247,149 @@ def solve_rank_condition(G, d, dot_syms, dotted_pairs, n, timeout=60.0):
     if not eqs:
         return []
 
+    remaining = max(1.0, deadline - time.time())
+
     try:
         if k == 1:
             x = sym_list[0]
-            roots = solve(eqs[0], x)
+            with _hard_timeout(remaining):
+                roots = solve(eqs[0], x)
             raw = [{x: r} for r in roots if r.is_real]
             return _validate_solutions(raw, sym_list, G, d, deadline)
 
         elif k <= 4:
+            raw = []
             try:
-                raw = solve(eqs[: k + 1], sym_list, dict=True)
-            except Exception:
-                raw = []
+                with _hard_timeout(remaining):
+                    raw = solve(eqs[: k + 1], sym_list, dict=True)
+            except (_SympyTimeout, Exception):
+                pass
             valid = _validate_solutions(raw, sym_list, G, d, deadline)
             if valid or time.time() > deadline:
                 return valid
             # Gröbner fallback
+            remaining2 = max(1.0, deadline - time.time())
             try:
-                basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
-                                 order='lex')
-                raw2 = solve(list(basis), sym_list, dict=True)
+                with _hard_timeout(remaining2):
+                    basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
+                                     order='lex')
+                    raw2 = solve(list(basis), sym_list, dict=True)
                 return _validate_solutions(raw2, sym_list, G, d, deadline)
-            except Exception:
+            except (_SympyTimeout, Exception):
                 return valid
 
         else:
             try:
-                basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
-                                 order='lex')
-                raw = solve(list(basis), sym_list, dict=True)
+                with _hard_timeout(remaining):
+                    basis = groebner(eqs[: min(len(eqs), k + 3)], *sym_list,
+                                     order='lex')
+                    raw = solve(list(basis), sym_list, dict=True)
                 return _validate_solutions(raw, sym_list, G, d, deadline)
-            except Exception:
+            except (_SympyTimeout, Exception):
                 return []
 
     except Exception:
         return []
+
+
+# ---------------------------------------------------------------------------
+# Algebraic recognition for high-k exact solve
+# ---------------------------------------------------------------------------
+
+# Basis elements used for nsimplify recognition of dotted-edge weights.
+# These cover all ordinary-label cosines: cos(π/m) for m∈{2,...,12} involves
+# at most √2, √3, √5, and √6.
+_NSIMPLIFY_BASIS = None  # initialised lazily to avoid import-time SymPy overhead
+
+
+def _recognize_and_verify(x_approx, sym_list, G_sym, d, timeout=60.0):
+    """Attempt to recover exact algebraic x values from a numerical approximation.
+
+    Uses sympy.nsimplify to find closed-form expressions for each component of
+    x_approx, then verifies that the substituted G_sym has rank d+1 and
+    signature (d,1).  Returns a list of solution dicts (same format as
+    solve_rank_condition), or [] if recognition or verification fails.
+    """
+    global _NSIMPLIFY_BASIS
+    if _NSIMPLIFY_BASIS is None:
+        from sympy import sqrt as _sqrt
+        # Include sqrt(10)=sqrt(2)*sqrt(5) explicitly for Q(sqrt(2),sqrt(5)) values
+        # like sqrt(10)+2*sqrt(2) (dotted weights in d=6 Bugaenko polytope).
+        _NSIMPLIFY_BASIS = [_sqrt(2), _sqrt(3), _sqrt(5), _sqrt(6), _sqrt(10)]
+
+    from sympy import nsimplify, Rational, Integer
+    deadline = time.time() + timeout
+
+    exact_vals = []
+    for xi in x_approx:
+        if time.time() > deadline:
+            return []
+        xi_f = float(xi)
+        if xi_f <= 1.0:
+            return []
+        # Try progressively more complex algebraic extensions.
+        # Use tolerance=1e-4: numerical optimizer gives ~1e-5 accuracy for dotted
+        # weights; we verify exactly via rank/signature check afterward.
+        # Collect the BEST match (smallest error) across all bases rather than
+        # accepting the first — avoids spurious near-coincidences like
+        # 2√5/3+9/2 ≈ 5.9907 being picked over the correct √10+2√2 ≈ 5.9907.
+        recognized = None
+        best_err = float('inf')
+        for basis in [[], [_NSIMPLIFY_BASIS[2]], _NSIMPLIFY_BASIS[:2],
+                      _NSIMPLIFY_BASIS[:3], _NSIMPLIFY_BASIS[:4],
+                      _NSIMPLIFY_BASIS]:
+            if time.time() > deadline:
+                break
+            try:
+                candidate = nsimplify(xi_f, basis, rational=False, tolerance=1e-4)
+                err = abs(float(candidate.evalf()) - xi_f)
+                if err < 1e-4 and err < best_err:
+                    recognized = candidate
+                    best_err = err
+                    if err < 1e-6:
+                        break  # good enough, no need to search further
+            except Exception:
+                pass
+        if recognized is None:
+            # Fall back to a high-precision rational approximation
+            try:
+                recognized = nsimplify(xi_f, rational=True, tolerance=1e-4)
+                if abs(float(recognized.evalf()) - xi_f) > 1e-4:
+                    recognized = None
+            except Exception:
+                pass
+        if recognized is None:
+            return []
+        exact_vals.append(recognized)
+
+    # Verify all x_i > 1
+    try:
+        floats = [float(v.evalf()) for v in exact_vals]
+    except Exception:
+        return []
+    if not all(f > 1.0 + 1e-9 for f in floats):
+        return []
+
+    # Substitute into symbolic Gram matrix and verify rank + signature
+    try:
+        if time.time() > deadline:
+            return []
+        G_sub = G_sym.subs(list(zip(sym_list, exact_vals)))
+        n = G_sub.shape[0]
+        G_np = np.array([[float(G_sub[i, j].evalf()) for j in range(n)]
+                         for i in range(n)], dtype=float)
+        if not _check_signature_float(G_np, d):
+            return []
+        # Exact rank check (SymPy); catch timeouts from slow symbolic arithmetic
+        with _hard_timeout(max(1, int(deadline - time.time()))):
+            rank_ok = G_sub.rank() == d + 1
+        if not rank_ok:
+            return []
+    except Exception:
+        return []
+
+    sol = {str(s): v for s, v in zip(sym_list, exact_vals)}
+    return [sol]
 
 
 # ---------------------------------------------------------------------------
@@ -834,8 +1401,16 @@ def process_type_stage4(t, d,
                          enum_timeout=60.0,
                          solve_timeout=60.0,
                          numerical_threshold=1e-6,
+                         label_indices=None,
+                         face_tuples_max_size=4,
+                         extended_lanner_max_extra=0,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
+
+    label_indices: tuple of indices into VALID_LABELS to restrict the ordinary-edge
+    label search.  Default None = all labels.  Use (0,1,2,3) to restrict to
+    labels {2,3,4,5}, which is appropriate for d≥5 where Burcroff's low-weight
+    lemma bounds labels to ≤5 for all ordinary edges.
 
     Returns list of valid Gram configurations (dicts).
     """
@@ -850,16 +1425,63 @@ def process_type_stage4(t, d,
     all_pairs = frozenset((i, j) for i in range(n) for j in range(i + 1, n))
     ordinary_pairs = all_pairs - dotted_set
 
-    from pipeline.utils.gale import GaleDiagram
-    pts = [tuple(p) for p in t["example_points"]]
-    pos = frozenset(t["example_positive"])
-    gd = GaleDiagram(pts, pos, d)
-    vertex_sets_list = gd.vertex_sets()
+    # Vertex sets: prefer an explicit list on the type dict (e.g. ground-truth
+    # vertex flags ingested directly, bypassing the Gale-diagram generator);
+    # otherwise reconstruct them from the stored affine Gale diagram example.
+    if t.get("vertex_sets"):
+        vertex_sets_list = [frozenset(v) for v in t["vertex_sets"]]
+    else:
+        from pipeline.utils.gale import GaleDiagram
+        pts = [tuple(p) for p in t["example_points"]]
+        pos = frozenset(t["example_positive"])
+        gd = GaleDiagram(pts, pos, d)
+        vertex_sets_list = gd.vertex_sets()
     if not vertex_sets_list:
         return []
 
     vertex_groups = _build_vertex_groups(ordinary_pairs, vertex_sets_list)
+
+    # Augment vertex groups with all face-tuples of size 3..face_tuples_max_size.
+    # Vinberg: every mutually-meeting set of facets spans an elliptic sub-diagram,
+    # so its Gram submatrix must be positive definite.  The existing vertex groups
+    # enforce this at geometric vertices; face-tuple groups enforce it everywhere
+    # else, adding the triangle-free constraint that prunes types with few/no
+    # missing triples (the 19 uncertain types).
+    if face_tuples_max_size >= 3:
+        ft_groups = _build_face_tuple_groups(
+            ordinary_pairs, mf_list, n, max_size=face_tuples_max_size
+        )
+        # Skip tuples already covered by an existing vertex group (same node set).
+        existing_node_sets = {frozenset(v_sorted) for v_sorted, _ in vertex_groups}
+        new_ft = [(v, p) for v, p in ft_groups
+                  if frozenset(v) not in existing_node_sets]
+        vertex_groups = vertex_groups + new_ft
+        if verbose and new_ft:
+            sizes = {}
+            for v, _ in new_ft:
+                sizes[len(v)] = sizes.get(len(v), 0) + 1
+            print(f"    face-tuple groups added: {sizes}")
+
     lanner_groups = _build_lanner_groups(ordinary_pairs, mf_list)
+
+    # Augment Lannér groups with extended missing-face groups of size 4..
+    # For each size-3+ missing face M and extra nodes E: if G_{M ∪ E} has all
+    # ordinary pairs and no second missing face, it must have signature (k-1,1)
+    # (same Lannér structure, propagated outward).  Size-4 extended groups have
+    # 3871 valid combos ≤ 4096 → full bitmask forward-checking.
+    if extended_lanner_max_extra >= 1:
+        ext_lg = _build_extended_lanner_groups(
+            ordinary_pairs, mf_list, n, max_extra=extended_lanner_max_extra
+        )
+        existing_lg_sets = {frozenset(f) for f, _, _ in lanner_groups}
+        new_ext = [(f, p, k) for f, p, k in ext_lg
+                   if frozenset(f) not in existing_lg_sets]
+        lanner_groups = lanner_groups + new_ext
+        if verbose and new_ext:
+            sizes = {}
+            for f, _, k in new_ext:
+                sizes[k] = sizes.get(k, 0) + 1
+            print(f"    extended-Lannér groups added: {sizes}")
 
     # Fast pre-filter: if any Lannér face is a subset of a vertex, Sylvester's
     # criterion forces the vertex PD and Lannér conditions to conflict → no
@@ -877,6 +1499,7 @@ def process_type_stage4(t, d,
         pair: symbols(f'x_{pair[0]}_{pair[1]}', positive=True)
         for pair in dotted_pairs
     }
+    sym_list = [dot_syms[p] for p in dotted_pairs]
 
     results = []
     t_start = time.time()
@@ -886,6 +1509,7 @@ def process_type_stage4(t, d,
         ordinary_pairs, vertex_groups, lanner_groups,
         max_count=max_assignments,
         timeout=enum_timeout,
+        label_indices=label_indices,
     ):
         elapsed = time.time() - t_start
         if elapsed > enum_timeout + solve_timeout:
@@ -904,27 +1528,76 @@ def process_type_stage4(t, d,
             if residual > numerical_threshold:
                 continue  # numerically infeasible
 
-            # Quick signature check at the numerical solution
+            # Quick signature check at the numerical solution.
+            # Use tol=1e-3 since x_approx is approximate: near-zero eigenvalues
+            # can be ~sqrt(residual) ≈ 1e-3 rather than machine epsilon.
             G_np = _build_gram_numpy(ordinary_float, dotted_pairs, x_approx, n)
-            if not _check_signature_float(G_np, d):
+            if not _check_signature_float(G_np, d, tol=1e-3):
                 continue
 
             stats["passed_screen"] += 1
-
-            # Step 3b: exact symbolic solve
             stats["exact_attempts"] += 1
+
             G_sym = build_gram_matrix(n, label_assign, dotted_set, dot_syms)
             remaining = max(10.0,
                             enum_timeout + solve_timeout - (time.time() - t_start))
-            solutions = solve_rank_condition(
-                G_sym, d, dot_syms, dotted_pairs, n,
-                timeout=min(solve_timeout, remaining),
-            )
+
+            # Step 3b: exact/recognition solve.
+            #
+            # Priority order:
+            #   1. nsimplify recognition (fast; works for simple algebraics in
+            #      the standard basis when residual is very tight, < 1e-10).
+            #   2. Gröbner/solve for k ≤ 6 (exact; slower, up to solve_timeout).
+            #   3. High-precision Gauss-Newton refinement (mpmath, 60 digits)
+            #      followed by PSLQ identification — handles k > 4 whose
+            #      exact solutions live in Q(√5), Q(√2,√5) etc.
+            #
+            # Only store solutions that pass exact algebraic verification.
+            # The old unconditional numerical fallback is removed: storing
+            # unverified floats for k > 4 produces false positives because
+            # the solution variety is positive-dimensional (k - (n-d-1) > 0
+            # free parameters) and the optimiser finds arbitrary points on it.
+            solutions = []
+            if residual < 1e-10:
+                solutions = _recognize_and_verify(
+                    x_approx, sym_list, G_sym, d,
+                    timeout=min(10.0, remaining),
+                )
+
+            if not solutions and len(dotted_pairs) <= 4:
+                # Gröbner/solve for k ≤ 4: system is at most 1-dimensional
+                # (k - (n-d-1) ≤ 1), so Gröbner terminates in reasonable time.
+                # k=5,6 (variety dim 2–3) would make Gröbner non-terminating;
+                # those are handled by the Gauss-Newton+PSLQ path below.
+                groebner_timeout = min(solve_timeout * 0.5, remaining)
+                if groebner_timeout > 2.0:
+                    groebner_sols = solve_rank_condition(
+                        G_sym, d, dot_syms, dotted_pairs, n,
+                        timeout=groebner_timeout,
+                    )
+                    solutions.extend(groebner_sols)
+
+            if not solutions:
+                # High-precision Gauss-Newton + PSLQ: refine x_approx to
+                # 60-digit precision, then identify each component via PSLQ.
+                # Only accepted if ALL components are identified AND the exact
+                # Gram matrix passes rank/signature checks.
+                hp_timeout = min(solve_timeout * 0.8, remaining)
+                if hp_timeout > 5.0:
+                    x_hp = _refine_mpmath(
+                        x_approx, label_assign, dotted_pairs, n, d,
+                    )
+                    if x_hp is not None:
+                        solutions = _recognize_highprec_and_verify(
+                            x_hp, sym_list, G_sym, d,
+                            timeout=hp_timeout,
+                        )
+
             for sol in solutions:
                 results.append({
                     "type_id":          t["type_id"],
-                    "label_assignment": {str(k): v
-                                         for k, v in label_assign.items()},
+                    "label_assignment": {str(p): v
+                                         for p, v in label_assign.items()},
                     "dot_values":       {k: str(v) for k, v in sol.items()},
                 })
 
@@ -957,9 +1630,39 @@ def process_type_stage4(t, d,
 # Stage 4 runner
 # ---------------------------------------------------------------------------
 
+def _stage4_pool_init(label_indices=None):
+    """Pre-warm module-level caches in each worker process."""
+    _canonical_pd_valid(3, label_indices=label_indices)
+    _canonical_pd_valid(4, label_indices=label_indices)
+    _canonical_pd_valid(5, label_indices=label_indices)
+    _canonical_lanner_valid(3, label_indices=label_indices)
+    _canonical_lanner_valid(4, label_indices=label_indices)
+
+
+def _stage4_worker(args):
+    """Top-level worker function for multiprocessing (must be picklable)."""
+    idx, t, d, max_assignments, enum_timeout, solve_timeout, label_indices, extended_lanner_max_extra, face_tuples_max_size = args
+    result = process_type_stage4(
+        t, d,
+        max_assignments=max_assignments,
+        enum_timeout=enum_timeout,
+        solve_timeout=solve_timeout,
+        label_indices=label_indices,
+        extended_lanner_max_extra=extended_lanner_max_extra,
+        face_tuples_max_size=face_tuples_max_size,
+        verbose=False,
+    )
+    return idx, result
+
+
 def run_stage4(d, stage3_results, output_dir=None, verbose=True,
-               per_type_timeout=180.0):
+               per_type_timeout=180.0, n_workers=None, label_indices=None,
+               max_assignments=50000, extended_lanner_max_extra=0,
+               face_tuples_max_size=4):
     """Run Stage 4: Coxeter label enumeration + exact Gram realizability."""
+    import multiprocessing as mp
+    import os
+
     n = d + 4
     print(f"Stage 4: d={d}, n={n}")
     print(f"  Input: {len(stage3_results)} surviving types")
@@ -971,33 +1674,88 @@ def run_stage4(d, stage3_results, output_dir=None, verbose=True,
         print("  ERROR: NumPy not available. Skipping Stage 4.")
         return []
 
+    if n_workers is None:
+        n_workers = 0  # default: sequential (multiprocessing unreliable on macOS)
+
+    enum_timeout = per_type_timeout * 0.5
+    solve_timeout = per_type_timeout * 0.5
+
     all_results = []
     t0 = time.time()
 
-    for idx, t in enumerate(stage3_results):
-        type_results = process_type_stage4(
-            t, d,
-            max_assignments=50000,
-            enum_timeout=per_type_timeout * 0.5,
-            solve_timeout=per_type_timeout * 0.5,
-            verbose=verbose,
-        )
-        if type_results:
-            print(f"  Type {t['type_id']}: {len(type_results)} valid config(s)")
-            all_results.extend(type_results)
-        elif verbose and (idx % 25 == 0):
-            elapsed = time.time() - t0
-            print(f"  ... {idx}/{len(stage3_results)} types "
-                  f"({elapsed:.0f}s elapsed, {len(all_results)} found)")
-
-    print(f"  Total valid Gram configurations: {len(all_results)}")
-
+    out = None
+    gram_path = None
     if output_dir is not None:
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
-        (out / "gram_matrices.json").write_text(
-            json.dumps(all_results, indent=2, default=str)
-        )
+        gram_path = out / "gram_matrices.json"
+        gram_path.write_text("[]")
+
+    if n_workers > 0:
+        tasks = [(i, t, d, max_assignments, enum_timeout, solve_timeout, label_indices, extended_lanner_max_extra, face_tuples_max_size)
+                 for i, t in enumerate(stage3_results)]
+        done = 0
+        print(f"  Using {n_workers} workers", flush=True)
+        ctx = mp.get_context('fork')
+        init_args = (label_indices,)
+        with ctx.Pool(processes=n_workers,
+                      initializer=_stage4_pool_init,
+                      initargs=init_args) as pool:
+            for idx, type_results in pool.imap_unordered(
+                _stage4_worker, tasks, chunksize=1
+            ):
+                done += 1
+                if type_results:
+                    print(f"  Type {stage3_results[idx]['type_id']}: "
+                          f"{len(type_results)} valid config(s)", flush=True)
+                    all_results.extend(type_results)
+                    if gram_path is not None:
+                        gram_path.write_text(
+                            json.dumps(all_results, indent=2, default=str)
+                        )
+                if verbose and (done % 25 == 0):
+                    elapsed = time.time() - t0
+                    print(f"  ... {done}/{len(stage3_results)} types "
+                          f"({elapsed:.0f}s elapsed, {len(all_results)} found)",
+                          flush=True)
+    else:
+        print(f"  Sequential mode", flush=True)
+        for idx, t in enumerate(stage3_results):
+            type_results = process_type_stage4(
+                t, d,
+                max_assignments=max_assignments,
+                enum_timeout=enum_timeout,
+                solve_timeout=solve_timeout,
+                label_indices=label_indices,
+                extended_lanner_max_extra=extended_lanner_max_extra,
+                face_tuples_max_size=face_tuples_max_size,
+                verbose=False,
+            )
+            try:
+                from sympy.core.cache import clear_cache as _sympy_clear
+                _sympy_clear()
+            except Exception:
+                pass
+            if type_results:
+                print(f"  Type {t['type_id']}: {len(type_results)} valid config(s)",
+                      flush=True)
+                all_results.extend(type_results)
+                if gram_path is not None:
+                    gram_path.write_text(
+                        json.dumps(all_results, indent=2, default=str)
+                    )
+            if verbose and (idx + 1) % 25 == 0:
+                elapsed = time.time() - t0
+                rate = (idx + 1) / elapsed
+                remaining = (len(stage3_results) - idx - 1) / rate
+                print(f"  ... {idx+1}/{len(stage3_results)} types  |  "
+                      f"{elapsed:.0f}s elapsed  |  ~{remaining/60:.0f} min remaining  |  "
+                      f"{len(all_results)} found", flush=True)
+
+    print(f"  Total valid Gram configurations: {len(all_results)}")
+
+    if out is not None:
+        gram_path.write_text(json.dumps(all_results, indent=2, default=str))
         write_manifest(
             out, "stage4", {"d": d, "n": n},
             {"num_surviving": len(stage3_results),

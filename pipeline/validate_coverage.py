@@ -84,6 +84,34 @@ def load_ground_truth(path, n):
     return types
 
 
+def load_truth_as_stage3(path, d):
+    """Load ground-truth combinatorial types as Stage-4-ready type dicts.
+
+    Bypasses the order-type -> Gale-diagram generator: the vertex flags ARE the
+    vertex sets, and the minimal-non-face system IS the missing-face list.
+    Each returned dict has the keys process_type_stage4 needs:
+      type_id, missing_faces, vertex_sets, p_count.
+    """
+    n = d + 4
+    types = []
+    for i, line in enumerate(Path(path).read_text().splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        verts = parse_vertex_flags(line)
+        # Sanity: simple d-polytope -> every vertex on exactly d facets.
+        if any(len(v) != d for v in verts):
+            raise ValueError(f"line {i}: vertex not incident to exactly d={d} facets")
+        mnf = minimal_non_faces(verts, n)
+        types.append({
+            "type_id": i,
+            "missing_faces": [sorted(m) for m in mnf],
+            "vertex_sets": [sorted(v) for v in verts],
+            "p_count": sum(1 for m in mnf if len(m) == 2),
+        })
+    return types
+
+
 def load_our_types(stage3_dir):
     from pipeline.stage3_filters import load_stage3
     out = []
