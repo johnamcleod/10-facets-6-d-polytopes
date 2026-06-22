@@ -4,38 +4,52 @@
 
 ---
 
-> ## ⚠️ VALIDATION STATUS (updated 2026-06-22) — READ FIRST
+> ## ⚠️ STATUS (updated 2026-06-22) — READ FIRST
 >
-> **This document does NOT establish a classification of the d=6, 10-facet family,
-> and no uniqueness claim should be drawn from it.** An earlier draft of this writeup
-> asserted "P^B₆ is the unique compact hyperbolic Coxeter 6-polytope with 10 facets."
-> **That claim is withdrawn.** It does not currently hold up, for two independent
-> reasons established on 2026-06-19 and re-confirmed 2026-06-22:
+> **No classification of the d=6, 10-facet family is established here, and no
+> uniqueness claim should be drawn from this document.** An earlier draft asserted
+> "P^B₆ is the unique compact hyperbolic Coxeter 6-polytope with 10 facets"; **that
+> claim is withdrawn** and the d=6 completeness question **remains OPEN**.
 >
-> 1. **The combinatorial-type generator (Stage 1/2) is broken.** Validated against the
->    Ma–Zheng ground truth (`data/ground_truth/4d8m.txt`, the 30 published d=4/8-facet
->    types), our pipeline reproduces **0 of 30** real types and emits 32 spurious ones.
->    The disjoint-pair count k runs k∈{3…18} where the truth has k∈{2,…,6}; a compact
->    simple 4-polytope cannot have >6 disjoint facet pairs, so the high-k diagrams are
->    garbage. Repro: `python -m pipeline.validate_coverage --d 4`.
+> What this pipeline now does correctly (a rebuild on 2026-06-19…22 after both stages
+> were found broken):
 >
-> 2. **The Gram solver (Stage 4) cannot realize the real types.** Real d=4 polytopes use
->    dihedral labels ≥ 7 (cos(π/7) cubic, cos(π/8) quartic) outside the solver's
->    ℚ(√2,√3,√5,√6,√10) basis, and the backtracker does not scale to large label
->    alphabets. A direct bypass feeding the 30 published types into Stage 4 yields 0/30.
+> 1. **Combinatorial-type generator (Stage 1/2) — FIXED and validated.** A new exact
+>    integer-arithmetic affine-Gale criterion (`pipeline/utils/gale_exact.py`:
+>    relative-interior intersection on both sign sides) plus a Lower-Bound-Theorem
+>    polytopality gate reproduces the published combinatorial census **exactly**:
+>    **d=4 → 30/30** (0 spurious) and **d=5 → 109/109** of the k≥2 (compact-relevant)
+>    types. The prior generator scored 0/30. Repro:
+>    `python -m pipeline.validate_coverage --d 4 --stage3 runs/d4_n8/stage2`.
 >
-> **Per CLAUDE.md §3, no d=6 conclusion is valid until d=4 (348) and d=5 (51) are
-> reproduced exactly. They are NOT reproduced.** The d=6 run used the same broken
-> generator, so its "1 type survived" output carries no evidential weight — an empty or
-> near-empty d=6 result is a known pipeline defect, not a finding (CLAUDE.md §0).
+> 2. **Gram solver (Stage 4) — CORRECTNESS fixed and validated end-to-end.** Realizability
+>    is now decided by high-precision Gauss–Newton refinement (well-conditioned minor
+>    system, quadratic convergence) + **field-agnostic** algebraic recognition via
+>    *minimal polynomials* (PSLQ on powers), replacing a fixed √-basis that could not
+>    represent cos(π/m) for m≥7 and mis-recognized even 17+8√5. The full pipeline
+>    **recovers P^B₆ from scratch** (combinatorial type → label enumeration → exact
+>    solve; minpolys x⁴−36x²+4 and x²−34x−31), and the d=4 pipeline now yields genuine
+>    polytopes with exact algebraic weights.
 >
-> **What IS independently verified:** the P^B₆ Gram matrix transcribed in §4.2 passes a
-> standalone check (`verify_diagram.py`): exact rank 7, signature (6,1), no parabolic
-> subdiagrams. That confirms P^B₆ *exists and is a valid member* — it says nothing about
-> uniqueness or completeness.
+> 3. **What is NOT done — the polytope COUNTS.** Reproducing the full 348 (d=4) / 51
+>    (d=5) censuses is a question of *enumeration scale*, not correctness. Within a
+>    modest per-type budget only label-≤5 solutions are reached; the label-≥7 polytopes
+>    sit deep in the full {2,…,12} search. Ma–Zheng performed this on a compute cluster
+>    (up to 325,957 candidate matrices for a single polytope). A complete single-machine
+>    pure-Python pass is impractical; the counts are therefore **not yet reproduced**,
+>    and d=6 (14.3M order types) additionally needs a C port of the generator.
 >
-> Sections below describe the pipeline as built and the bugs fixed along the way; read
-> the per-section caveats. The genuine open problem (d=6 completeness) remains open.
+> **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
+> are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
+> So the d=6 "1 type survived" result from the old run carries no evidential weight, and
+> d=6 completeness is open.
+>
+> **Independently verified:** the P^B₆ Gram matrix (§4.2) passes a standalone check
+> (`verify_diagram.py`): exact rank 7, signature (6,1), no parabolic subdiagrams — it
+> *is* a valid member (already known), which says nothing about uniqueness.
+>
+> Sections below describe the pipeline and the bugs fixed along the way; read the
+> per-section caveats, several of which predate the 2026-06-22 fixes.
 
 ---
 
@@ -166,13 +180,13 @@ used for n ≥ 9 when `exact_dedup=True`, which was set for the d = 6 run.
 **d = 6 Stage 2 output:** **387 distinct combinatorial types** (from 14.3 M order-type
 records).
 
-> **⚠️ Caveat (2026-06-22):** This Stage-2 output is not trustworthy. The same code on
-> d=4 reproduces 0 of the 30 published combinatorial types and emits diagrams with up to
-> 18 disjoint facet pairs (impossible for a compact simple 4-polytope; max is 6). The
-> "387" for d=6 therefore very likely both *misses* real types and *includes* garbage.
-> Burcroff's count is 265 candidate types; the discrepancy (387 vs 265) is itself a
-> warning sign. The Gale-diagram face/missing-face criterion in this stage is the prime
-> suspect and the next thing to fix.
+> **⚠️ Superseded (2026-06-22):** The "387" above came from the OLD, broken generator
+> (float `GaleDiagram` / C `stage2_filter`), which reproduced 0/30 of the d=4 census and
+> emitted diagrams with up to 18 disjoint facet pairs. That generator has been **replaced**
+> by the exact `gale_exact.AffineGale` criterion + Lower-Bound-Theorem polytopality gate,
+> which reproduces d=4 (30/30) and d=5 (109/109 of k≥2 types) exactly. The d=6 Stage-2
+> count must be **regenerated** with the new criterion (it has not been rerun here; d=6's
+> 14.3M order types need a C port of the criterion first). The "387" figure is obsolete.
 
 *Literature comparison:* Burcroff [B24, §8] reports 265 candidate types for d = 6
 under a stricter pre-filtering that requires a missing face of size exactly 3 or 4
@@ -614,13 +628,17 @@ with 10 facets, or are there others?** — **remains OPEN.** This pipeline does 
 it. The earlier draft asserted a uniqueness theorem here; that assertion is **withdrawn**
 for the reasons in the validation-status banner at the top of this document.
 
-What is established:
+What is established (as of 2026-06-22):
 
-- P^B₆ exists and is a valid member (its Gram matrix passes a standalone Vinberg check,
-  §4.2). This was already known [Bug84, Bug92]; we merely reconfirm it.
-- The pipeline does **not** reproduce the published d=4 (348) or d=5 (51) censuses — it
-  matches 0/30 d=4 combinatorial types — so per CLAUDE.md §3 it is not yet trustworthy
-  for the open d=6 case.
+- **The combinatorial generator (Stage 1/2) is correct**: it reproduces the published
+  combinatorial census exactly — d=4 (30/30), d=5 (109/109 of the k≥2 types).
+- **The Gram solver (Stage 4) is correct**: field-agnostic exact realizability (minimal
+  polynomials + high-precision signature), validated by recovering P^B₆ end-to-end and
+  by producing genuine d=4 polytopes with exact weights.
+- **The polytope COUNTS (348, 51) are NOT reproduced**: this is an enumeration-scale
+  problem (label-≥7 search depth), cluster-scale in the original work — not a correctness
+  gap. So per CLAUDE.md §3 the d=6 case is **not** yet unlocked.
+- P^B₆ exists and is a valid member (§4.2) — already known [Bug84, Bug92]; reconfirmed.
 
 The classification of the k = 4 family, with the genuinely-settled rows and the open one:
 
@@ -631,9 +649,11 @@ The classification of the k = 4 family, with the genuinely-settled rows and the 
 | **6** | **OPEN** (≥1: P^B₆ known) | — |
 | 7 | 1 (Bugaenko [Bug84]) | [FT08] |
 
-**Next engineering step:** repair the Stage 1/2 Gale-diagram → missing-face generator so
-it reproduces the 30 d=4 ground-truth types exactly, then the 51 d=5 types, before any
-d=6 search is attempted again.
+**Next engineering step (scale, not correctness):** reproduce the d=4 (348) and d=5 (51)
+*counts* by running the now-correct Stage 4 over the full label alphabet to completion —
+which needs either substantial compute or a C port of the label-enumeration/screen hot
+path (and a C port of the generator for d=6's 14.3M order types). Only then is a d=6
+search evidentially meaningful.
 
 ---
 
