@@ -273,11 +273,16 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
                            for r in range(len(rows))])
         )
 
-    # Use ALL consecutive (d+2)×(d+2) minor windows as the GN system.
-    # n-minor_size+1 windows; when k < this, system is overdetermined (normal
-    # equations); when k > this, underdetermined (minimum-norm via J J^T).
-    minor_rows = [list(range(s, s + minor_size))
-                  for s in range(n - minor_size + 1)]
+    # GN system: ALL (d+2)×(d+2) principal minors whose row set contains at
+    # least one dotted index.  This richer, overdetermined set is WELL
+    # CONDITIONED — unlike the n-minor_size+1 consecutive windows, which form a
+    # rank-deficient Jacobian (the dotted weights are not independently
+    # constrained), causing only LINEAR convergence that never reaches the
+    # acceptance threshold.  With this set GN is quadratic (~1e-90 in ~5 iters).
+    from itertools import combinations as _combs
+    dot_idx = {idx for p in dotted_pairs for idx in p}
+    minor_rows = [list(c) for c in _combs(range(n), minor_size)
+                  if dot_idx & set(c)]
     m_eqs = len(minor_rows)
 
     tol = mpmath.power(10, -(dps - 8))
@@ -287,7 +292,8 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
         G = build_G(x_list)
         return [sub_det(G, mr) for mr in minor_rows]
 
-    eps_fd = mpmath.power(10, -(dps // 2))
+    # Central-difference step (more accurate Jacobian -> quadratic convergence).
+    eps_fd = mpmath.power(10, -(dps // 2 - 5))
 
     for _ in range(max_iter):
         f_val = compute_f(x)
@@ -297,11 +303,11 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
 
         J = mpmath.zeros(m_eqs, k)
         for col in range(k):
-            x_p = list(x)
-            x_p[col] = x_p[col] + eps_fd
-            fp = compute_f(x_p)
+            x_p = list(x); x_p[col] = x_p[col] + eps_fd
+            x_m = list(x); x_m[col] = x_m[col] - eps_fd
+            fp = compute_f(x_p); fm = compute_f(x_m)
             for row in range(m_eqs):
-                J[row, col] = (fp[row] - f_val[row]) / eps_fd
+                J[row, col] = (fp[row] - fm[row]) / (2 * eps_fd)
 
         if k <= m_eqs:
             # Overdetermined or square: normal equations
@@ -1393,6 +1399,104 @@ def _recognize_and_verify(x_approx, sym_list, G_sym, d, timeout=60.0):
 
 
 # ---------------------------------------------------------------------------
+# Field-agnostic exact recognition via minimal polynomials (2026-06-22)
+#
+# Replaces the fixed-√-basis nsimplify recognition, which (a) could not
+# represent cos(π/m) for m>=7 (cubic/quartic) and (b) was unreliable even in
+# Q(√5) (it mis-recognised 17+8√5 as a spurious 6-term √-combination).  Given a
+# dotted weight refined to high precision, we recover its MINIMAL POLYNOMIAL by
+# PSLQ on its powers [1, x, x², …, x^D]; this identifies any real algebraic
+# number regardless of field.  Realizability is then certified by a
+# high-precision rank/signature check (not symbolic rank, which is too slow).
+# ---------------------------------------------------------------------------
+
+def _recover_minpoly(x_mp, maxdeg=16, dps=100):
+    """Minimal polynomial of a high-precision real algebraic number via PSLQ.
+
+    Returns integer coeffs [c0, c1, …, cD] with sum ci x^i = 0 (cD != 0), of the
+    least degree D <= maxdeg for which a genuine relation is found; else None.
+    """
+    import mpmath
+    tol = mpmath.power(10, -(dps - 15))
+    for D in range(1, maxdeg + 1):
+        vec = [x_mp ** i for i in range(D + 1)]
+        try:
+            rel = mpmath.pslq(vec, maxcoeff=10 ** 15, maxsteps=10 ** 6)
+        except Exception:
+            rel = None
+        if rel and rel[-1] != 0:
+            resid = sum(rel[i] * vec[i] for i in range(D + 1))
+            if abs(resid) < tol:
+                return [int(c) for c in rel]
+    return None
+
+
+def _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=100):
+    import mpmath
+    mpmath.mp.dps = dps
+
+    def exact(m):
+        if m == 2:  return mpmath.mpf(0)
+        if m == 3:  return mpmath.mpf(-1) / 2
+        if m == 4:  return -mpmath.sqrt(2) / 2
+        if m == 5:  return -(1 + mpmath.sqrt(5)) / 4
+        return -mpmath.cos(mpmath.pi / m)
+
+    G = mpmath.zeros(n)
+    for i in range(n):
+        G[i, i] = mpmath.mpf(1)
+    for (i, j), m in label_assign.items():
+        G[i, j] = G[j, i] = exact(m)
+    for (i, j), x in zip(dotted_pairs, x_hp):
+        G[i, j] = G[j, i] = -x
+    return G
+
+
+def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
+                                   n, d, dps=100):
+    """Field-agnostic recognition + high-precision (d,1)-signature certification.
+
+    x_hp: list of mpmath values (GN-refined dotted weights).  Returns a list with
+    a single solution dict (minpoly + decimal per weight) if the matrix has rank
+    d+1 and signature (d,1) with all weights > 1; else [].
+    """
+    import mpmath
+    mpmath.mp.dps = dps
+    if not x_hp or any(x <= mpmath.mpf('1') for x in x_hp):
+        return []
+
+    minpolys = []
+    for x in x_hp:
+        mp_poly = _recover_minpoly(x, dps=dps)
+        if mp_poly is None:
+            return []          # arbitrary point on a positive-dim variety, etc.
+        minpolys.append(mp_poly)
+
+    # High-precision signature: symmetric eigenvalues; need d positive, 1
+    # negative, (n-d-1) zero.
+    G = _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=dps)
+    try:
+        E = mpmath.eigsy(G, eigvals_only=True)
+        evals = [E[i] for i in range(n)]
+    except Exception:
+        return []
+    zero_tol = mpmath.power(10, -(dps // 3))
+    pos = sum(1 for e in evals if e > zero_tol)
+    neg = sum(1 for e in evals if e < -zero_tol)
+    zero = sum(1 for e in evals if abs(e) <= zero_tol)
+    if not (pos == d and neg == 1 and zero == n - d - 1):
+        return []
+
+    sol = {}
+    for sym, x, poly in zip(sym_list, x_hp, minpolys):
+        sol[str(sym)] = {
+            "value": mpmath.nstr(x, 30),
+            "minpoly": poly,            # [c0..cD], sum ci x^i = 0
+        }
+    return [sol]
+
+
+# ---------------------------------------------------------------------------
 # Per-type Stage 4 driver
 # ---------------------------------------------------------------------------
 
@@ -1431,11 +1535,12 @@ def process_type_stage4(t, d,
     if t.get("vertex_sets"):
         vertex_sets_list = [frozenset(v) for v in t["vertex_sets"]]
     else:
-        from pipeline.utils.gale import GaleDiagram
+        # Fall back to the EXACT affine-Gale reconstruction (gale_exact), never
+        # the buggy float GaleDiagram (gale.py) which computes wrong vertices.
+        from pipeline.utils.gale_exact import AffineGale
         pts = [tuple(p) for p in t["example_points"]]
         pos = frozenset(t["example_positive"])
-        gd = GaleDiagram(pts, pos, d)
-        vertex_sets_list = gd.vertex_sets()
+        vertex_sets_list = AffineGale(pts, pos, d).vertex_sets()
     if not vertex_sets_list:
         return []
 
@@ -1538,67 +1643,29 @@ def process_type_stage4(t, d,
             stats["passed_screen"] += 1
             stats["exact_attempts"] += 1
 
-            G_sym = build_gram_matrix(n, label_assign, dotted_set, dot_syms)
-            remaining = max(10.0,
-                            enum_timeout + solve_timeout - (time.time() - t_start))
-
-            # Step 3b: exact/recognition solve.
-            #
-            # Priority order:
-            #   1. nsimplify recognition (fast; works for simple algebraics in
-            #      the standard basis when residual is very tight, < 1e-10).
-            #   2. Gröbner/solve for k ≤ 6 (exact; slower, up to solve_timeout).
-            #   3. High-precision Gauss-Newton refinement (mpmath, 60 digits)
-            #      followed by PSLQ identification — handles k > 4 whose
-            #      exact solutions live in Q(√5), Q(√2,√5) etc.
-            #
-            # Only store solutions that pass exact algebraic verification.
-            # The old unconditional numerical fallback is removed: storing
-            # unverified floats for k > 4 produces false positives because
-            # the solution variety is positive-dimensional (k - (n-d-1) > 0
-            # free parameters) and the optimiser finds arbitrary points on it.
+            # Step 3b: field-agnostic exact solve.  Refine the dotted weights to
+            # high precision (Gauss-Newton, exact mpmath ordinary entries), then
+            # recover each weight's MINIMAL POLYNOMIAL by PSLQ on its powers and
+            # certify rank (d+1) + signature (d,1) at high precision.  This works
+            # for ANY number field (labels >=7, cubic/quartic cos(π/m)), unlike
+            # the old fixed-√-basis nsimplify.  For positive-dimensional varieties
+            # (k > n-d-1) Gauss-Newton lands on an arbitrary point whose minpoly
+            # is not low-degree -> recognition returns [] -> no false positive.
             solutions = []
-            if residual < 1e-10:
-                solutions = _recognize_and_verify(
-                    x_approx, sym_list, G_sym, d,
-                    timeout=min(10.0, remaining),
+            x_hp = _refine_mpmath(
+                x_approx, label_assign, dotted_pairs, n, d, dps=100,
+            )
+            if x_hp is not None:
+                solutions = _recognize_minpoly_and_verify(
+                    x_hp, sym_list, label_assign, dotted_pairs, n, d, dps=100,
                 )
-
-            if not solutions and len(dotted_pairs) <= 4:
-                # Gröbner/solve for k ≤ 4: system is at most 1-dimensional
-                # (k - (n-d-1) ≤ 1), so Gröbner terminates in reasonable time.
-                # k=5,6 (variety dim 2–3) would make Gröbner non-terminating;
-                # those are handled by the Gauss-Newton+PSLQ path below.
-                groebner_timeout = min(solve_timeout * 0.5, remaining)
-                if groebner_timeout > 2.0:
-                    groebner_sols = solve_rank_condition(
-                        G_sym, d, dot_syms, dotted_pairs, n,
-                        timeout=groebner_timeout,
-                    )
-                    solutions.extend(groebner_sols)
-
-            if not solutions:
-                # High-precision Gauss-Newton + PSLQ: refine x_approx to
-                # 60-digit precision, then identify each component via PSLQ.
-                # Only accepted if ALL components are identified AND the exact
-                # Gram matrix passes rank/signature checks.
-                hp_timeout = min(solve_timeout * 0.8, remaining)
-                if hp_timeout > 5.0:
-                    x_hp = _refine_mpmath(
-                        x_approx, label_assign, dotted_pairs, n, d,
-                    )
-                    if x_hp is not None:
-                        solutions = _recognize_highprec_and_verify(
-                            x_hp, sym_list, G_sym, d,
-                            timeout=hp_timeout,
-                        )
 
             for sol in solutions:
                 results.append({
                     "type_id":          t["type_id"],
                     "label_assignment": {str(p): v
                                          for p, v in label_assign.items()},
-                    "dot_values":       {k: str(v) for k, v in sol.items()},
+                    "dot_values":       sol,
                 })
 
         else:

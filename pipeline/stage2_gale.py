@@ -376,6 +376,7 @@ def run_stage2_from_chi(d, chi_path, output_dir=None, exact_dedup=False,
                         "source_order_type_ids": [ot_id],
                         "example_points": [list(p) for p in pts],
                         "example_positive": sorted(gd.positive),
+                        "vertex_sets": [sorted(v) for v in gd.vertex_sets()],
                     }
                 else:
                     seen_types[key]["source_order_type_ids"].append(ot_id)
@@ -458,6 +459,7 @@ def run_stage2(d, stage1_results, output_dir=None, exact_dedup=False, verbose=Tr
                     "source_order_type_ids": [ot_id],
                     "example_points": [list(p) for p in pts],
                     "example_positive": sorted(gd.positive),
+                    "vertex_sets": [sorted(v) for v in gd.vertex_sets()],
                 }
             else:
                 seen_types[key]["source_order_type_ids"].append(ot_id)

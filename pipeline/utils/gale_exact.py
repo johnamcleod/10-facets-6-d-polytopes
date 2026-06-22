@@ -192,10 +192,18 @@ class AffineGale:
                     out.append(Sf)
         return out
 
+    def vertex_sets(self):
+        """All vertices of the simple d-polytope = the size-d faces.
+
+        (Compact/simple => every vertex lies on exactly d facets, so vertices
+        are exactly the d-subsets that are faces.)
+        """
+        return [frozenset(S) for S in combinations(range(self.n), self.d)
+                if self.is_face(frozenset(S))]
+
     def f0(self):
         """Number of vertices = number of size-d faces."""
-        return sum(1 for S in combinations(range(self.n), self.d)
-                   if self.is_face(frozenset(S)))
+        return len(self.vertex_sets())
 
     def is_polytope(self):
         """Necessary structural checks that the diagram is a simple d-polytope.
