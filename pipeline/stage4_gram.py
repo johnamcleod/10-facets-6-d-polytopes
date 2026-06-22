@@ -1427,7 +1427,10 @@ def _recover_minpoly(x_mp, maxdeg=16, dps=100):
         if rel and rel[-1] != 0:
             resid = sum(rel[i] * vec[i] for i in range(D + 1))
             if abs(resid) < tol:
-                return [int(c) for c in rel]
+                coeffs = [int(c) for c in rel]
+                if coeffs[-1] < 0:        # normalise leading coeff > 0
+                    coeffs = [-c for c in coeffs]
+                return coeffs
     return None
 
 
