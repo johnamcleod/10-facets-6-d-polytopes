@@ -20,3 +20,10 @@ dev = ["pytest>=7.4", "pytest-xdist"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Default run is fast: skip the heavy full-census / end-to-end gates.
+# Run them explicitly with:  pytest -m slow   (or  -m regression)
+addopts = "-m 'not slow and not regression'"
+markers = [
+    "slow: full-census coverage / end-to-end gates (minutes)",
+    "regression: legacy end-to-end regression fixtures",
+]
