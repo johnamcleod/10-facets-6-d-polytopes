@@ -47,47 +47,170 @@ def _load_aak_database(n, data_dir="data/aak"):
     """Attempt to load the AAK order-type database for n points.
 
     The database files from Aichholzer et al. are binary files with
-    sequences of n (x,y) coordinate pairs (typically 2-byte integers).
+    sequences of n (x,y) coordinate pairs (1-byte for .b08, 2-byte for .b16).
 
     Returns list of (canonical_chi_tuple, points) or None if not found.
     """
     data_dir = Path(data_dir)
-    # Common AAK filename patterns
+    # (path, coord_bytes) — try b08 first for n<=8, b16 otherwise
     candidates = [
-        data_dir / f"otypes{n:02d}.b16",
-        data_dir / f"otypes{n}.b16",
-        data_dir / f"order{n}.dat",
-        data_dir / f"n{n}.ot",
+        (data_dir / f"otypes{n:02d}.b08", 1),
+        (data_dir / f"otypes{n:02d}.b16", 2),
+        (data_dir / f"otypes{n}.b16",     2),
+        (data_dir / f"order{n}.dat",      2),
+        (data_dir / f"n{n}.ot",           2),
     ]
-    for path in candidates:
+    for path, coord_bytes in candidates:
         if path.exists():
-            return _parse_aak_file(path, n)
+            return _parse_aak_file(path, n, coord_bytes)
     return None
 
 
-def _parse_aak_file(path, n):
+def _chi_path(b16_path):
+    """Return the preprocessed .chi path for a given .b16 path."""
+    return b16_path.with_suffix(".chi")
+
+
+def _build_chi_file(b_path, n, coord_bytes=2):
+    """Run the C parser to convert .b08/.b16 → chi.  Raises RuntimeError on failure."""
+    import subprocess
+    c_dir = Path(__file__).parent / "c"
+    binary = c_dir / "aak_parse"
+    if not binary.exists():
+        raise RuntimeError(
+            f"C parser not built.  Run:  cd {c_dir} && make"
+        )
+    chi = _chi_path(b_path)
+    print(f"    Building {chi.name} via C parser (one-time)...", flush=True)
+    result = subprocess.run(
+        [str(binary), str(b_path), str(n), str(chi), str(coord_bytes)],
+        capture_output=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"aak_parse failed with exit code {result.returncode}")
+    return chi
+
+
+def _parse_chi_file(chi_path, n):
+    """Read a preprocessed .chi file produced by aak_parse into Python lists.
+
+    File layout (little-endian):
+      uint32  magic = 0x41414B01
+      uint32  n
+      uint64  num_valid_records
+      then for each record:
+        int8  [C(n,3)]  chirotope signs
+        uint16[n*2]     (x,y) coordinates
+    """
+    import numpy as np
+    import struct as _struct
+
+    MAGIC = 0x41414B01
+    num_triples = n * (n - 1) * (n - 2) // 6
+
+    data = chi_path.read_bytes()
+    magic, nn, num_records = _struct.unpack_from("<IIQ", data, 0)
+    if magic != MAGIC:
+        raise ValueError(f"Bad magic in {chi_path}: {magic:#010x}")
+    if nn != n:
+        raise ValueError(f".chi file has n={nn}, expected {n}")
+
+    header_size = 4 + 4 + 8   # 16 bytes
+    chi_bytes = num_triples
+    pts_bytes = n * 2 * 2     # uint16 * n * 2
+    row_bytes = chi_bytes + pts_bytes
+
+    body = np.frombuffer(data, dtype=np.uint8, offset=header_size)
+    expected = num_records * row_bytes
+    if len(body) < expected:
+        raise ValueError(f".chi file truncated: got {len(body)} body bytes, need {expected}")
+
+    body = body[:expected].reshape(num_records, row_bytes)
+
+    chi_raw = body[:, :chi_bytes].view(np.int8)                          # (N, C(n,3))
+    pts_raw = body[:, chi_bytes:].view(np.uint16).reshape(num_records, n, 2)  # (N, n, 2)
+
+    print(f"    Loaded {num_records:,} records from {chi_path.name}", flush=True)
+    return list(zip(chi_raw.tolist(), pts_raw.tolist()))
+
+
+def _parse_aak_file(path, n, coord_bytes=2):
     """Parse an AAK binary database file.
 
-    Format: each entry is n pairs of 16-bit unsigned integers (x, y).
+    Uses a pre-built .chi cache produced by the C parser (pipeline/c/aak_parse).
+    If the cache does not exist, builds it first (one-time cost, ~seconds).
     """
-    results = []
-    data = path.read_bytes()
-    record_size = n * 2 * 2  # n points, 2 coords, 2 bytes each
-    num_records = len(data) // record_size
+    chi = _chi_path(path)
+    if not chi.exists():
+        _build_chi_file(path, n, coord_bytes)
+    return _parse_chi_file(chi, n)
 
-    for i in range(num_records):
-        offset = i * record_size
-        coords = struct.unpack_from(f'{n * 2}H', data, offset)
-        points = [(coords[2*j], coords[2*j+1]) for j in range(n)]
 
-        chi = compute_chirotope(points)
-        if chi is None:
-            continue  # skip degenerate
-        chi_tuple = chirotope_to_tuple(chi, n)
-        canonical, _ = canonical_chirotope(chi_tuple, n)
-        results.append((canonical, points))
+def fetch_chi_records(chi_path, n, record_ids):
+    """Return point coordinates for specific record IDs from a .chi file.
 
-    return results
+    Uses random access (fixed-width rows) — O(1) per record.
+    Returns dict: record_id -> list of (x, y) tuples.
+    """
+    import numpy as np
+    import struct as _struct
+
+    MAGIC = 0x41414B01
+    num_triples = n * (n - 1) * (n - 2) // 6
+    chi_bytes = num_triples
+    pts_bytes = n * 2 * 2
+    row_bytes = chi_bytes + pts_bytes
+    header_size = 16
+
+    data = Path(chi_path).read_bytes()
+    magic, nn, num_records = _struct.unpack_from("<IIQ", data, 0)
+    if magic != MAGIC:
+        raise ValueError(f"Bad magic: {magic:#010x}")
+    if nn != n:
+        raise ValueError(f".chi has n={nn}, expected {n}")
+
+    body = np.frombuffer(data, dtype=np.uint8, offset=header_size)
+    body = body[:num_records * row_bytes].reshape(num_records, row_bytes)
+    pts_raw = body[:, chi_bytes:].view(np.uint16).reshape(num_records, n, 2)
+
+    return {rid: [tuple(map(int, p)) for p in pts_raw[rid]] for rid in record_ids}
+
+
+def stream_chi_file(chi_path, n, chunk_size=50_000):
+    """Yield (chi_chunk, pts_chunk, start, end, total) from a .chi file.
+
+    chi_chunk : int8  array  (M, C(n,3))
+    pts_chunk : uint16 array (M, n, 2)
+    start/end : record indices for this chunk
+    total     : total records in file
+
+    Avoids loading all 14M records into Python objects at once.
+    """
+    import numpy as np
+    import struct as _struct
+
+    MAGIC = 0x41414B01
+    num_triples = n * (n - 1) * (n - 2) // 6
+    chi_bytes = num_triples
+    pts_bytes = n * 2 * 2
+    row_bytes = chi_bytes + pts_bytes
+
+    data = chi_path.read_bytes()
+    magic, nn, num_records = _struct.unpack_from("<IIQ", data, 0)
+    if magic != MAGIC:
+        raise ValueError(f"Bad magic in {chi_path}: {magic:#010x}")
+    if nn != n:
+        raise ValueError(f".chi file has n={nn}, expected {n}")
+
+    body = np.frombuffer(data, dtype=np.uint8, offset=16)
+    body = body[:num_records * row_bytes].reshape(num_records, row_bytes)
+
+    for start in range(0, num_records, chunk_size):
+        end = min(start + chunk_size, num_records)
+        chunk = body[start:end]
+        chi_chunk = chunk[:, :chi_bytes].view(np.int8).copy()
+        pts_chunk = chunk[:, chi_bytes:].view(np.uint16).reshape(end - start, n, 2).copy()
+        yield chi_chunk, pts_chunk, start, end, num_records
 
 
 def _generate_random_order_types(n, num_samples=100000, seed=42, coord_range=1000):

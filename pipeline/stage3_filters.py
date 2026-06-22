@@ -37,18 +37,16 @@ def filter_f1(t, d=None):
 
 
 def filter_f1b(t, d):
-    """F1b: For d=4 only, p >= 3 (Burcroff Corollary 5.3 / Theorem 5.2).
+    """F1b: DISABLED 2026-06-22 — this filter is mathematically FALSE as applied.
 
-    Theorem 5.2 (Felikson-Tumarkin [15, Thm 7.1]):
-    Any compact hyperbolic Coxeter 4-polytope with n facets having at most
-    n-6 pairs of disjoint facets satisfies n <= 7.
-    For d=4, n=8: at most n-6=2 pairs => n<=7, contradiction. So p >= 3.
+    It claimed compact Coxeter 4-polytopes with 8 facets need p>=3, but the
+    Ma-Zheng / Burcroff census contains 6 polytopes with p=2 (k=2 disjoint
+    pairs).  Verified directly: `data/ground_truth/4d8m.txt` has 6 types with
+    exactly 2 size-2 minimal non-faces.  A necessary condition that rejects
+    known polytopes is wrong, so F1b is removed from the dispatch list (see
+    ALL_FILTERS).  Kept as a no-op for provenance.  (The cited Felikson-Tumarkin
+    bound gives p>=2, which is F1; the p>=3 strengthening was a misreading.)
     """
-    if d != 4:
-        return None
-    if t["p_count"] < 3:
-        return "F1b", (f"d=4: p={t['p_count']} < 3 "
-                       f"(Corollary 5.3: compact 4-polytopes with 8 facets need p>=3)")
     return None
 
 
@@ -128,7 +126,12 @@ def _check_induced_pattern(mf_list, pattern, n_total):
 
 
 def filter_f3a(t, d=None):
-    """F3a: Forbidden induced pattern {0123,014,235} (Burcroff Lemma 5.7)."""
+    """F3a: Forbidden induced pattern {0123,014,235} (Burcroff Lemma 5.7).
+
+    Lemma 5.7 is stated for d=4 only; do NOT apply to other dimensions.
+    """
+    if d != 4:
+        return None
     mf = [frozenset(m) for m in t["missing_faces"]]
     if not mf:
         return None
@@ -242,7 +245,7 @@ def filter_f5(t, d=None):
 
 ALL_FILTERS = [
     ("F1",  lambda t, d: filter_f1(t, d)),
-    ("F1b", lambda t, d: filter_f1b(t, d)),
+    # F1b removed 2026-06-22: it rejected valid p=2 polytopes (false). See filter_f1b.
     ("F2",  lambda t, d: filter_f2(t, d)),
     ("F3b", lambda t, d: filter_f3b(t, d)),
     ("F3a", lambda t, d: filter_f3a(t, d)),

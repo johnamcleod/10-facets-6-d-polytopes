@@ -22,6 +22,7 @@ Usage:
 
 import argparse
 import itertools
+import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -30,14 +31,31 @@ from pathlib import Path
 # Parsing
 # ---------------------------------------------------------------------------
 
-def parse_vertex_flags(line):
+def _detect_base(text):
+    """Detect facet-label base (0- or 1-indexed) from the min label in the file.
+
+    The HCPdm ground-truth files are inconsistent: 4d8m.txt is 1-indexed
+    (labels 1..8) while 5d9m.txt is 0-indexed (labels 0..8).  We normalise to
+    0-indexed by subtracting the detected base.
+    """
+    mn = None
+    for tok in text.replace("[", " ").replace("]", " ").replace(",", " ").split():
+        try:
+            v = int(tok)
+        except ValueError:
+            continue
+        mn = v if mn is None else min(mn, v)
+    return mn if mn in (0, 1) else 0
+
+
+def parse_vertex_flags(line, base=1):
     """Parse one ground-truth line into a list of frozensets (0-indexed facets)."""
     verts = []
     for tok in line.replace("[", "|").replace("]", "").split("|"):
         tok = tok.strip()
         if not tok:
             continue
-        verts.append(frozenset(int(x) - 1 for x in tok.split(",")))
+        verts.append(frozenset(int(x) - base for x in tok.split(",")))
     return verts
 
 
@@ -71,11 +89,13 @@ def minimal_non_faces(vertices, n):
 
 def load_ground_truth(path, n):
     types = []
-    for line in Path(path).read_text().splitlines():
+    text = Path(path).read_text()
+    base = _detect_base(text)
+    for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
-        verts = parse_vertex_flags(line)
+        verts = parse_vertex_flags(line, base)
         types.append({
             "nverts": len(verts),
             "mnf": minimal_non_faces(verts, n),
@@ -94,11 +114,13 @@ def load_truth_as_stage3(path, d):
     """
     n = d + 4
     types = []
-    for i, line in enumerate(Path(path).read_text().splitlines()):
+    text = Path(path).read_text()
+    base = _detect_base(text)
+    for i, line in enumerate(text.splitlines()):
         line = line.strip()
         if not line:
             continue
-        verts = parse_vertex_flags(line)
+        verts = parse_vertex_flags(line, base)
         # Sanity: simple d-polytope -> every vertex on exactly d facets.
         if any(len(v) != d for v in verts):
             raise ValueError(f"line {i}: vertex not incident to exactly d={d} facets")
@@ -112,15 +134,21 @@ def load_truth_as_stage3(path, d):
     return types
 
 
-def load_our_types(stage3_dir):
-    from pipeline.stage3_filters import load_stage3
-    out = []
-    for t in load_stage3(stage3_dir):
-        out.append({
-            "type_id": t["type_id"],
-            "mnf": [frozenset(m) for m in t["missing_faces"]],
-        })
-    return out
+def load_our_types(stage_dir):
+    """Load our combinatorial types from a Stage-2 (types.json) or Stage-3
+    (surviving_types.json) directory.
+
+    NOTE: the ground-truth files are the full set of simple (d,d+4)-polytope
+    combinatorial candidates (4d8m is pre-filtered to p>=2; 5d9m is not), NOT
+    the realized-compact subset.  So the GENERATOR gate is Stage-2 coverage;
+    Stage 3 then legitimately prunes candidates toward realizability and is
+    expected to drop some.  Point this at the Stage-2 dir to test the generator.
+    """
+    p2 = Path(stage_dir) / "types.json"
+    p3 = Path(stage_dir) / "surviving_types.json"
+    raw = json.loads((p3 if p3.exists() else p2).read_text())
+    return [{"type_id": t["type_id"],
+             "mnf": [frozenset(m) for m in t["missing_faces"]]} for t in raw]
 
 
 # ---------------------------------------------------------------------------
