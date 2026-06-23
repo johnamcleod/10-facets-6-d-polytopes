@@ -1549,6 +1549,58 @@ def _quad_roots_gt1(Gsub, ii, jj, eps=1e-7):
     return [x for x in ((-b + r) / (2 * a), (-b - r) / (2 * a)) if x > 1.0 + eps]
 
 
+def _pin_pair_resultant(build, pins, S1, S2, e, f, eps=1e-7):
+    """Pin a PAIR of unknown weights when no single-unknown minor exists.
+
+    det(G_S1) and det(G_S2) are each degree<=2 in x_e and in x_f.  Eliminating
+    x_f (Sylvester resultant of the two x_f-quadratics) gives a polynomial of
+    degree<=4 in x_e; its real roots>1 give x_e, and back-substitution gives
+    x_f>1.  Sound: a true solution makes both minors vanish, so the resultant
+    vanishes there and the root is found.  Returns list of (x_e, x_f)."""
+    def detS(S, xe, xf):
+        G = build(pins)
+        G[e[0], e[1]] = G[e[1], e[0]] = -xe
+        G[f[0], f[1]] = G[f[1], f[0]] = -xf
+        return np.linalg.det(G[np.ix_(S, S)])
+
+    def xf_quad(S, xe):
+        c = detS(S, xe, 0.0)
+        a = (detS(S, xe, 2.0) - 2.0 * detS(S, xe, 1.0) + c) / 2.0
+        b = detS(S, xe, 1.0) - c - a
+        return a, b, c
+
+    def res_at(xe):
+        A, B, C = xf_quad(S1, xe)
+        Dd, E, F = xf_quad(S2, xe)
+        Syl = np.array([[A, B, C, 0.0], [0.0, A, B, C],
+                        [Dd, E, F, 0.0], [0.0, Dd, E, F]])
+        return np.linalg.det(Syl)
+
+    xes = [1.3, 1.9, 2.7, 3.8, 5.5, 7.0]
+    coef = np.polyfit(xes, [res_at(x) for x in xes], 4)
+    out = []
+    for xe in np.roots(coef):
+        if abs(xe.imag) > 1e-6 or xe.real < 1.0 + eps:
+            continue
+        xe = float(xe.real)
+        a, b, c = xf_quad(S1, xe)
+        if abs(a) < 1e-12:
+            xfs = [-c / b] if (abs(b) > 1e-12 and -c / b > 1.0 + eps) else []
+        else:
+            disc = b * b - 4 * a * c
+            if disc < 0:
+                xfs = []
+            else:
+                r = float(np.sqrt(disc))
+                xfs = [x for x in ((-b + r) / (2 * a), (-b - r) / (2 * a))
+                       if x > 1.0 + eps]
+        for xf in xfs:
+            scale = max(1.0, abs(detS(S2, xe, 0.0)))
+            if abs(detS(S2, xe, xf)) < 1e-5 * scale:
+                out.append((xe, xf))
+    return out
+
+
 def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
                        max_leaves=256):
     """Cascade-pin screen.  Returns (decision, x_solutions):
@@ -1587,7 +1639,23 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
             if len(un) == 1:
                 chosen = (S, un[0]); break
         if chosen is None:
-            return None, []                      # stuck -> fall back
+            # No single-unknown minor: pin a PAIR via the resultant of two
+            # minors over the same unknown pair, then resume the cascade.
+            from collections import defaultdict as _dd
+            pairmin = _dd(list)
+            for S, de in minor_index:
+                un = tuple(sorted(x for x in de if x in unknown))
+                if len(un) == 2:
+                    pairmin[un].append(S)
+            pair = next((p for p, ss in pairmin.items() if len(ss) >= 2), None)
+            if pair is None:
+                return None, []                  # truly stuck -> fall back
+            e, f = pair
+            for xe, xf in _pin_pair_resultant(build, pins, pairmin[pair][0],
+                                              pairmin[pair][1], e, f):
+                p2 = dict(pins); p2[e] = xe; p2[f] = xf
+                stack.append((p2, unknown - {e, f}))
+            continue
         S, e = chosen
         Gp = build(pins)
         pos = {f: k for k, f in enumerate(S)}
