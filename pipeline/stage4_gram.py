@@ -1500,6 +1500,107 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
 
 
 # ---------------------------------------------------------------------------
+# Structured screen (2026-06-23): cascade-pin dotted weights via minors
+#
+# A (d+2)x(d+2) minor whose row set contains exactly ONE not-yet-pinned dotted
+# edge is, after substituting the pinned/ordinary entries, a QUADRATIC in that
+# one weight x_e.  rank(G) <= d+1 forces the minor to vanish, so x_e must be a
+# real root > 1 (<= 2 of them -> branch).  Pinning cascades: once some weights
+# are fixed, more minors become single-unknown.  When all weights are pinned we
+# check rank(d+1)+signature directly.  This is an optimizer-free screen that is
+# SOUND (a realizable candidate makes every minor vanish at its true x_e, so a
+# root>1 always exists -> never wrongly rejected) and usually decisive; if the
+# cascade gets stuck (no single-unknown minor, e.g. a dense dotted graph) it
+# returns None and the caller falls back to the numerical screen.
+# ---------------------------------------------------------------------------
+
+def _build_minor_index(dotted_pairs, n, d):
+    """(d+2)-subsets containing >=1 dotted edge, with the dotted edges in each."""
+    from itertools import combinations as _c
+    ds = set(dotted_pairs)
+    out = []
+    for c in _c(range(n), d + 2):
+        cs = set(c)
+        de = [e for e in ds if e[0] in cs and e[1] in cs]
+        if de:
+            out.append((list(c), de))
+    return out
+
+
+def _quad_roots_gt1(Gsub, ii, jj, eps=1e-7):
+    """Real roots > 1 of det(Gsub)(x)=0 where entry (ii,jj)=(jj,ii)=-x.
+    Returns list of roots (possibly empty), or None if the minor is ~0 for all x
+    (x unconstrained by this minor)."""
+    def det_at(x):
+        M = Gsub.copy(); M[ii, jj] = M[jj, ii] = -x
+        return np.linalg.det(M)
+    c = det_at(0.0)
+    a = (det_at(2.0) - 2.0 * det_at(1.0) + c) / 2.0
+    b = det_at(1.0) - c - a
+    if abs(a) < 1e-12:
+        if abs(b) < 1e-12:
+            return None if abs(c) < 1e-9 else []
+        x = -c / b
+        return [x] if x > 1.0 + eps else []
+    disc = b * b - 4 * a * c
+    if disc < 0:
+        return []
+    r = float(np.sqrt(disc))
+    return [x for x in ((-b + r) / (2 * a), (-b - r) / (2 * a)) if x > 1.0 + eps]
+
+
+def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
+                       max_leaves=256):
+    """Cascade-pin screen.  Returns (decision, x_solutions):
+      decision True  -> >=1 pinned assignment passes rank(d+1)+signature(d,1);
+                        x_solutions is a list of dicts {edge: x_float}.
+      decision False -> provably no completion (reject).
+      decision None  -> cascade stuck (caller should fall back).
+    """
+    num_zero = n - d - 1
+
+    def build(pins):
+        G = np.eye(n)
+        for (i, j), v in ordinary_float.items():
+            G[i, j] = G[j, i] = v
+        for (i, j), x in pins.items():
+            G[i, j] = G[j, i] = -x
+        return G
+
+    solutions = []
+    stack = [(dict(), frozenset(dotted_pairs))]
+    leaves = 0
+    while stack:
+        pins, unknown = stack.pop()
+        if not unknown:
+            leaves += 1
+            if leaves > max_leaves:
+                return None, []
+            G = build(pins)
+            sv = np.linalg.svd(G, compute_uv=False)
+            if sv[-num_zero] < 1e-7 and _check_signature_float(G, d, tol=1e-6):
+                solutions.append(dict(pins))
+            continue
+        chosen = None
+        for S, de in minor_index:
+            un = [e for e in de if e in unknown]
+            if len(un) == 1:
+                chosen = (S, un[0]); break
+        if chosen is None:
+            return None, []                      # stuck -> fall back
+        S, e = chosen
+        Gp = build(pins)
+        pos = {f: k for k, f in enumerate(S)}
+        roots = _quad_roots_gt1(Gp[np.ix_(S, S)], pos[e[0]], pos[e[1]])
+        if roots is None:
+            return None, []                      # minor doesn't constrain e here
+        for x in roots:
+            p2 = dict(pins); p2[e] = x
+            stack.append((p2, unknown - {e}))
+    return (len(solutions) > 0), solutions
+
+
+# ---------------------------------------------------------------------------
 # Per-type Stage 4 driver
 # ---------------------------------------------------------------------------
 
@@ -1609,6 +1710,9 @@ def process_type_stage4(t, d,
     }
     sym_list = [dot_syms[p] for p in dotted_pairs]
 
+    # Minor index for the structured (cascade-pin) screen.
+    minor_index = _build_minor_index(dotted_pairs, n, d) if dotted_pairs else []
+
     results = []
     t_start = time.time()
     stats = {"screened": 0, "passed_screen": 0, "exact_attempts": 0}
@@ -1628,48 +1732,60 @@ def process_type_stage4(t, d,
                           for p, m in label_assign.items()}
 
         if dotted_pairs:
-            # Step 3a: numerical screen
-            x_approx, residual = _numerical_screen(
-                ordinary_float, dotted_pairs, n, d,
-                residual_threshold=numerical_threshold,
+            # Step 3a: structured (cascade-pin) screen — optimizer-free, sound.
+            # Gives candidate pinned weights directly; if the cascade gets stuck
+            # (dense dotted graph) it returns None and we fall back to the
+            # numerical (Gauss-Newton/L-BFGS) screen.
+            dec, x_sols = _structured_screen(
+                ordinary_float, dotted_pairs, minor_index, n, d,
             )
-            if residual > numerical_threshold:
-                continue  # numerically infeasible
-
-            # Quick signature check at the numerical solution.
-            # Use tol=1e-3 since x_approx is approximate: near-zero eigenvalues
-            # can be ~sqrt(residual) ≈ 1e-3 rather than machine epsilon.
-            G_np = _build_gram_numpy(ordinary_float, dotted_pairs, x_approx, n)
-            if not _check_signature_float(G_np, d, tol=1e-3):
-                continue
+            if dec is False:
+                continue                          # provably infeasible
+            if dec is None:
+                x_approx, residual = _numerical_screen(
+                    ordinary_float, dotted_pairs, n, d,
+                    residual_threshold=numerical_threshold,
+                )
+                if residual > numerical_threshold:
+                    continue
+                G_np = _build_gram_numpy(ordinary_float, dotted_pairs, x_approx, n)
+                if not _check_signature_float(G_np, d, tol=1e-3):
+                    continue
+                x_starts = [x_approx]
+            else:
+                # dec is True: structured screen found candidate completion(s).
+                x_starts = [np.array([xs[p] for p in dotted_pairs])
+                            for xs in x_sols]
 
             stats["passed_screen"] += 1
-            stats["exact_attempts"] += 1
 
-            # Step 3b: field-agnostic exact solve.  Refine the dotted weights to
-            # high precision (Gauss-Newton, exact mpmath ordinary entries), then
-            # recover each weight's MINIMAL POLYNOMIAL by PSLQ on its powers and
-            # certify rank (d+1) + signature (d,1) at high precision.  This works
-            # for ANY number field (labels >=7, cubic/quartic cos(π/m)), unlike
-            # the old fixed-√-basis nsimplify.  For positive-dimensional varieties
-            # (k > n-d-1) Gauss-Newton lands on an arbitrary point whose minpoly
-            # is not low-degree -> recognition returns [] -> no false positive.
-            solutions = []
-            x_hp = _refine_mpmath(
-                x_approx, label_assign, dotted_pairs, n, d, dps=100,
-            )
-            if x_hp is not None:
-                solutions = _recognize_minpoly_and_verify(
-                    x_hp, sym_list, label_assign, dotted_pairs, n, d, dps=100,
+            # Step 3b: field-agnostic exact solve from each candidate start.
+            # Refine to high precision (Gauss-Newton, exact mpmath ordinary
+            # entries), recover each weight's MINIMAL POLYNOMIAL via PSLQ on its
+            # powers, and certify rank(d+1)+signature(d,1).  Works over ANY number
+            # field (labels >=7).  False positives from the float screen fail to
+            # refine/recognise -> dropped.
+            seen_local = set()
+            for x_approx in x_starts:
+                stats["exact_attempts"] += 1
+                x_hp = _refine_mpmath(
+                    x_approx, label_assign, dotted_pairs, n, d, dps=100,
                 )
-
-            for sol in solutions:
-                results.append({
-                    "type_id":          t["type_id"],
-                    "label_assignment": {str(p): v
-                                         for p, v in label_assign.items()},
-                    "dot_values":       sol,
-                })
+                if x_hp is None:
+                    continue
+                for sol in _recognize_minpoly_and_verify(
+                        x_hp, sym_list, label_assign, dotted_pairs, n, d, dps=100):
+                    key = tuple(sorted((kk, tuple(v["minpoly"]))
+                                       for kk, v in sol.items()))
+                    if key in seen_local:
+                        continue
+                    seen_local.add(key)
+                    results.append({
+                        "type_id":          t["type_id"],
+                        "label_assignment": {str(p): v
+                                             for p, v in label_assign.items()},
+                        "dot_values":       sol,
+                    })
 
         else:
             # No dotted pairs — check rank and signature directly (float OK
