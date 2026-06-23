@@ -286,6 +286,15 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
     m_eqs = len(minor_rows)
 
     tol = mpmath.power(10, -(dps - 8))
+    # Guard against non-finite / absurd starts (a divergent structured-screen
+    # root) — these crash mpmath.det downstream; just skip the candidate.
+    import math as _math
+    try:
+        if any((xi is None) or (not _math.isfinite(float(xi)))
+               or float(xi) <= 1.0 or float(xi) > 1e8 for xi in x_approx):
+            return None
+    except (TypeError, ValueError, OverflowError):
+        return None
     x = [mpmath.mpf(xi) for xi in x_approx]
 
     def compute_f(x_list):
@@ -295,45 +304,43 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
     # Central-difference step (more accurate Jacobian -> quadratic convergence).
     eps_fd = mpmath.power(10, -(dps // 2 - 5))
 
-    for _ in range(max_iter):
-        f_val = compute_f(x)
-        f_norm = mpmath.norm(mpmath.matrix(f_val))
-        if f_norm < tol:
-            break
+    # The whole iteration is wrapped: any mpmath failure (singular pivot, a
+    # non-finite intermediate from a bad start, etc.) means "no solution from
+    # this start" -> return None, never crash the worker/run.
+    try:
+        for _ in range(max_iter):
+            f_val = compute_f(x)
+            f_norm = mpmath.norm(mpmath.matrix(f_val))
+            if f_norm < tol:
+                break
 
-        J = mpmath.zeros(m_eqs, k)
-        for col in range(k):
-            x_p = list(x); x_p[col] = x_p[col] + eps_fd
-            x_m = list(x); x_m[col] = x_m[col] - eps_fd
-            fp = compute_f(x_p); fm = compute_f(x_m)
-            for row in range(m_eqs):
-                J[row, col] = (fp[row] - fm[row]) / (2 * eps_fd)
+            J = mpmath.zeros(m_eqs, k)
+            for col in range(k):
+                x_p = list(x); x_p[col] = x_p[col] + eps_fd
+                x_m = list(x); x_m[col] = x_m[col] - eps_fd
+                fp = compute_f(x_p); fm = compute_f(x_m)
+                for row in range(m_eqs):
+                    J[row, col] = (fp[row] - fm[row]) / (2 * eps_fd)
 
-        if k <= m_eqs:
-            # Overdetermined or square: normal equations
-            JTJ = J.T * J
-            JTf = J.T * mpmath.matrix(f_val)
-            try:
+            if k <= m_eqs:
+                JTJ = J.T * J
+                JTf = J.T * mpmath.matrix(f_val)
                 dx = mpmath.lu_solve(JTJ, JTf)
-            except Exception:
-                return None
-        else:
-            # Underdetermined: minimum-norm step
-            JJT = J * J.T
-            try:
+            else:
+                JJT = J * J.T
                 rhs = mpmath.lu_solve(JJT, mpmath.matrix(f_val))
-            except Exception:
-                return None
-            dx = J.T * rhs
+                dx = J.T * rhs
 
-        for col in range(k):
-            x[col] = x[col] - dx[col]
-            if x[col] < mpmath.mpf('1.0001'):
-                x[col] = mpmath.mpf('1.0001')
+            for col in range(k):
+                x[col] = x[col] - dx[col]
+                if x[col] < mpmath.mpf('1.0001'):
+                    x[col] = mpmath.mpf('1.0001')
 
+        f_final = compute_f(x)
+        f_norm_final = mpmath.norm(mpmath.matrix(f_final))
+    except Exception:
+        return None
     # Accept only if the GN-minor residual is genuinely tiny.
-    f_final = compute_f(x)
-    f_norm_final = mpmath.norm(mpmath.matrix(f_final))
     if f_norm_final > mpmath.power(10, -(dps // 2)):
         return None
     return x
@@ -1894,18 +1901,27 @@ def _stage4_pool_init(label_indices=None):
 
 
 def _stage4_worker(args):
-    """Top-level worker function for multiprocessing (must be picklable)."""
+    """Top-level worker function for multiprocessing (must be picklable).
+
+    Never raises: a crash on one type returns [] for that type (logged) rather
+    than killing the whole pool / production run.
+    """
     idx, t, d, max_assignments, enum_timeout, solve_timeout, label_indices, extended_lanner_max_extra, face_tuples_max_size = args
-    result = process_type_stage4(
-        t, d,
-        max_assignments=max_assignments,
-        enum_timeout=enum_timeout,
-        solve_timeout=solve_timeout,
-        label_indices=label_indices,
-        extended_lanner_max_extra=extended_lanner_max_extra,
-        face_tuples_max_size=face_tuples_max_size,
-        verbose=False,
-    )
+    try:
+        result = process_type_stage4(
+            t, d,
+            max_assignments=max_assignments,
+            enum_timeout=enum_timeout,
+            solve_timeout=solve_timeout,
+            label_indices=label_indices,
+            extended_lanner_max_extra=extended_lanner_max_extra,
+            face_tuples_max_size=face_tuples_max_size,
+            verbose=False,
+        )
+    except Exception as e:
+        print(f"  Type {t.get('type_id', idx)}: ERROR {type(e).__name__}: {e} "
+              f"-> skipped (0 configs)", flush=True)
+        return idx, []
     return idx, result
 
 
