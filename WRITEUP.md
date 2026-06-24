@@ -4,15 +4,15 @@
 
 ---
 
-> ## ⚠️ STATUS (updated 2026-06-22) — READ FIRST
+> ## ⚠️ STATUS (updated 2026-06-24) — READ FIRST
 >
 > **No classification of the d=6, 10-facet family is established here, and no
 > uniqueness claim should be drawn from this document.** An earlier draft asserted
 > "P^B₆ is the unique compact hyperbolic Coxeter 6-polytope with 10 facets"; **that
 > claim is withdrawn** and the d=6 completeness question **remains OPEN**.
 >
-> What this pipeline now does correctly (a rebuild on 2026-06-19…22 after both stages
-> were found broken):
+> The pipeline was found broken at both ends (2026-06-19) and rebuilt (2026-06-19…24).
+> Current state, precisely:
 >
 > 1. **Combinatorial-type generator (Stage 1/2) — FIXED and validated.** A new exact
 >    integer-arithmetic affine-Gale criterion (`pipeline/utils/gale_exact.py`:
@@ -22,34 +22,43 @@
 >    types. The prior generator scored 0/30. Repro:
 >    `python -m pipeline.validate_coverage --d 4 --stage3 runs/d4_n8/stage2`.
 >
-> 2. **Gram solver (Stage 4) — CORRECTNESS fixed and validated end-to-end.** Realizability
->    is now decided by high-precision Gauss–Newton refinement (well-conditioned minor
->    system, quadratic convergence) + **field-agnostic** algebraic recognition via
->    *minimal polynomials* (PSLQ on powers), replacing a fixed √-basis that could not
->    represent cos(π/m) for m≥7 and mis-recognized even 17+8√5. The full pipeline
->    **recovers P^B₆ from scratch** (combinatorial type → label enumeration → exact
->    solve; minpolys x⁴−36x²+4 and x²−34x−31), and the d=4 pipeline now yields genuine
->    polytopes with exact algebraic weights.
+> 2. **Gram solver (Stage 4) — correct and fast enough to RUN d=4.** Realizability is
+>    decided by high-precision Gauss–Newton refinement (well-conditioned minor system,
+>    quadratic convergence) + **field-agnostic** algebraic recognition via *minimal
+>    polynomials* (PSLQ on powers), replacing a fixed √-basis that could not represent
+>    cos(π/m) for m≥7. A **sound algebraic "structured screen"** (single-edge-minor
+>    cascade + pair-resultant for dense dotted graphs) prunes the label search
+>    optimizer-free — it never rejects a realizable candidate (proven; mpmath-verified),
+>    and it took d=4 from cluster-scale to a single-machine run. The pipeline **recovers
+>    P^B₆ end-to-end** (minpolys x⁴−36x²+4, x²−34x−31).
 >
-> 3. **What is NOT done — the polytope COUNTS.** Reproducing the full 348 (d=4) / 51
->    (d=5) censuses is a question of *enumeration scale*, not correctness. Within a
->    modest per-type budget only label-≤5 solutions are reached; the label-≥7 polytopes
->    sit deep in the full {2,…,12} search. Ma–Zheng performed this on a compute cluster
->    (up to 325,957 candidate matrices for a single polytope). A complete single-machine
->    pure-Python pass is impractical; the counts are therefore **not yet reproduced**,
->    and d=6 (14.3M order types) additionally needs a C port of the generator.
+> 3. **d=4 run executed: 131 distinct polytopes found, target 348.** All 131 are
+>    fully verified (signature (4,1), exact Gram). **This is an undercount, not a
+>    result.** The gap was diagnosed exhaustively (see §6):
+>    - It is **NOT** dedup (exact and float keys agree), **NOT** the F3a filter (its 3
+>      removed types realize 0), **NOT** the label cap (the census maximum is π/12, which
+>      we include), **NOT** solve speed/budget (the high-count types have only ~166
+>      candidates and solve in minutes), **NOT** an over-merge or pruning artifact.
+>    - The gap is the **Felikson–Tumarkin 3-prism-gluing construction.** The census's
+>      348 are dominated by prism-glued polytopes (e.g. one base family expands 8 base
+>      Gram matrices to 130). The gluing keeps 8 facets but introduces new high-label
+>      edges in new positions, so a base family's polytopes are spread across **several
+>      combinatorial types** our *direct* vertex-PD + Lannér enumeration does not
+>      construct (it correctly yields 0/low counts for them). Reproducing the counts
+>      requires implementing the FT prism-gluing (CLAUDE.md §4 accelerator), which is a
+>      **new construction module**, not a solver tweak.
 >
 > **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
 > are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
-> So the d=6 "1 type survived" result from the old run carries no evidential weight, and
-> d=6 completeness is open.
+> The old d=6 "1 type survived" result carries no evidential weight; d=6 completeness is
+> open.
 >
 > **Independently verified:** the P^B₆ Gram matrix (§4.2) passes a standalone check
 > (`verify_diagram.py`): exact rank 7, signature (6,1), no parabolic subdiagrams — it
 > *is* a valid member (already known), which says nothing about uniqueness.
 >
-> Sections below describe the pipeline and the bugs fixed along the way; read the
-> per-section caveats, several of which predate the 2026-06-22 fixes.
+> Sections 1–5 describe the pipeline and the bugs fixed; §6 (below) is the current d=4
+> status and gap diagnosis. Some per-section caveats predate the 2026-06-24 state.
 
 ---
 
@@ -219,6 +228,14 @@ compact hyperbolic.
 by F3b.
 
 ### 2.4 Stage 4 — Coxeter label assignment and Gram realizability
+
+> **Note (2026-06-24):** This subsection describes the *original* Stage-4 design and its
+> fixes-in-progress. The **current** Stage 4 differs in two ways covered elsewhere: (a)
+> realizability recognition is now **field-agnostic via minimal polynomials** (not the
+> fixed √-basis nsimplify described below), and (b) the label search is pruned by a sound
+> algebraic **structured screen** (single-edge-minor cascade + pair-resultant) rather than
+> the numerical screen alone. See the top-of-document banner and §6 for the current solver
+> and the d=4 run.
 
 This is the main computational stage.  For each surviving type, it:
 1. Enumerates candidate Coxeter label assignments on ordinary edges by backtracking
@@ -451,6 +468,12 @@ polytopes**, claimed to pass within ±10 of 348.
 > generator unchanged, the pipeline finds **0** genuine d=4 polytopes. A matching total
 > count with zero matching types is not a passing regression — it is the defect.
 
+> **➜ Superseded by §6 (2026-06-24).** The numbers in this subsection are from the
+> broken-generator era. With the rebuilt generator + Stage 4, the d=4 run produces **131
+> distinct, verified** polytopes (532 raw configs, 0 spurious); the remaining gap to 348
+> is the Felikson–Tumarkin prism-glued families. See **§6** for the current d=4 status
+> and full diagnosis.
+
 ### 3.4 d = 5 regression
 
 **Target:** 51 compact Coxeter 5-polytopes with 9 facets (Ma–Zheng [MZ5]; Burcroff
@@ -628,16 +651,20 @@ with 10 facets, or are there others?** — **remains OPEN.** This pipeline does 
 it. The earlier draft asserted a uniqueness theorem here; that assertion is **withdrawn**
 for the reasons in the validation-status banner at the top of this document.
 
-What is established (as of 2026-06-22):
+What is established (as of 2026-06-24):
 
 - **The combinatorial generator (Stage 1/2) is correct**: it reproduces the published
   combinatorial census exactly — d=4 (30/30), d=5 (109/109 of the k≥2 types).
-- **The Gram solver (Stage 4) is correct**: field-agnostic exact realizability (minimal
-  polynomials + high-precision signature), validated by recovering P^B₆ end-to-end and
-  by producing genuine d=4 polytopes with exact weights.
-- **The polytope COUNTS (348, 51) are NOT reproduced**: this is an enumeration-scale
-  problem (label-≥7 search depth), cluster-scale in the original work — not a correctness
-  gap. So per CLAUDE.md §3 the d=6 case is **not** yet unlocked.
+- **The Gram solver (Stage 4) is correct and runnable**: field-agnostic exact
+  realizability (minimal polynomials + high-precision signature) + a sound algebraic
+  structured screen; recovers P^B₆ end-to-end and produces genuine d=4 polytopes with
+  exact weights.
+- **The d=4 census COUNT is NOT reproduced**: the run yields 131 of 348. Every one of the
+  131 is a verified compact polytope, but the count is short. The cause is **not**
+  correctness, scale, or the solver — it is that the census is dominated by
+  **Felikson–Tumarkin prism-glued polytopes** which live in combinatorial types our
+  direct enumeration does not construct (full diagnosis in §6). So per CLAUDE.md §3 the
+  d=6 case is **not** yet unlocked.
 - P^B₆ exists and is a valid member (§4.2) — already known [Bug84, Bug92]; reconfirmed.
 
 The classification of the k = 4 family, with the genuinely-settled rows and the open one:
@@ -649,15 +676,90 @@ The classification of the k = 4 family, with the genuinely-settled rows and the 
 | **6** | **OPEN** (≥1: P^B₆ known) | — |
 | 7 | 1 (Bugaenko [Bug84]) | [FT08] |
 
-**Next engineering step (scale, not correctness):** reproduce the d=4 (348) and d=5 (51)
-*counts* by running the now-correct Stage 4 over the full label alphabet to completion —
-which needs either substantial compute or a C port of the label-enumeration/screen hot
-path (and a C port of the generator for d=6's 14.3M order types). Only then is a d=6
-search evidentially meaningful.
+**Next engineering step:** implement the Felikson–Tumarkin 3-prism-gluing construction
+(CLAUDE.md §4 accelerator) so the prism-glued polytopes are generated; this is what
+closes 131 → 348, and is a *new construction module*, not a solver/scale tweak (see §6).
 
 ---
 
-## 6. References
+## 6. d = 4 run and the gap to 348 (current state, 2026-06-24)
+
+This section records the actual d=4 Stage-4 run, the **131-vs-348 undercount**, and the
+exhaustive diagnosis of its cause.
+
+### 6.1 The run
+
+`run_d4.py` ran all 27 Stage-3 survivors (8 workers, exhaustive per-type budget), then
+deduplicated raw Gram configurations to distinct polytopes up to facet relabeling:
+
+> **532 raw configurations → 131 distinct polytopes → target 348.**
+
+All 131 pass an independent check (signature (4,1), exact rank 5, dotted weights > 1).
+The 131 are genuine compact hyperbolic Coxeter 4-polytopes. **The 131 < 348 is an
+undercount to be explained, not a result.**
+
+### 6.2 What the gap is NOT (ruled out, with evidence)
+
+- **Deduplication over-merge — no.** The float canonical key (color-refined facet
+  permutation), an exact `(label-multiset, minpoly-multiset)` key, and a tightened
+  `dot_eps=1e-6` all give the **same** distinct counts (e.g. type 1: 115 raw → 3 distinct
+  is genuine; type 6: 92 raw → 30 by every key).
+- **The F3a filter — no.** Its three removed combinatorial types realize **0** polytopes
+  (verified by direct Stage-4 search; type 2 exhausts to 0 in 7 s). F3a is a correct
+  necessary condition (unlike the false F1b, which was removed).
+- **The label cap — no.** Ma–Zheng Theorem 1.1: the smallest dihedral angle in the entire
+  d=4 census is **π/12**. Our `VALID_LABELS` includes 12; the maximum is correct.
+- **Solve speed / budget — no.** The high-count types are k=6: they have only ~166 valid
+  label assignments each (enumeration exhausts in seconds) and solve in minutes. type 6
+  yields 30 distinct from a *complete* enumeration; more budget does not change it.
+- **Enumeration pruning artifact — no.** type 6 produces the same 166 assignments with
+  face-tuple pruning at sizes 4, 3, or 0; its labels are forced ≤5 by its three size-4
+  Lannér (compact-tetrahedron) missing faces, which is correct.
+
+### 6.3 What the gap IS — Felikson–Tumarkin prism-gluing
+
+Ma–Zheng [MZ4] Tables 6–7 show the 348 decompose as: only **14** combinatorial types
+admit a compact hyperbolic structure, and **7 of them have "prism ends"** to which a
+**3-prism is glued**, multiplying their counts. Concretely, one base family's **8** basis
+Gram matrices expand to **130** polytopes; three base families (k=6) give
+**130 + 49 + 115 = 294**, and the seven non-gluable types give the remaining **34**
+(3 + 4 + 8 + 12 + 4 + 1 + 2), totalling **348**.
+
+The prism-gluing keeps 8 facets but introduces **new high-label edges in new positions**,
+so a base family's polytopes are spread across **several distinct combinatorial types**
+(the glued variants), many of them high-label. Our pipeline enumerates each combinatorial
+type directly under the vertex-PD + Lannér constraints; for the glued (high-label) types
+it correctly returns 0 or few, because it does **not perform the gluing construction**.
+Our 131 are the directly-enumerable polytopes (the base families and the small types); the
+~217 missing are the prism-glued ones.
+
+Per-disjoint-pair-count comparison (census vs. our found):
+
+| k | census: #types, #polytopes | ours: #types, #polytopes |
+|---|---|---|
+| 6 | 3, **294** | 3, 92 |
+| 5 | 5, 23 | 4, 21 |
+| 4 | 3, 24 | 3, 14 |
+| 3 | 3, 7 | 2, 4 |
+
+The dominant shortfall is the three k=6 families (92 vs 294), exactly the prism-gluable
+ones.
+
+### 6.4 The path to 348
+
+Reproducing the count requires implementing the **Felikson–Tumarkin 3-prism-gluing
+lifting** (CLAUDE.md §4): for each base polytope with an orthogonal/prism-end facet
+(`l₄-basis`), glue 3-prisms and enumerate the resulting compact diagrams. This is a new
+construction module; it is the route Ma–Zheng and Felikson–Tumarkin use precisely because
+direct enumeration of these families is impractical. No solver speedup, dedup fix, or
+label-cap change is involved.
+
+Until that is implemented, the pipeline is **sound but incomplete for the prism-glued
+families**: everything it reports is correct, but it reports 131 of the 348.
+
+---
+
+## 7. References
 
 **[AAK02]** O. Aichholzer, F. Aurenhammer, H. Krammer.  *A note on the number of order
 types on n points in the plane.*  Proc. 14th CCCG, 2002.  Database available at
