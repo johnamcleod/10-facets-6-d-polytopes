@@ -25,7 +25,10 @@ def _solve_candidate(args):
     if xh is None:
         return []
     out = []
-    for so in _recognize_minpoly_and_verify(xh, sl, la, dotted, N, D, dps=100):
+    # Count-only: skip the expensive decorative minpoly recovery (canonical_key
+    # dedups on the decimal value; exact minpolys are recovered later for survivors).
+    for so in _recognize_minpoly_and_verify(xh, sl, la, dotted, N, D, dps=100,
+                                            recover_minpoly=False):
         out.append({"label_assignment": {str(p): v for p, v in la.items()}, "dot_values": so})
     return out
 

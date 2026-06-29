@@ -1,62 +1,17 @@
 [
   {
-    "type_id": 3,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+    "type_id": 2,
+    "rule": "F3a",
+    "witness": "Burcroff Lemma 5.7 pattern {0123,014,235} found, witness={'pattern': '{0123,014,235}', 'mapping': {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}, 'mapped_faces': [[0, 1, 2, 3], [0, 1, 4], [2, 3, 5]]}"
   },
   {
-    "type_id": 6,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+    "type_id": 9,
+    "rule": "F3a",
+    "witness": "Burcroff Lemma 5.7 pattern {0123,014,235} found, witness={'pattern': '{0123,014,235}', 'mapping': {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}, 'mapped_faces': [[0, 1, 2, 3], [0, 1, 4], [2, 3, 5]]}"
   },
   {
-    "type_id": 7,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 10,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 11,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
-  },
-  {
-    "type_id": 15,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 20,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 21,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 22,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
-  },
-  {
-    "type_id": 26,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 6/7 nodes reachable from 0"
-  },
-  {
-    "type_id": 32,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 1/8 nodes reachable from 0"
-  },
-  {
-    "type_id": 41,
-    "rule": "F4",
-    "witness": "adjacency graph disconnected: 7/8 nodes reachable from 0"
+    "type_id": 27,
+    "rule": "F3a",
+    "witness": "Burcroff Lemma 5.7 pattern {0123,014,235} found, witness={'pattern': '{0123,014,235}', 'mapping': {'0': 0, '1': 7, '2': 1, '3': 4, '4': 3, '5': 2}, 'mapped_faces': [[0, 1, 4, 7], [0, 3, 7], [1, 2, 4]]}"
   }
 ]

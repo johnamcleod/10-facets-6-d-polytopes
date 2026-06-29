@@ -962,12 +962,21 @@ def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
 
 
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
-                                max_count=50000, timeout=60.0, label_indices=None):
+                                max_count=50000, timeout=60.0, label_indices=None,
+                                prefix=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
     label_indices: optional tuple of indices into VALID_LABELS to restrict the
     label search (e.g. (0,1,2,3) for labels {2,3,4,5} only).  Default: all labels.
+
+    prefix: optional list of label-INDEX values (into the resolved label_indices /
+    actual_labels list) fixing the first len(prefix) pairs of the deterministic
+    pair ordering.  Only the sub-tree under that fixed prefix is enumerated.  This
+    partitions the search for parallelism: running every prefix (a Cartesian product
+    over the first p pairs) across a worker pool covers the whole space with no
+    overlap.  Forward-checking still applies to the fixed pairs, so infeasible
+    prefixes prune immediately.  Default None = enumerate everything.
 
     For each group with nl^k ≤ 2^22 pairs, valid assignments are precomputed
     once and forward-checked at every assignment step via numpy boolean masking.
@@ -1075,7 +1084,12 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
         pi = depth
         trail_mark = len(trail)
 
-        for li in range(n_labels):
+        # Partition support: at fixed-prefix depths, only the prefix's label.
+        if prefix is not None and depth < len(prefix):
+            li_choices = (prefix[depth],)
+        else:
+            li_choices = range(n_labels)
+        for li in li_choices:
             assignment[pi] = li
             ok = True
 
@@ -1462,28 +1476,78 @@ def _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=100):
     return G
 
 
-def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
-                                   n, d, dps=100):
-    """Field-agnostic recognition + high-precision (d,1)-signature certification.
+def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
+    """Numerical rank of the Jacobian of the (d+2)-minor kernel conditions with
+    respect to the k dotted weights, evaluated at the refined point x_hp.
 
-    x_hp: list of mpmath values (GN-refined dotted weights).  Returns a list with
-    a single solution dict (minpoly + decimal per weight) if the matrix has rank
-    d+1 and signature (d,1) with all weights > 1; else [].
+    rank == k  <=>  the solution is locally ISOLATED (0-dimensional) => a genuine
+    rigid Coxeter polytope.  rank < k  =>  the point lies on a positive-dimensional
+    solution component (a spurious continuum, not a discrete polytope).
+
+    This is the SOUND isolation test.  Gauss-Newton convergence to a sharp residual
+    does NOT certify isolation: on a positive-dimensional component the minor
+    equations still vanish identically, so GN converges to *some* point on it.
+    Returns (rank, k).
+    """
+    import mpmath
+    from itertools import combinations as _c
+    mpmath.mp.dps = dps
+    k = len(dotted_pairs)
+    if k == 0:
+        return 0, 0
+    dot_idx = {i for p in dotted_pairs for i in p}
+    rows = [list(c) for c in _c(range(n), d + 2) if dot_idx & set(c)]
+
+    def fvals(xl):
+        G = _build_gram_mpmath(label_assign, dotted_pairs, xl, n, dps=dps)
+        return [mpmath.det(mpmath.matrix([[G[r[a], r[b]] for b in range(len(r))]
+                                          for a in range(len(r))])) for r in rows]
+
+    eps = mpmath.power(10, -(dps // 2 - 5))
+    cols = []
+    for c in range(k):
+        xp = list(x_hp); xp[c] = xp[c] + eps
+        xm = list(x_hp); xm[c] = xm[c] - eps
+        fp = fvals(xp); fm = fvals(xm)
+        cols.append([(fp[r] - fm[r]) / (2 * eps) for r in range(len(rows))])
+
+    # Integer rank decision via a float SVD of the Jacobian (sufficient -- the
+    # gap between rank-k and rank-(k-1) is large for these systems).
+    J = np.array([[float(cols[c][r]) for c in range(k)] for r in range(len(rows))])
+    s = np.linalg.svd(J, compute_uv=False)
+    if s.size == 0 or s[0] == 0:
+        return 0, k
+    rank = int(np.sum(s > 1e-6 * s[0]))
+    return rank, k
+
+
+def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
+                                   n, d, dps=100, recover_minpoly=True):
+    """High-precision (d,1)-signature + isolation certification (field-agnostic).
+
+    A GN-refined point x_hp (list of mpmath dotted weights) is accepted as a genuine
+    compact Coxeter polytope iff ALL of:
+      * every dotted weight > 1,
+      * the Gram matrix has signature (d, 1) with exactly (n-d-1) zero eigenvalues,
+      * the solution is locally ISOLATED -- the kernel-condition Jacobian has full
+        rank k in the dotted weights.
+
+    Isolation REPLACES the old "every weight's minpoly is PSLQ-recoverable" gate,
+    which silently dropped genuine polytopes whose weights are algebraic of degree
+    > 16 (confirmed isolated, signature (d,1), but minpoly unrecoverable even at
+    degree 32 -- a ~54% loss on the d=4 k=6 types; see scratchpad/diag5*).  The
+    minimal polynomial is now recovered BEST-EFFORT for reporting only: a weight
+    whose minpoly is not found stores minpoly=None alongside its decimal value, and
+    deduplication (canonical_key) keys on the decimal value, not the minpoly.
+
+    Returns a list with a single solution dict, or [].
     """
     import mpmath
     mpmath.mp.dps = dps
     if not x_hp or any(x <= mpmath.mpf('1') for x in x_hp):
         return []
 
-    minpolys = []
-    for x in x_hp:
-        mp_poly = _recover_minpoly(x, dps=dps)
-        if mp_poly is None:
-            return []          # arbitrary point on a positive-dim variety, etc.
-        minpolys.append(mp_poly)
-
-    # High-precision signature: symmetric eigenvalues; need d positive, 1
-    # negative, (n-d-1) zero.
+    # (d,1) signature with (n-d-1) zeros -- the accept/reject decision.
     G = _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=dps)
     try:
         E = mpmath.eigsy(G, eigvals_only=True)
@@ -1497,11 +1561,23 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
     if not (pos == d and neg == 1 and zero == n - d - 1):
         return []
 
+    # Isolation: full-rank kernel Jacobian <=> rigid (0-dim) polytope, not a point
+    # on a positive-dimensional spurious continuum.
+    rank, k = _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=dps)
+    if rank != k:
+        return []
+
+    # Best-effort exact minpoly per weight (decorative; never gates acceptance, and
+    # canonical_key dedups on the decimal value).  Recovery is EXPENSIVE for the
+    # high-degree weights (PSLQ exhausts every degree, ~9s, before returning None),
+    # so count-only runs pass recover_minpoly=False and recover minpolys later for
+    # the small final survivor set.
     sol = {}
-    for sym, x, poly in zip(sym_list, x_hp, minpolys):
+    for sym, x in zip(sym_list, x_hp):
+        poly = _recover_minpoly(x, dps=dps) if recover_minpoly else None
         sol[str(sym)] = {
             "value": mpmath.nstr(x, 30),
-            "minpoly": poly,            # [c0..cD], sum ci x^i = 0
+            "minpoly": poly,            # [c0..cD] with sum ci x^i = 0, or None
         }
     return [sol]
 
