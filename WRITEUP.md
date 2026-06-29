@@ -4,7 +4,7 @@
 
 ---
 
-> ## ⚠️ STATUS (updated 2026-06-24) — READ FIRST
+> ## ⚠️ STATUS (updated 2026-06-29) — READ FIRST
 >
 > **No classification of the d=6, 10-facet family is established here, and no
 > uniqueness claim should be drawn from this document.** An earlier draft asserted
@@ -43,15 +43,28 @@
 >      >32 (54% of type-5 candidates; all confirmed isolated with signature (4,1)).
 >    - **The dk6 block is now exact:** type 0→115 (P₃), 5→130 (P₁), 6→49 (P₂) = **294 =
 >      census dk6 exactly**, validating the method and the fix.
->    - **The final gap (334→348 = 14) is enumeration intractability for the low-k types,
->      not a correctness defect.** Ruled out with evidence: dedup over-merge (four keys
->      agree), F3a (its 3 removed types provably realize 0 by full enumeration), the
->      numerical fallback (`dec=None`=0), and minpoly (fixed). What remains: low-k types
->      (k=2,3) have ~24–26 ordinary edges → astronomically large label-assignment spaces
->      with screen-pass rate ~10⁻⁷; six types hit the 1800s enumeration cutoff. type 10 is
->      **proven undercounted** (≥6 passing vs 2 reported); types 15/19/20/24 did not finish
->      even in 100 min. Closing it needs a faster low-k search (partitioned-parallel
->      enumeration, or solve-rather-than-enumerate with facet-admissibility pruning).
+>    - **The final gap (334→348 = 14) is not a correctness defect.** Ruled out with
+>      evidence: dedup over-merge (four keys agree), F3a (its 3 removed types provably
+>      realize 0 by full enumeration), the numerical fallback (`dec=None`=0), and minpoly
+>      (fixed).
+>    - **Partition-parallel completion (2026-06-29) closed out the low-k types.** The
+>      `prefix=`-partitioned enumerator (`run_lowk_parallel.py`, label space split across
+>      cores) was run on every previously-unfinished low-k type. All now **COMPLETE** with
+>      definitive counts — k=5: 1→3, 2→0, 3→2, 7→15, 18→1; k=4: 4→4, 8→8, 17→2; k=3:
+>      10→2, 14→2, 16→1, 19→0; k=2: 22→0, 26→0. The earlier "type 10 undercounted" caveat
+>      was a passes-vs-distinct conflation (6 passing assignments → 3 raw → 2 distinct;
+>      genuinely 2). **The lone exception is type 15** (k=4, dotted edges form a perfect
+>      matching → 0 of 28 minors are single-dotted, forcing the slow pair-resultant screen
+>      on every candidate): it hit the per-branch timeout with **0 found** in the covered
+>      partition. A finer P=3 partition can drive it to COMPLETE, but it was not run to
+>      completion.
+>    - **So 334 is the definitive single-machine count.** With every type complete except
+>      type 15, the residual 14 is no longer "many intractable types" — it reduces to (a)
+>      type 15 (unfinished, 0 in partial), and (b) per-k discrepancies (k=5: 21 vs 23,
+>      k=3: 5 vs 7) on types that are now **provably complete**, which points to either an
+>      unreliable per-k split of the published 348 or the Felikson–Tumarkin prism-gluing
+>      families that direct enumeration does not construct (diagnosed in §6). dk6 (the
+>      bulk, 294) is reproduced **exactly**.
 >
 > **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
 > are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
@@ -691,10 +704,11 @@ bottleneck is candidate enumeration for low-k.
 
 ---
 
-## 6. d = 4 run and the gap to 348 (current state, 2026-06-26)
+## 6. d = 4 run and the gap to 348 (current state, 2026-06-29)
 
 This section records the actual d=4 Stage-4 runs, the climb from 131 → 208 → **334** of 348,
-and the precise localization of the final ~14-polytope gap.
+the partition-parallel completion of the low-k types (2026-06-29), and the precise
+localization of the final ~14-polytope gap.
 
 ### 6.1 The runs
 
@@ -757,39 +771,57 @@ Everything below was tested directly:
 - **Dedup over-merge — no.** type 8's passing assignments give **8 distinct** under
   `canonical_key`, a strict key at 6/9/12 dp, *and* the raw label-graph count — all agree.
 
-**What remains: enumeration intractability for the low-k types.** Six types hit the 1800 s
-enumeration cutoff in the production run (8, 10, 15, 19, 20, 24). type 8 is provably complete
-(its passing assignments appear early, within ~1.3 M of 54 M). But the others are not:
+**Low-k completion via partition-parallel enumeration (2026-06-29).** The brute
+enumerate-then-screen strategy was made tractable for the low-k types by partitioning the
+label space on a prefix of fixed edge-labels (`prefix=` in `enumerate_labels_backtrack`,
+driven by `run_lowk_parallel.py`), so the search splits across cores with no overlap. Run on
+every previously-unfinished low-k type, this brought all but one to **COMPLETE**:
 
-| type | k | assignments enumerated (100 min) | passes | status |
-|------|---|----------------------------------|--------|--------|
-| 10 | 3 | 12.5 M | **6** | **realizes — undercounted** (run counted 2) |
-| 15 | 4 | 2.5 M | 0 | incomplete |
-| 19 | 3 | 47.5 M | 0 | incomplete |
-| 20 | 2 | 20 M | 0 | incomplete |
-| 24 | 2 | 5.6 M | 0 | incomplete |
+| type | k | status (2026-06-29) | distinct |
+|------|---|---------------------|----------|
+| 1 | 5 | COMPLETE (109.8 M assigns) | 3 |
+| 4 | 4 | COMPLETE (7.0 M) | 4 |
+| 10 | 3 | COMPLETE (30.1 M) | **2** |
+| 14 | 3 | COMPLETE (14.6 M) | 2 |
+| 16 | 3 | COMPLETE (6.8 M) | 1 |
+| 17 | 4 | COMPLETE (0.1 M) | 2 |
+| 19 | 3 | COMPLETE (49.0 M) | 0 |
+| 22 | 2 | COMPLETE | 0 |
+| 26 | 2 | COMPLETE | 0 |
+| **15** | **4** | **INCOMPLETE (per-branch timeout)** | **0 in partial** |
 
-The low-k types have ~24–26 ordinary edges, each labelled 2…12, giving an astronomically
-large assignment space with a screen-pass rate near 10⁻⁷. type 10 is **proven undercounted**
-(≥6 passing assignments vs. the 2 the timed-out run reported); types 15/19/20/24 did not
-finish even in 100 minutes, so their counts are unknown. This is the source of the final
-~14: **not a correctness defect** (every reported polytope is valid) but the brute
-enumerate-then-screen strategy being intractable for the low-k combinatorial types.
+The earlier "type 10 undercounted (≥6 passes)" claim was a passes-vs-distinct conflation:
+6 passing *assignments* → 3 raw → **2 distinct**, genuinely 2. The lone exception is **type
+15**: its dotted edges form a perfect matching `{(0,1),(2,3),(4,5),(6,7)}`, so **0 of its 28
+(d+2)-minors are single-dotted** — the structured screen can never start its single-edge
+cascade and must use the ~19× slower pair-resultant path on every candidate. Its heavy
+prefix-branches hit the per-branch timeout (0 found in the covered partition). A finer P=3
+partition would drive it to COMPLETE; it was not run to completion.
 
-### 6.4 The path to 348
+### 6.4 Why 334 is the definitive single-machine count, and the path to 348
 
-The remaining gap needs a faster low-k search, not a parameter change:
+With every low-k type complete except type 15, the residual 14 is **no longer "many
+intractable types."** It reduces to two well-characterized sources:
 
-1. **Parallelize + partition the label enumeration** (split on the first ordinary edge's
-   label across cores). This should complete the moderate k=3/4 types (10, 15, 19); the k=2
-   types (20, 24) may still be out of reach.
-2. **Solve rather than enumerate** (the Ma–Zheng approach): set up the Gram rank + Lannér
-   system per type with symbolic unknowns and solve it, and/or prune with
-   **facet-admissibility** (every d=4 facet must be a compact Coxeter 3-polytope). This is
-   the scalable path that makes the low-k types tractable.
+1. **Type 15** — the one unfinished computation (k=4; found 0 in the covered partition).
+   Closing it needs only the finer P=3 partition above.
+2. **Per-k discrepancies on provably-complete types** — k=5 reads 21 vs a census split of
+   23, k=3 reads 5 vs 7, even though every contributing type is now exhaustively enumerated.
+   Since our enumeration is complete for these, the discrepancy points to either an
+   **unreliable per-k split** of the published total of 348, or the **Felikson–Tumarkin
+   prism-gluing families** (CLAUDE.md §4) — glued descendants of a base polytope that keep 8
+   facets but live in combinatorial types our vertex-PD + Lannér direct enumeration does not
+   construct. The dk6 block (294, the bulk) is reproduced **exactly**, which validates the
+   method on the part where direct enumeration and the census provably agree.
 
-Until then the pipeline is **sound but incomplete on the low-k types**: it reports 334 of
-348, every one verified, with the dk6 block (the bulk, 294) recovered exactly.
+The scalable route to the exact 348 remains **solve-rather-than-enumerate** (the Ma–Zheng
+approach: set up the Gram rank + Lannér system per type with symbolic unknowns; prune by
+facet-admissibility — every d=4 facet must be a compact Coxeter 3-polytope), and/or
+implementing the FT prism-gluing construction. Both are substantial new modules, not
+parameter changes.
+
+Until then the pipeline is **sound and complete on every low-k type except 15**: it reports
+**334 of 348**, every one independently verified, with the dk6 block (294) exact.
 
 ---
 

@@ -72,11 +72,14 @@ def main():
     tids=[int(x) for x in sys.argv[1].split(",")]
     branch_timeout=float(sys.argv[2]) if len(sys.argv)>2 else 2400
     P=int(sys.argv[3]) if len(sys.argv)>3 else 2
+    nproc_arg=int(sys.argv[4]) if len(sys.argv)>4 else max(1, mp.cpu_count()-1)
     survivors={t["type_id"]:t for t in json.load(open("runs/d4_n8/stage2/types.json"))}
-    nproc=max(1, mp.cpu_count()-1)
+    nproc=nproc_arg
     nlab=len(VALID_LABELS)
+    outdir=Path("runs/d4_n8/lowk_par"); outdir.mkdir(parents=True, exist_ok=True)
     print(f"low-k parallel: types={tids} P={P} ({nlab**P} prefixes) workers={nproc} "
           f"branch_timeout={branch_timeout}s", flush=True)
+    summary={}
     for tid in tids:
         t=survivors[tid]; te=time.time()
         prefixes=[(t, pre, branch_timeout) for pre in itertools.product(range(nlab), repeat=P)]
@@ -91,9 +94,17 @@ def main():
                 raw.extend(r)
         keys=set(canonical_key(r,N) for r in raw)
         status="COMPLETE" if not any_timeout else "INCOMPLETE(timeout)"
+        elapsed=(time.time()-te)/60
         print(f"type {tid}: assigns={tot_assign} cands={len(all_cands)} raw={len(raw)} "
               f"-> {len(keys)} DISTINCT  [{status}, {nonempty} nonempty prefixes] "
-              f"in {(time.time()-te)/60:.1f}min", flush=True)
+              f"in {elapsed:.1f}min", flush=True)
+        summary[tid]={"distinct":len(keys),"assigns":tot_assign,"cands":len(all_cands),
+                      "raw":len(raw),"status":status,"elapsed_min":round(elapsed,2)}
+        (outdir/f"type_{tid}.json").write_text(json.dumps(
+            {"type_id":tid,"distinct":len(keys),"polytopes":raw,"assigns":tot_assign,
+             "status":status,"elapsed_min":round(elapsed,2)}, indent=2))
+    (outdir/"summary.json").write_text(json.dumps(summary, indent=2))
+    print(f"\nResults saved to {outdir}/", flush=True)
 
 if __name__=="__main__":
     main()

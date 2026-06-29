@@ -1660,7 +1660,13 @@ def _pin_pair_resultant(build, pins, S1, S2, e, f, eps=1e-7):
         return np.linalg.det(Syl)
 
     xes = [1.3, 1.9, 2.7, 3.8, 5.5, 7.0]
-    coef = np.polyfit(xes, [res_at(x) for x in xes], 4)
+    res_vals = [res_at(x) for x in xes]
+    coef = np.polyfit(xes, res_vals, 4)
+    # Identically-zero resultant: the two minors are proportional (symmetric
+    # degenerate case, e.g. dk=4 perfect-matching types). Return None to signal
+    # "inconclusive" so the caller can fall back to the numerical screen.
+    if max(abs(v) for v in res_vals) < 1e-6:
+        return None
     out = []
     for xe in np.roots(coef):
         if abs(xe.imag) > 1e-6 or xe.real < 1.0 + eps:
@@ -1734,8 +1740,11 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
             if pair is None:
                 return None, []                  # truly stuck -> fall back
             e, f = pair
-            for xe, xf in _pin_pair_resultant(build, pins, pairmin[pair][0],
-                                              pairmin[pair][1], e, f):
+            pr_result = _pin_pair_resultant(build, pins, pairmin[pair][0],
+                                            pairmin[pair][1], e, f)
+            if pr_result is None:
+                return None, []          # degenerate (zero resultant) -> fall back
+            for xe, xf in pr_result:
                 p2 = dict(pins); p2[e] = xe; p2[f] = xf
                 stack.append((p2, unknown - {e, f}))
             continue
