@@ -1760,6 +1760,28 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
     return (len(solutions) > 0), solutions
 
 
+def screen_candidate(la, dotted_pairs, minor_index, n, d):
+    """Screen one ordinary-label assignment ``la`` ({(i,j): m}) for a realizable Gram
+    matrix and return a list of candidate solver starts ``[(la, dotted, x0), ...]`` (empty
+    if provably infeasible).  Shared by the brute and block-paste drivers so both use the
+    identical screen path: the sound algebraic ``_structured_screen`` cascade, with a
+    numerical fallback (``_numerical_screen`` + float signature) when the cascade is stuck.
+    The returned starts are handed to ``_refine_mpmath`` + ``_recognize_minpoly_and_verify``
+    for exact verification (see ``run_lowk_parallel._solve_worker``)."""
+    if not dotted_pairs:
+        return [(dict(la), dotted_pairs, [])]
+    ordf = {p: _GRAM_FLOAT[m] for p, m in la.items()}
+    dec, xs = _structured_screen(ordf, dotted_pairs, minor_index, n, d)
+    if dec:
+        return [(dict(la), dotted_pairs, [s[p] for p in dotted_pairs]) for s in xs]
+    if dec is None:
+        xa, res = _numerical_screen(ordf, dotted_pairs, n, d, residual_threshold=1e-6)
+        if res <= 1e-6 and _check_signature_float(
+                _build_gram_numpy(ordf, dotted_pairs, xa, n), d, tol=1e-3):
+            return [(dict(la), dotted_pairs, list(xa))]
+    return []
+
+
 # ---------------------------------------------------------------------------
 # Per-type Stage 4 driver
 # ---------------------------------------------------------------------------
