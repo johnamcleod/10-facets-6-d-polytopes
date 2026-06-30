@@ -58,13 +58,27 @@
 >      on every candidate): it hit the per-branch timeout with **0 found** in the covered
 >      partition. A finer P=3 partition can drive it to COMPLETE, but it was not run to
 >      completion.
->    - **So 334 is the definitive single-machine count.** With every type complete except
->      type 15, the residual 14 is no longer "many intractable types" — it reduces to (a)
->      type 15 (unfinished, 0 in partial), and (b) per-k discrepancies (k=5: 21 vs 23,
->      k=3: 5 vs 7) on types that are now **provably complete**, which points to either an
->      unreliable per-k split of the published 348 or the Felikson–Tumarkin prism-gluing
->      families that direct enumeration does not construct (diagnosed in §6). dk6 (the
->      bulk, 294) is reproduced **exactly**.
+> 4. **INDEPENDENT block-paste recount (2026-06-30): 338, and type 15 solved.** A second,
+>    fully independent exhaustive method — the Ma–Zheng **block-pasting + library-join**
+>    enumerator (`pipeline/stage4_blockpaste.py`; builds the Gram matrix vertex-by-vertex,
+>    pruning against precomputed spherical/Euclidean/Lannér angle libraries instead of
+>    brute-enumerating labels) — was built, validated, and run over all 30 d=4
+>    combinatorial types (reusing the *same* exact signature+isolation solver). Results:
+>    - **It reproduces the brute per-type count EXACTLY on all 29 completed types** (dk6
+>      294 exact; every realizing type identical), and **solves type 15 — the lone type
+>      brute never finished — exhaustively: 4 polytopes** (3,076,992 label-assignments
+>      screened; type 15 is the 14th realizing combinatorial type). So the direct count is
+>      **334 → 338**, now confirmed by two independent enumerations.
+>    - **The 338-vs-348 gap is therefore provably NOT enumeration-incompleteness.**
+>      Block-paste is exhaustive-by-construction over the verified 30 types, so the residual
+>      10 (per-k: k=5 21 vs 23, k=4 18 vs 24, k=3 5 vs 7; k=6 and k=2 exact) cannot be
+>      missing label-assignments. It points to a **census counting-convention difference**
+>      or a **shared exact-solver subtlety** (both methods use the same accept test) — the
+>      genuine remaining question, now sharply localized.
+>    - One porting bug found+fixed: Ma–Zheng's `l4_basis` prism-end orthogonality saver
+>      OVER-PRUNES (verified type-6 polytopes have non-orthogonal tetrahedral-facet ridges);
+>      it is a gauge/efficiency choice, not a soundness condition — disabled; the exact
+>      solver is the arbiter.
 >
 > **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
 > are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
@@ -822,6 +836,51 @@ parameter changes.
 
 Until then the pipeline is **sound and complete on every low-k type except 15**: it reports
 **334 of 348**, every one independently verified, with the dk6 block (294) exact.
+
+### 6.5 Independent block-paste recount (2026-06-30) — 338, two methods agree
+
+The brute enumerate-then-screen path leaves one type (15) unfinished and gives no
+independent check on the others. To close both gaps we implemented a *second*, independent
+exhaustive candidate generator — the **Ma–Zheng block-pasting + library-join** method
+(`pipeline/stage4_blockpaste.py`, port of their `chcp48.py`; libraries in
+`scratchpad/HCPdm/ToolPolytope/`). It builds the Gram matrix vertex-by-vertex, seeding each
+vertex from the spherical-4 library and pruning every partial candidate whose sub-angle
+tuples fall outside the precomputed spherical/Euclidean/Lannér libraries — so per-type
+enumeration is **exhaustive-by-construction, with no timeout wall**. It feeds candidates to
+the *same* exact signature+isolation solver (`screen_candidate` →
+`_recognize_minpoly_and_verify`) and dedups with the same `canonical_key`.
+
+All 30 types were recounted (full run ≈ 9 h, `caffeinate`d; the dominant cost is the exact
+solve and, for type 20, a 461 M-candidate single-partition screen). Result:
+
+| k | block-paste | brute | census |
+|---|-------------|-------|--------|
+| 6 | 294 (0→115, 5→130, 6→49) | 294 | **294 ✓** |
+| 5 | 21 (1→3, 3→2, 7→15, 18→1) | 21 | 23 |
+| 4 | 18 (4→4, 8→8, 17→2, **15→4**) | 14 | 24 |
+| 3 | 5 (10→2, 14→2, 16→1) | 5 | 7 |
+| 2 | 0 | 0 | **0 ✓** |
+| **total** | **338** | 334 | 348 |
+
+- **The two independent methods agree per-type on all 29 brute-completed types**, and
+  block-paste **solves type 15 exhaustively → 4 polytopes** (3,076,992 label-assignments
+  screened; the 14th and final realizing combinatorial type). Direct count: **334 → 338**.
+- **The 338-vs-348 gap is provably not enumeration-incompleteness.** Block-paste is
+  exhaustive over the same verified 30 combinatorial types (the Grünbaum–Sreedharan /
+  Ma–Zheng `4d8m.txt` list) and reproduces dk6 (294) and the empty k=2 class exactly. The
+  residual 10 is concentrated in k=3,4,5 and must arise from either a **census
+  counting-convention difference** (e.g. a different equivalence than facet-permutation
+  dedup) or a **shared exact-solver acceptance subtlety** (both paths use the same
+  signature+isolation test) — not from missing label assignments. This is now the sharply
+  localized open question for d=4.
+- **Porting note:** Ma–Zheng's `l4_basis` prism-end orthogonality saver over-prunes
+  (verified type-6 = P2 polytopes have non-orthogonal tetrahedral-facet ridges), so it is a
+  gauge/efficiency choice, not a soundness condition — disabled (`USE_L4_BASIS=False`); the
+  exact solver is the arbiter. Validation: `tests/test_blockpaste.py` (fast) + type-6 → 49.
+
+The same machinery extends to d=5 with the shifted face-rank hierarchy (seed S5; killers
+s3/s4/**s5**, se6/7; savers l4 **and l5**) and a fresh vertex_sets-bearing Stage-2 input;
+the exact solver carries over unchanged (kernel dim `n−d−1 = 3` for both d=4 and d=5).
 
 ---
 
