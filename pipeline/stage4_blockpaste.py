@@ -298,8 +298,10 @@ def paste_candidates(t, max_candidates=8_000_000, verbose=False, forced=None):
         data = out
         covered |= set(vcols)
         data, cons = _apply_constraints(data, cons, covered, l4_basis_cols, forced)
-        # dedupe to bound memory
-        data = np.unique(data, axis=0)
+        # NB: the join cannot create duplicate rows (distinct parents differ on some
+        # already-covered column, so their merged outputs differ), and constraints only
+        # filter -- so intermediate np.unique is a near-no-op and was the dominant paste
+        # cost.  Dedup once at the end instead.
         if verbose:
             print(f"  paste v{vi} (step {step}): {data.shape[0]} rows")
         if data.shape[0] > max_candidates:
