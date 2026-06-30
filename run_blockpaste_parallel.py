@@ -32,26 +32,32 @@ from sympy import symbols
 N, D = 8, 4
 
 
-def _seed_part_col(t):
-    """First column of the greedily-ordered seed vertex -- the partition column."""
+def _seed_part_cols(t, p):
+    """First ``p`` columns of the greedily-ordered seed vertex -- the partition columns.
+    Pinning more columns => more, smaller partitions (bounded memory)."""
     _, _, ctx = _build_constraints(t)
     order = _order_vertices(ctx["V"], ctx["cols_of"])
-    return ctx["cols_of"](ctx["V"][order[0]])[0]
+    return ctx["cols_of"](ctx["V"][order[0]])[:p]
 
 
 def _paste_screen_worker(args):
-    """Paste one partition (seed column pinned to a value), expand wildcards, screen.
-    Returns (list of (la, dotted, x0) starts, n_label_assignments_screened)."""
-    t, part_col, val = args
+    """Paste one partition (seed columns pinned), expand wildcards, screen.
+    On OverflowError the partition is too big -- signalled back so the caller can refine.
+    Returns (list of (la, dotted, x0) starts, n_label_assignments_screened, overflow_forced
+    or None)."""
+    t, forced = args
     dotted = [tuple(sorted(m)) for m in t["missing_faces"] if len(m) == 2]
     mi = _build_minor_index(dotted, N, D)
-    cands, ordinary = paste_candidates(t, forced={part_col: val})
+    try:
+        cands, ordinary = paste_candidates(t, forced=forced)
+    except OverflowError:
+        return [], 0, forced
     starts = []
     n_la = 0
     for la in expand_label_assignments(cands, ordinary):
         n_la += 1
         starts.extend(screen_candidate(la, dotted, mi, N, D))
-    return starts, n_la
+    return starts, n_la, None
 
 
 def _solve_worker(args):
@@ -69,18 +75,35 @@ def _solve_worker(args):
     return out
 
 
-def process_type(tid, survivors, nproc, outdir):
+def process_type(tid, survivors, nproc, outdir, p=1):
     t = survivors[tid]
     te = time.time()
-    part_col = _seed_part_col(t)
-    part_args = [(t, part_col, v) for v in (2, 3, 4, 5, 6, 7)]
+    seed_cols = _seed_part_cols(t, 6)  # full seed vertex columns (refine pool)
+    LABELS = (2, 3, 4, 5, 6, 7)
+    # initial partition: pin first ``p`` seed columns
+    import itertools
+    init = [{seed_cols[i]: combo[i] for i in range(p)}
+            for combo in itertools.product(LABELS, repeat=p)]
 
-    all_starts = []
-    tot_la = 0
-    with mp.get_context("fork").Pool(processes=min(nproc, 6)) as pool:
-        for starts, n_la in pool.imap_unordered(_paste_screen_worker, part_args):
-            all_starts.extend(starts)
-            tot_la += n_la
+    all_starts, tot_la, overflows = [], 0, 0
+    queue = [(t, f) for f in init]
+    next_refine_idx = p
+    with mp.get_context("fork").Pool(processes=nproc) as pool:
+        while queue:
+            results = pool.map(_paste_screen_worker, queue)
+            queue = []
+            for starts, n_la, ovf in results:
+                all_starts.extend(starts)
+                tot_la += n_la
+                if ovf is not None:
+                    overflows += 1
+                    # refine: pin one more seed column not already pinned
+                    extra = next((c for c in seed_cols if c not in ovf), None)
+                    if extra is None:
+                        raise RuntimeError(f"type {tid}: partition {ovf} cannot refine")
+                    for v in LABELS:
+                        f2 = dict(ovf); f2[extra] = v
+                        queue.append((t, f2))
     raw = []
     with mp.get_context("fork").Pool(processes=nproc) as pool:
         for r in pool.imap_unordered(_solve_worker, all_starts, chunksize=8):
@@ -88,7 +111,8 @@ def process_type(tid, survivors, nproc, outdir):
     keys = set(canonical_key(r, N) for r in raw)
     elapsed = (time.time() - te) / 60
     print(f"type {tid}: label_assigns={tot_la} screen_pass={len(all_starts)} "
-          f"raw={len(raw)} -> {len(keys)} DISTINCT in {elapsed:.1f}min", flush=True)
+          f"raw={len(raw)} refine_overflows={overflows} -> {len(keys)} DISTINCT "
+          f"in {elapsed:.1f}min", flush=True)
     res = {"type_id": tid, "distinct": len(keys), "polytopes": raw,
            "label_assigns": tot_la, "screen_pass": len(all_starts),
            "elapsed_min": round(elapsed, 2)}
@@ -99,6 +123,7 @@ def process_type(tid, survivors, nproc, outdir):
 def main():
     arg = sys.argv[1]
     nproc = int(sys.argv[2]) if len(sys.argv) > 2 else max(1, mp.cpu_count() - 1)
+    p = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     survivors = {t["type_id"]: t for t in json.load(open("runs/d4_n8/stage2/types.json"))}
     if arg == "all":
         tids = sorted(survivors)
@@ -106,10 +131,10 @@ def main():
         tids = [int(x) for x in arg.split(",")]
     outdir = Path("runs/d4_n8/blockpaste")
     outdir.mkdir(parents=True, exist_ok=True)
-    print(f"block-paste Stage 4: types={tids} workers={nproc}", flush=True)
+    print(f"block-paste Stage 4: types={tids} workers={nproc} partition_depth={p}", flush=True)
     summary = {}
     for tid in tids:
-        r = process_type(tid, survivors, nproc, outdir)
+        r = process_type(tid, survivors, nproc, outdir, p=p)
         summary[tid] = {k: r[k] for k in ("distinct", "label_assigns", "screen_pass",
                                           "elapsed_min")}
         (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
