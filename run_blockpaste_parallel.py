@@ -134,6 +134,12 @@ def main():
     nproc = int(sys.argv[2]) if len(sys.argv) > 2 else max(1, mp.cpu_count() - 1)
     p = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     d = int(sys.argv[4]) if len(sys.argv) > 4 else 4
+    # l_basis (prism-end orthogonality saver): the d=4 census (348) counts base + glued
+    # polytopes -> l_basis OFF; the d=5 census (51) uses the prism-base convention
+    # (P9_322 -> 3 only with it ON).  Empirically dimension-dependent; see scratchpad/
+    # test_lbasis.py + memory blockpaste-stage4.
+    import pipeline.stage4_blockpaste as _bp
+    _bp.USE_L4_BASIS = (d >= 5)
     base = {4: "runs/d4_n8", 5: "runs/d5_n9", 6: "runs/d6_n10"}[d]
     survivors = {t.get("type_id", i): t
                  for i, t in enumerate(json.load(open(f"{base}/stage2/types.json")))}
