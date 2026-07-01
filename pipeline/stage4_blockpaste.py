@@ -1,4 +1,10 @@
-"""Block-pasting Stage-4 candidate generator (Ma-Zheng method), d=4 / n=8.
+"""Block-pasting Stage-4 candidate generator (Ma-Zheng method), general in (n, d).
+
+Validated exhaustively for d=4 (n=8); the same face-rank hierarchy applies to d=5 (n=9)
+via the single fact that a set S of facets is a FACE iff S is contained in some vertex's
+facet-set.  Dimensions (n, d) are inferred per type from ``vertex_sets`` (see
+:func:`infer_dims`), so nothing here is d=4-specific.
+
 
 Replaces the brute-force integer-label enumeration of ``stage4_gram.process_type_stage4``
 for the *candidate generation* step.  Instead of enumerating every label assignment over
@@ -43,8 +49,6 @@ import pandas as pd
 
 from pipeline.utils import mazheng_lib as ml
 
-N, D = 8, 4
-_UNSET = 0  # sentinel for an unassigned ordinary column
 USE_L4_BASIS = False  # Ma-Zheng prism-end orthogonality saver (over-prunes -- see below)
 
 
@@ -72,12 +76,24 @@ def _lib_codes(lib: frozenset, width: int) -> np.ndarray:
 # Per-type setup: ordinary columns, vertices, constraints.
 # ---------------------------------------------------------------------------
 def _setup(t):
-    V = [tuple(sorted(v)) for v in t["vertex_sets"]]
+    if t.get("vertex_sets"):
+        V = [tuple(sorted(v)) for v in t["vertex_sets"]]
+    else:  # fallback: reconstruct vertices exactly from the affine-Gale diagram
+        from pipeline.utils.gale_exact import AffineGale
+        d_guess = max(len(m) for m in t["missing_faces"])  # >= largest missing face
+        n_guess = 1 + max(max(m) for m in t["missing_faces"])
+        ag = AffineGale([tuple(p) for p in t["example_points"]],
+                        frozenset(t["example_positive"]), n_guess - d_guess)
+        V = [tuple(sorted(v)) for v in ag.vertex_sets()]
     missing = [tuple(sorted(m)) for m in t["missing_faces"]]
     dotted = {m for m in missing if len(m) == 2}
-    mf4 = [m for m in missing if len(m) == 4]
 
-    allpairs = [(i, j) for i in range(N) for j in range(i + 1, N)]
+    d = len(V[0])                                   # simple polytope: every vertex on d facets
+    n = 1 + max(max(v) for v in V)                  # facets are 0..n-1
+    for v in V:
+        assert len(v) == d, f"non-simple vertex {v} (expected {d} facets)"
+
+    allpairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
     ordinary = [p for p in allpairs if p not in dotted]
     op_idx = {p: c for c, p in enumerate(ordinary)}
     Nr = len(ordinary)
@@ -94,25 +110,26 @@ def _setup(t):
     for v in V:
         assert cols_of(v) is not None, f"vertex {v} contains a dotted pair (malformed type)"
 
-    return V, missing, dotted, mf4, ordinary, op_idx, Nr, cols_of
+    return V, missing, dotted, ordinary, op_idx, Nr, cols_of, n, d
 
 
-def _faces(V):
-    """The set of 2-faces (mutually-meeting facet triples) = triples appearing in a vertex."""
-    edges = set()
-    for v in V:
-        for tri in itertools.combinations(v, 3):
-            edges.add(tri)
-    return edges
+def infer_dims(t):
+    """(n, d) for a combinatorial type: d = facets per vertex, n = number of facets."""
+    *_, n, d = _setup(t)
+    return n, d
 
 
 def _build_constraints(t):
     """Return (constraints, l4_basis_cols, ctx) where each constraint is
     (cols_tuple, lib_codes, keep_in: bool).  ``keep_in`` True = saver (keep rows IN lib),
-    False = killer (keep rows NOT in lib)."""
-    V, missing, dotted, mf4, ordinary, op_idx, Nr, cols_of = _setup(t)
-    faces = _faces(V)
-    vert_set = set(V)
+    False = killer (keep rows NOT in lib).  Dimension-general in (n, d): a vertex is d
+    facets, and a set S of facets is a FACE iff S is contained in some vertex's facet-set."""
+    V, missing, dotted, ordinary, op_idx, Nr, cols_of, n, d = _setup(t)
+    Vsets = [frozenset(v) for v in V]
+
+    def is_face(subset):
+        s = frozenset(subset)
+        return any(s <= v for v in Vsets)
 
     cons = []  # (tuple(cols), lib_codes uint64 array, keep_in)
 
@@ -120,30 +137,27 @@ def _build_constraints(t):
         cols = cols_of(subset)
         if cols is None:
             return
-        width = len(cols)
-        cons.append((tuple(cols), _lib_codes(lib, width), keep_in))
+        cons.append((tuple(cols), _lib_codes(lib, len(cols)), keep_in))
 
-    all4 = list(itertools.combinations(range(N), 4))
-    all3 = list(itertools.combinations(range(N), 3))
-
-    # killers: non-vertex 4-subsets not spherical (s4); all 4-subsets not Euclidean (e4)
-    for q in all4:
-        if q not in vert_set:
-            add(q, ml.S(4), keep_in=False)      # s4
-        add(q, ml.E(4), keep_in=False)          # e4
-    # killers: non-face triples not spherical (s3); all triples not Euclidean (e3)
-    for tri in all3:
-        if tri not in faces:
-            add(tri, ml.S(3), keep_in=False)    # s3
-        add(tri, ml.E(3), keep_in=False)        # e3
-    # killers: rank-5/6/7 sub-configs neither spherical nor Euclidean (se5/6/7)
-    for k in (5, 6, 7):
-        for sub in itertools.combinations(range(N), k):
-            add(sub, ml.S(k), keep_in=False)
-            add(sub, ml.E(k), keep_in=False)
-    # savers: size-4 missing faces are Lanner (l4)
-    for m in mf4:
-        add(m, ml.L4(), keep_in=True)
+    # rank j = 3..d: a spherical (elliptic) rank-j subdiagram <-> a (d-j)-face, so a
+    # j-subset that is NOT a face must NOT be spherical (killer S(j)); and no present
+    # subset may be Euclidean/parabolic (killer E(j), compact => no parabolic).
+    for j in range(3, d + 1):
+        for q in itertools.combinations(range(n), j):
+            if not is_face(q):
+                add(q, ml.S(j), keep_in=False)
+            add(q, ml.E(j), keep_in=False)
+    # rank j = d+1..n-1: elliptic rank > d is impossible, so any spherical is forbidden;
+    # Euclidean likewise (killers on all present j-subsets).
+    for j in range(d + 1, n):
+        for q in itertools.combinations(range(n), j):
+            add(q, ml.S(j), keep_in=False)
+            add(q, ml.E(j), keep_in=False)
+    # savers: a size-m missing face (m = 4, 5) is a Lanner m-simplex.  (Size-3 missing
+    # faces need no explicit saver: not-spherical + not-Euclidean forces rank-3 Lanner.)
+    for m in missing:
+        if len(m) in (4, 5):
+            add(m, ml.L(len(m)), keep_in=True)
 
     # i4 killer: 4-subset with a "matching" pair of dotted edges -> the 4 cross angles
     # may not be all == 2.  Port of chcp48.infty2 (positions in combinations order:
@@ -151,7 +165,7 @@ def _build_constraints(t):
     # {0,5},{1,4},{2,3}).
     OPP = [((0, 5), (1, 2, 3, 4)), ((1, 4), (0, 2, 3, 5)), ((2, 3), (0, 1, 4, 5))]
     i4_codes = _lib_codes(frozenset({(2, 2, 2, 2)}), 4)
-    for q in all4:
+    for q in itertools.combinations(range(n), 4):
         pcs = ml.facet_pair_columns(q)  # 6 pairs in combinations order
         for opp, rest in OPP:
             if all(pcs[i] in dotted for i in opp) and all(pcs[i] not in dotted for i in rest):
@@ -168,9 +182,9 @@ def _build_constraints(t):
     # the Ma-Zheng behaviour.
     l4_basis_cols = set()
     if USE_L4_BASIS:
-        facet_nverts = [sum(1 for v in V if f in v) for f in range(N)]
-        for f in range(N):
-            if facet_nverts[f] != 4:
+        facet_nverts = [sum(1 for v in V if f in v) for f in range(n)]
+        for f in range(n):
+            if facet_nverts[f] != d:   # a (d-1)-simplex facet has d vertices
                 continue
             nbrs = set()
             for v in V:
@@ -183,21 +197,22 @@ def _build_constraints(t):
                     l4_basis_cols.add(op_idx[p])
 
     ctx = dict(V=V, ordinary=ordinary, op_idx=op_idx, Nr=Nr, dotted=dotted,
-               cols_of=cols_of, mf4=mf4)
+               cols_of=cols_of, n=n, d=d)
     return cons, sorted(l4_basis_cols), ctx
 
 
 # ---------------------------------------------------------------------------
 # The block-paste join.
 # ---------------------------------------------------------------------------
-_S4_ARR = None
+_S_ARR = {}
 
 
-def _s4_array():
-    global _S4_ARR
-    if _S4_ARR is None:
-        _S4_ARR = np.array(sorted(ml.S(4)), dtype=np.int8)  # (242, 6) combinations order
-    return _S4_ARR
+def _s_array(d):
+    """The spherical-d library as an int8 array (|S(d)|, C(d,2)) in combinations order --
+    the seed table for one vertex (d facets)."""
+    if d not in _S_ARR:
+        _S_ARR[d] = np.array(sorted(ml.S(d)), dtype=np.int8)
+    return _S_ARR[d]
 
 
 def _apply_constraints(data, cons, covered, l4_basis_cols, forced=None):
@@ -259,7 +274,7 @@ def paste_candidates(t, max_candidates=8_000_000, verbose=False, forced=None):
     the candidate table exceeds ``max_candidates`` (caller should partition further)."""
     cons, l4_basis_cols, ctx = _build_constraints(t)
     V, cols_of, Nr = ctx["V"], ctx["cols_of"], ctx["Nr"]
-    s4 = _s4_array()
+    s4 = _s_array(ctx["d"])   # per-vertex spherical seed table (S(d))
     forced = dict(forced or {})
 
     order = _order_vertices(V, cols_of)

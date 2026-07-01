@@ -40,7 +40,7 @@ _EXPECTED = {
     ("Slis", 6): 20206, ("Slis", 7): 227676,
     ("Elis", 3): 10, ("Elis", 4): 27, ("Elis", 5): 257,
     ("Elis", 6): 870, ("Elis", 7): 6870,
-    ("Lanner", 4): 392,
+    ("Lanner", 4): 392, ("Lanner", 5): 420,
 }
 
 _cache: dict[tuple[str, int], frozenset[tuple[int, ...]]] = {}
@@ -87,6 +87,12 @@ def S(k: int) -> frozenset[tuple[int, ...]]:
 
 def E(k: int) -> frozenset[tuple[int, ...]]:
     return load_library("Elis", k)
+
+
+def L(k: int) -> frozenset[tuple[int, ...]]:
+    """Lannér library of rank k (compact hyperbolic k-simplices = size-k missing faces).
+    Defined for k = 4, 5 (Lannér diagrams exist only up to order 5)."""
+    return load_library("Lanner", k)
 
 
 def L4() -> frozenset[tuple[int, ...]]:

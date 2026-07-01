@@ -23,13 +23,11 @@ import multiprocessing as mp
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pipeline.stage4_blockpaste import (paste_candidates, expand_label_assignments,
-                                        _build_constraints, _order_vertices)
+                                        _build_constraints, _order_vertices, infer_dims)
 from pipeline.stage4_gram import (screen_candidate, _build_minor_index, _refine_mpmath,
                                   _recognize_minpoly_and_verify)
 from run_d4 import canonical_key
 from sympy import symbols
-
-N, D = 8, 4
 
 
 def _seed_part_cols(t, p):
@@ -46,8 +44,9 @@ def _paste_screen_worker(args):
     Returns (list of (la, dotted, x0) starts, n_label_assignments_screened, overflow_forced
     or None)."""
     t, forced = args
+    n, d = infer_dims(t)
     dotted = [tuple(sorted(m)) for m in t["missing_faces"] if len(m) == 2]
-    mi = _build_minor_index(dotted, N, D)
+    mi = _build_minor_index(dotted, n, d)
     try:
         cands, ordinary = paste_candidates(t, forced=forced)
     except OverflowError:
@@ -56,20 +55,21 @@ def _paste_screen_worker(args):
     n_la = 0
     for la in expand_label_assignments(cands, ordinary):
         n_la += 1
-        starts.extend(screen_candidate(la, dotted, mi, N, D))
+        for s in screen_candidate(la, dotted, mi, n, d):
+            starts.append((s[0], s[1], s[2], n, d))
     return starts, n_la, None
 
 
 def _solve_worker(args):
-    la, dotted, x0 = args
+    la, dotted, x0, n, d = args
     if not dotted:
         return [{"label_assignment": {str(p): v for p, v in la.items()}, "dot_values": {}}]
     sl = [symbols(f"x_{p[0]}_{p[1]}", positive=True) for p in dotted]
-    xh = _refine_mpmath(np.array(x0), la, dotted, N, D, dps=100)
+    xh = _refine_mpmath(np.array(x0), la, dotted, n, d, dps=100)
     if xh is None:
         return []
     out = []
-    for so in _recognize_minpoly_and_verify(xh, sl, la, dotted, N, D, dps=100,
+    for so in _recognize_minpoly_and_verify(xh, sl, la, dotted, n, d, dps=100,
                                             recover_minpoly=False):
         out.append({"label_assignment": {str(p): v for p, v in la.items()}, "dot_values": so})
     return out
@@ -78,6 +78,7 @@ def _solve_worker(args):
 def process_type(tid, survivors, nproc, outdir, p=1):
     t = survivors[tid]
     te = time.time()
+    n, d = infer_dims(t)
     seed_cols = _seed_part_cols(t, 6)  # full seed vertex columns (refine pool)
     LABELS = (2, 3, 4, 5, 6, 7)
     # initial partition: pin first ``p`` seed columns
@@ -108,7 +109,7 @@ def process_type(tid, survivors, nproc, outdir, p=1):
     with mp.get_context("fork").Pool(processes=nproc) as pool:
         for r in pool.imap_unordered(_solve_worker, all_starts, chunksize=8):
             raw.extend(r)
-    keys = set(canonical_key(r, N) for r in raw)
+    keys = set(canonical_key(r, n) for r in raw)
     elapsed = (time.time() - te) / 60
     print(f"type {tid}: label_assigns={tot_la} screen_pass={len(all_starts)} "
           f"raw={len(raw)} refine_overflows={overflows} -> {len(keys)} DISTINCT "
