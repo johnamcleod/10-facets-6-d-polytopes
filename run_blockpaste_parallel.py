@@ -48,7 +48,7 @@ def _paste_screen_worker(args):
     dotted = [tuple(sorted(m)) for m in t["missing_faces"] if len(m) == 2]
     mi = _build_minor_index(dotted, n, d)
     try:
-        cands, ordinary = paste_candidates(t, forced=forced)
+        cands, ordinary = paste_candidates(t, forced=forced, max_candidates=3_000_000)
     except OverflowError:
         return [], 0, forced
     starts = []
@@ -82,47 +82,53 @@ def _solve_worker(args):
     return out
 
 
-def process_type(tid, survivors, nproc, outdir, p=1):
+def process_type(tid, survivors, nproc, outdir, p=1, type_budget_s=600):
     t = survivors[tid]
     te = time.time()
     n, d = infer_dims(t)
-    seed_cols = _seed_part_cols(t, 6)  # full seed vertex columns (refine pool)
+    _, _, ctx = _build_constraints(t)
+    refine_pool = list(range(ctx["Nr"]))      # any ordinary column may be pinned to refine
+    seed_cols = _seed_part_cols(t, min(p, ctx["Nr"]))
     LABELS = (2, 3, 4, 5, 6, 7)
-    # initial partition: pin first ``p`` seed columns
+    MAX_PIN = 12                               # give up refining past this depth (intractable)
     import itertools
     init = [{seed_cols[i]: combo[i] for i in range(p)}
             for combo in itertools.product(LABELS, repeat=p)]
 
-    all_starts, tot_la, overflows = [], 0, 0
+    all_starts, tot_la, overflows, skipped = [], 0, 0, 0
     queue = [(t, f) for f in init]
-    next_refine_idx = p
+    total_queued = len(queue)
+    PART_CAP = 4000                            # max partitions/type
+    deadline = te + type_budget_s              # per-type wall-clock budget (intractable => stop)
     with mp.get_context("fork").Pool(processes=nproc) as pool:
-        while queue:
-            results = pool.map(_paste_screen_worker, queue)
-            queue = []
-            for starts, n_la, ovf in results:
+        while queue and time.time() < deadline:
+            batch, queue = queue[:nproc * 4], queue[nproc * 4:]
+            for starts, n_la, ovf in pool.map(_paste_screen_worker, batch):
                 all_starts.extend(starts)
                 tot_la += n_la
                 if ovf is not None:
                     overflows += 1
-                    # refine: pin one more seed column not already pinned
-                    extra = next((c for c in seed_cols if c not in ovf), None)
-                    if extra is None:
-                        raise RuntimeError(f"type {tid}: partition {ovf} cannot refine")
+                    extra = next((c for c in refine_pool if c not in ovf), None)
+                    if extra is None or len(ovf) >= MAX_PIN or total_queued >= PART_CAP:
+                        skipped += 1
+                        continue
                     for v in LABELS:
-                        f2 = dict(ovf); f2[extra] = v
-                        queue.append((t, f2))
+                        queue.append((t, {**ovf, extra: v}))
+                        total_queued += 1
+        skipped += len(queue)                  # anything unprocessed at the deadline
     raw = []
     with mp.get_context("fork").Pool(processes=nproc) as pool:
         for r in pool.imap_unordered(_solve_worker, all_starts, chunksize=8):
             raw.extend(r)
     keys = set(canonical_key(r, n) for r in raw)
     elapsed = (time.time() - te) / 60
+    status = "COMPLETE" if skipped == 0 else f"INCOMPLETE({skipped} partitions skipped)"
     print(f"type {tid}: label_assigns={tot_la} screen_pass={len(all_starts)} "
           f"raw={len(raw)} refine_overflows={overflows} -> {len(keys)} DISTINCT "
-          f"in {elapsed:.1f}min", flush=True)
+          f"[{status}] in {elapsed:.1f}min", flush=True)
     res = {"type_id": tid, "distinct": len(keys), "polytopes": raw,
            "label_assigns": tot_la, "screen_pass": len(all_starts),
+           "skipped_partitions": skipped, "status": status,
            "elapsed_min": round(elapsed, 2)}
     (outdir / f"type_{tid}.json").write_text(json.dumps(res, indent=2))
     return res
@@ -134,6 +140,7 @@ def main():
     nproc = int(sys.argv[2]) if len(sys.argv) > 2 else max(1, mp.cpu_count() - 1)
     p = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     d = int(sys.argv[4]) if len(sys.argv) > 4 else 4
+    budget = int(sys.argv[5]) if len(sys.argv) > 5 else 600
     # l_basis (prism-end orthogonality saver): the d=4 census (348) counts base + glued
     # polytopes -> l_basis OFF; the d=5 census (51) uses the prism-base convention
     # (P9_322 -> 3 only with it ON).  Empirically dimension-dependent; see scratchpad/
@@ -153,7 +160,7 @@ def main():
           flush=True)
     summary = {}
     for tid in tids:
-        r = process_type(tid, survivors, nproc, outdir, p=p)
+        r = process_type(tid, survivors, nproc, outdir, p=p, type_budget_s=budget)
         summary[tid] = {k: r[k] for k in ("distinct", "label_assigns", "screen_pass",
                                           "elapsed_min")}
         (outdir / "summary.json").write_text(json.dumps(summary, indent=2))
