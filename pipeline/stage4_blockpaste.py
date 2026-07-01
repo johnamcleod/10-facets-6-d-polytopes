@@ -147,9 +147,13 @@ def _build_constraints(t):
             if not is_face(q):
                 add(q, ml.S(j), keep_in=False)
             add(q, ml.E(j), keep_in=False)
-    # rank j = d+1..n-1: elliptic rank > d is impossible, so any spherical is forbidden;
-    # Euclidean likewise (killers on all present j-subsets).
-    for j in range(d + 1, n):
+    # rank j = d+1..min(n-1, 7): elliptic rank > d is impossible, so any spherical is
+    # forbidden; Euclidean likewise (killers on all present j-subsets).  Cap at rank 7:
+    # the libraries stop there, and a spherical/Euclidean rank-(j>7) config always contains
+    # a rank-7 sub-config which is a non-face (faces have <= d <= 6 facets) and is already
+    # killed by the s7 killer -- so higher ranks are subsumed.  (Matches Ma-Zheng chcp48/59,
+    # which load only S3..S7 / E3..E7.)
+    for j in range(d + 1, min(n, 8)):
         for q in itertools.combinations(range(n), j):
             add(q, ml.S(j), keep_in=False)
             add(q, ml.E(j), keep_in=False)
