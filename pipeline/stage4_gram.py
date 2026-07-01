@@ -1489,6 +1489,25 @@ def _safe_det(M):
         return mpmath.mpf(0)
 
 
+def _has_parabolic_subdiagram(G_np, n, d, tol=1e-7):
+    """True if the Gram has a PARABOLIC (affine) subdiagram => an ideal (cusp) vertex =>
+    the polytope is NON-compact.  A subset is parabolic iff its Gram submatrix is positive
+    semidefinite (no negative eigenvalue) with a nontrivial kernel (>=1 zero eigenvalue).
+
+    This is the compactness gate that signature(d,1)+isolation alone does NOT provide:
+    those accept finite-volume cusped polytopes too.  A parabolic subdiagram lives in a
+    PSD subspace of the (d,1) ambient, so it has rank <= d, hence <= d+1 nodes -- we only
+    need to scan subsets up to size d+1.  (Same criterion as verify_diagram.check_parabolic,
+    which certified P^B6 has none.)"""
+    from itertools import combinations as _c
+    for size in range(2, d + 2):
+        for subset in _c(range(n), size):
+            ev = np.linalg.eigvalsh(G_np[np.ix_(subset, subset)])
+            if (ev < -tol).sum() == 0 and (np.abs(ev) <= tol).sum() >= 1:
+                return True
+    return False
+
+
 def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
     """Numerical rank of the Jacobian of the (d+2)-minor kernel conditions with
     respect to the k dotted weights, evaluated at the refined point x_hp.
@@ -1578,6 +1597,13 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
     # on a positive-dimensional spurious continuum.
     rank, k = _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=dps)
     if rank != k:
+        return []
+
+    # Compactness: reject if any parabolic subdiagram (ideal vertex => non-compact).
+    # signature+isolation accept cusped finite-volume polytopes too; this is the gate
+    # that removes them (e.g. d=5 P9_322: 18 signature-isolated -> 3 compact).
+    G_np = np.array([[float(G[i, j]) for j in range(n)] for i in range(n)])
+    if _has_parabolic_subdiagram(G_np, n, d):
         return []
 
     # Best-effort exact minpoly per weight (decorative; never gates acceptance, and
