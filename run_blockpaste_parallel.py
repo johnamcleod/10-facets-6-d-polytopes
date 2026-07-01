@@ -65,12 +65,19 @@ def _solve_worker(args):
     if not dotted:
         return [{"label_assignment": {str(p): v for p, v in la.items()}, "dot_values": {}}]
     sl = [symbols(f"x_{p[0]}_{p[1]}", positive=True) for p in dotted]
-    xh = _refine_mpmath(np.array(x0), la, dotted, n, d, dps=100)
-    if xh is None:
+    try:
+        xh = _refine_mpmath(np.array(x0), la, dotted, n, d, dps=100)
+    except Exception:
+        return []       # degenerate candidate -> skip (never a valid polytope silently lost:
+    if xh is None:      # refine/verify only reject; the paste+screen already gated realizability)
         return []
     out = []
-    for so in _recognize_minpoly_and_verify(xh, sl, la, dotted, n, d, dps=100,
-                                            recover_minpoly=False):
+    try:
+        sols = _recognize_minpoly_and_verify(xh, sl, la, dotted, n, d, dps=100,
+                                             recover_minpoly=False)
+    except Exception:
+        return []
+    for so in sols:
         out.append({"label_assignment": {str(p): v for p, v in la.items()}, "dot_values": so})
     return out
 

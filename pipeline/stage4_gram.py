@@ -1476,6 +1476,19 @@ def _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=100):
     return G
 
 
+def _safe_det(M):
+    """mpmath determinant that returns 0 for an exactly-singular matrix instead of
+    crashing.  mpmath.det raises inside LU decomposition (a None pivot) when the matrix is
+    exactly singular -- which the (d+2)-minor kernel matrices routinely are near a
+    solution, especially the larger d>=5 minors with many pi/2 entries.  A singular matrix
+    has determinant 0."""
+    import mpmath
+    try:
+        return mpmath.det(M)
+    except (TypeError, ZeroDivisionError, ValueError):
+        return mpmath.mpf(0)
+
+
 def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
     """Numerical rank of the Jacobian of the (d+2)-minor kernel conditions with
     respect to the k dotted weights, evaluated at the refined point x_hp.
@@ -1500,8 +1513,8 @@ def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
 
     def fvals(xl):
         G = _build_gram_mpmath(label_assign, dotted_pairs, xl, n, dps=dps)
-        return [mpmath.det(mpmath.matrix([[G[r[a], r[b]] for b in range(len(r))]
-                                          for a in range(len(r))])) for r in rows]
+        return [_safe_det(mpmath.matrix([[G[r[a], r[b]] for b in range(len(r))]
+                                         for a in range(len(r))])) for r in rows]
 
     eps = mpmath.power(10, -(dps // 2 - 5))
     cols = []
