@@ -122,17 +122,22 @@ def process_type(tid, survivors, nproc, outdir, p=1):
 
 
 def main():
+    # usage: run_blockpaste_parallel.py <tid[,tid,...]|all> [nworkers] [p] [d]
     arg = sys.argv[1]
     nproc = int(sys.argv[2]) if len(sys.argv) > 2 else max(1, mp.cpu_count() - 1)
     p = int(sys.argv[3]) if len(sys.argv) > 3 else 1
-    survivors = {t["type_id"]: t for t in json.load(open("runs/d4_n8/stage2/types.json"))}
+    d = int(sys.argv[4]) if len(sys.argv) > 4 else 4
+    base = {4: "runs/d4_n8", 5: "runs/d5_n9", 6: "runs/d6_n10"}[d]
+    survivors = {t.get("type_id", i): t
+                 for i, t in enumerate(json.load(open(f"{base}/stage2/types.json")))}
     if arg == "all":
         tids = sorted(survivors)
     else:
         tids = [int(x) for x in arg.split(",")]
-    outdir = Path("runs/d4_n8/blockpaste")
+    outdir = Path(f"{base}/blockpaste")
     outdir.mkdir(parents=True, exist_ok=True)
-    print(f"block-paste Stage 4: types={tids} workers={nproc} partition_depth={p}", flush=True)
+    print(f"block-paste Stage 4 (d={d}): types={tids} workers={nproc} partition_depth={p}",
+          flush=True)
     summary = {}
     for tid in tids:
         r = process_type(tid, survivors, nproc, outdir, p=p)
