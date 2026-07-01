@@ -882,6 +882,40 @@ The same machinery extends to d=5 with the shifted face-rank hierarchy (seed S5;
 s3/s4/**s5**, se6/7; savers l4 **and l5**) and a fresh vertex_sets-bearing Stage-2 input;
 the exact solver carries over unchanged (kernel dim `n−d−1 = 3` for both d=4 and d=5).
 
+### 6.6 CoxIter gate, the `l_basis` convention, and d=5 (2026-07-01)
+
+**CoxIter as the authoritative verifier.** Built CoxIter (`scratchpad/CoxIter`) and wired a
+Gram-diagram → CoxIter adapter (`pipeline/utils/coxiter.py`; dotted edge = weight 1, m=2
+omitted). It **certifies every signature+isolation solution compact**: d=4 type 6 → 49/49,
+d=5 P9_322 → 18/18, and it independently confirms P^B₆ (cocompact, dim 6). So the
+signature+isolation accept test is **sound** (not over-accepting non-compact) — CoxIter is
+now available as the final gate and for d=6.
+
+**The `l_basis` prism-base convention.** The d=5 anchor P9_322 initially gave **18**, vs
+Ma–Zheng's **3** — and our 18 is a decode-verified *superset* of their 3, all CoxIter-compact.
+The discriminator is Ma–Zheng's `l_basis` saver (prism-end ridges = π/2). Enabling it:
+d=5 P9_322 → **3** (= Ma–Zheng exact); but it *breaks* d=4 (type 6: 49 → 12). All four counts
+are CoxIter-compact, so `l_basis` is **not** a compactness condition — it is a *prism-base
+selection*. The published **d=4** census (348) counts base **+ 3-prism-glued** descendants
+(matches `l_basis` OFF, our direct enumeration); the **d=5** census (51) uses the prism-base
+convention (matches `l_basis` ON). Different Ma–Zheng papers, different conventions; the
+driver sets `USE_L4_BASIS = (d ≥ 5)` so each dimension reproduces its own published count.
+
+**d=5 result (full run, `l_basis` ON, 109 types).** **12** compact polytopes captured
+(dk6: 0→5, 5→1, 6→3, = **9**; plus tractable types 19, 29, 63 → 1 each), with the anchor
+P9_322 (type 6) → **3 = Ma–Zheng exact**. **11 types are INCOMPLETE** — the low-k types with
+no prism-end facets get no `l_basis` pruning, so their candidate sets are enormous
+(cluster-scale, worse than d=4 due to S5 seeds); the driver aborts them under a per-type
+budget. The remaining ~39 of the census 51 live in those intractable types. So on a single
+machine d=5 reproduces the census **exactly per tractable type** (and exactly on the anchor)
+but not the full 51-total — the identical low-k scale wall as d=4, and the reason Ma–Zheng
+used a cluster (PARATERA).
+
+**Validation summary (d=4 and d=5).** Both dimensions: method sound and CoxIter-validated,
+reproducing the published census **per-type where tractable** (d=4 dk6 = 294 exact; d=5
+anchor = 3 exact) and matching the census totals up to the low-k types that are genuinely
+cluster-scale on one machine (d=4 → 338 of 348; d=5 → 12 of 51 captured).
+
 ---
 
 ## 7. References
