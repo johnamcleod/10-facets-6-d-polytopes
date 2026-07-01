@@ -48,7 +48,7 @@ def _paste_screen_worker(args):
     dotted = [tuple(sorted(m)) for m in t["missing_faces"] if len(m) == 2]
     mi = _build_minor_index(dotted, n, d)
     try:
-        cands, ordinary = paste_candidates(t, forced=forced, max_candidates=3_000_000)
+        cands, ordinary = paste_candidates(t, forced=forced, max_candidates=1_000_000)
     except OverflowError:
         return [], 0, forced
     starts = []
@@ -102,7 +102,7 @@ def process_type(tid, survivors, nproc, outdir, p=1, type_budget_s=600):
     deadline = te + type_budget_s              # per-type wall-clock budget (intractable => stop)
     with mp.get_context("fork").Pool(processes=nproc) as pool:
         while queue and time.time() < deadline:
-            batch, queue = queue[:nproc * 4], queue[nproc * 4:]
+            batch, queue = queue[:nproc], queue[nproc:]
             for starts, n_la, ovf in pool.map(_paste_screen_worker, batch):
                 all_starts.extend(starts)
                 tot_la += n_la
