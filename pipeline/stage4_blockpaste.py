@@ -50,6 +50,8 @@ import pandas as pd
 from pipeline.utils import mazheng_lib as ml
 
 USE_L4_BASIS = False  # Ma-Zheng prism-end orthogonality saver (over-prunes -- see below)
+USE_RANK_FILTER = False  # pure-ordinary (d+2)-minor rank filter: SOUND but only ~21% pruning
+                         # on low-k (wildcard rows are deferred) -- doesn't crack the wall.
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +221,62 @@ def _s_array(d):
     return _S_ARR[d]
 
 
+# label -> float Gram entry (-cos(pi/m)); index 0..12, unused entries 0.0
+_LABF = np.zeros(13, dtype=np.float64)
+for _m, _v in {2: 0.0, 3: -0.5, 4: -0.70710678118654752, 5: -0.80901699437494742,
+               6: -0.86602540378443865, 7: -0.90096886790241915, 8: -0.92387953251128676,
+               9: -0.93969262078590838, 10: -0.95105651629515357, 12: -0.96592582628906829}.items():
+    _LABF[_m] = _v
+
+
+def _rank_minors(ctx):
+    """Pure-ordinary (d+2)-minors: (ordinary-col indices for the C(d+2,2) pairs,
+    local (a,b) positions in the (d+2)x(d+2) submatrix).  A (d+2)-minor of a rank-(d+1)
+    Gram vanishes; pure-ordinary ones (no dotted pair) constrain the ORDINARY labels
+    alone -- a sound, cheap necessary condition that is strong exactly for the low-k
+    (few-dotted) types where the library pruning is weak."""
+    n, d, dotted, op_idx = ctx["n"], ctx["d"], ctx["dotted"], ctx["op_idx"]
+    dp2 = d + 2
+    out = []
+    for S in itertools.combinations(range(n), dp2):
+        pairs = list(itertools.combinations(S, 2))
+        if any(p in dotted for p in pairs):
+            continue
+        loc = {f: a for a, f in enumerate(S)}
+        cols = tuple(op_idx[p] for p in pairs)
+        pos = [(loc[a], loc[b]) for a, b in pairs]
+        out.append((cols, pos, dp2))
+    return out
+
+
+def _apply_rank_minors(data, minors, covered, tol=1e-7):
+    """Filter rows failing any covered pure-ordinary-minor rank condition (det ~= 0).
+    Rows with a wildcard 7 inside a minor are kept (deferred to post-expansion).  Returns
+    (filtered data, still-pending minors)."""
+    pending = []
+    for cols, pos, dp2 in minors:
+        if not all(c in covered for c in cols):
+            pending.append((cols, pos, dp2))
+            continue
+        vals = data[:, list(cols)]                    # (N, npairs) int8 labels
+        checkable = ~(vals == 7).any(axis=1)          # no wildcard in this minor
+        if not checkable.any():
+            continue
+        sub = vals[checkable]
+        ent = _LABF[sub]                              # (M, npairs) float entries
+        M = np.broadcast_to(np.eye(dp2), (sub.shape[0], dp2, dp2)).copy()
+        for pi, (a, b) in enumerate(pos):
+            M[:, a, b] = ent[:, pi]; M[:, b, a] = ent[:, pi]
+        good = np.abs(np.linalg.det(M)) <= tol
+        keep = np.ones(data.shape[0], dtype=bool)
+        idx = np.where(checkable)[0]
+        keep[idx] = good
+        data = data[keep]
+        if data.shape[0] == 0:
+            return data, pending
+    return data, pending
+
+
 def _apply_constraints(data, cons, covered, l4_basis_cols, forced=None):
     """Apply every constraint whose columns are all covered.  Returns filtered ``data``
     and the list of still-pending constraints.  ``forced`` is an optional {col: value} map
@@ -280,6 +338,7 @@ def paste_candidates(t, max_candidates=8_000_000, verbose=False, forced=None):
     V, cols_of, Nr = ctx["V"], ctx["cols_of"], ctx["Nr"]
     s4 = _s_array(ctx["d"])   # per-vertex spherical seed table (S(d))
     forced = dict(forced or {})
+    rminors = _rank_minors(ctx) if USE_RANK_FILTER else []
 
     order = _order_vertices(V, cols_of)
     # seed from first vertex
@@ -329,6 +388,7 @@ def paste_candidates(t, max_candidates=8_000_000, verbose=False, forced=None):
     # final safety: apply any still-pending constraints (all columns covered now)
     data, leftover = _apply_constraints(data, cons, covered, l4_basis_cols, forced)
     assert not leftover, f"{len(leftover)} constraints never covered"
+    data, _ = _apply_rank_minors(data, rminors, covered)   # any remaining pure-ordinary minors
     data = np.unique(data, axis=0)
     return data, ctx["ordinary"]
 
