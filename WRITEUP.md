@@ -916,6 +916,27 @@ reproducing the published census **per-type where tractable** (d=4 dk6 = 294 exa
 anchor = 3 exact) and matching the census totals up to the low-k types that are genuinely
 cluster-scale on one machine (d=4 → 338 of 348; d=5 → 12 of 51 captured).
 
+### 6.7 d=5 exhaustive campaign (2026-07-03) — completed, and it relocates the open question
+
+The 11 intractable d=5 types were run to **exhaustion** on a single machine via a resumable,
+auto-splitting nights/weekends campaign (`run_d5_campaign.py`; 5,466 work-units in ~13.5 h,
+type 1's split recursion *terminating* at 2,520 units). Result: **all 11 types → 0
+realizers**, so the method's d=5 total is exactly **12**.
+
+But this **corrects** the earlier "gap is a convention" reading. d=4's 338-vs-348 gap is ~3%
+(convention-plausible); d=5's **12-vs-51 is ~76%** — far too large to be a counting
+convention. The campaign ran with the prism-base saver **`l_basis` ON** (justified only by the
+P9_322 anchor → 3), and `l_basis` ON is independently known to **over-prune** (d=4 type 6:
+ON → 12 vs the correct 49). So the exhaustive **12 is an under-count artifact of `l_basis` ON
+dropping most d=5 realizers**, not the true count.
+
+The real open issue is therefore **the prism-end condition itself**: `l_basis` is not a clean
+global ON/OFF — ON matches P9_322 (→3) but under-counts the rest, while OFF over-counts
+P9_322 (→18) and is intractable elsewhere. The correct condition is subtler (per-facet /
+genuine-prism-only) and must be taken from Ma–Zheng's construction. This is an
+**algorithmic/mathematical** blocker (shared by d=6), not a compute one — and the campaign
+harness is validated and ready to re-run once the condition is right.
+
 ---
 
 ## 7. References
