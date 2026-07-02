@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent: run the d=5 campaign nightly at 23:00.  It self-limits to a wall-clock
+  deadline (7am weekdays / 14h weekends via run_d5_campaign_night.sh) and the filesystem
+  queue makes every session resumable, so overlapping/missed runs are harmless.
+
+  Install:
+    cp campaign.d5.plist ~/Library/LaunchAgents/com.jam.d5campaign.plist
+    launchctl load  ~/Library/LaunchAgents/com.jam.d5campaign.plist
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.jam.d5campaign.plist
+
+  Progress at any time:  python3 run_d5_campaign.py status
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>              <string>com.jam.d5campaign</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/jam/dev/sandbox/10-facet-6-polytopes/run_d5_campaign_night.sh</string>
+  </array>
+  <key>WorkingDirectory</key>   <string>/Users/jam/dev/sandbox/10-facet-6-polytopes</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>   <integer>23</integer>
+    <key>Minute</key> <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>          <false/>
+  <key>StandardOutPath</key>    <string>/Users/jam/dev/sandbox/10-facet-6-polytopes/runs/d5_n9/d5_campaign/launchd.out.log</string>
+  <key>StandardErrorPath</key>  <string>/Users/jam/dev/sandbox/10-facet-6-polytopes/runs/d5_n9/d5_campaign/launchd.err.log</string>
+  <key>Nice</key>               <integer>15</integer>
+  <key>ProcessType</key>        <string>Background</string>
+</dict>
+</plist>
