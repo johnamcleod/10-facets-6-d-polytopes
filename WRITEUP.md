@@ -1052,6 +1052,42 @@ gate for d=6** (P^B₆ and its relatives are prism-type), so this is the highest
 Per-type ground truth and diagram/length data: Table 13, Table 16, Figures 6–9 of
 arXiv:2203.16049v3; seed↔Burcroff map (H1–H5) in its Table 15.
 
+### 6.10 d=5 census REPRODUCED — 51, all CoxIter-compact (2026-07-03)
+
+The two-phase method reproduces the full d=5 census on a single machine. No new gluing code
+was needed: running the *existing* solver with **`l_basis` OFF on exactly the six seed-bearing
+types** (the types the cheap `l_basis`-ON pass flags as realizable; the other 103 have zero
+seeds ⇒ zero census) enumerates the prism-glued polytopes directly and terminates
+(status COMPLETE for all six):
+
+| type (tid) | 0 | 6 | 5 | 19 | 29 | 63 | **total** |
+|---|---|---|---|---|---|---|---|
+| distinct (basis-OFF) | 22 | 18 | 1 | 6 | 3 | 1 | **51** |
+| CoxIter-compact | 22 | 18 | 1 | 6 | 3 | 1 | **51** |
+
+The per-type multiset {22, 18, 6, 3, 1, 1} equals Ma–Zheng's census
+{P319:22, P322:18, P302:6, P313:3, P312:1, P284:1} exactly, and **all 51 are
+CoxIter-certified compact of dimension 5**. (This also fixes the tid↔P mapping: tid0 = P319,
+tid6 = P322.) Data: `runs/d5_n9/blockpaste_basisOFF/type_{0,6,5,19,29,63}.json`.
+
+**The working method (general, and the d=6 recipe):**
+1. **Seed pass — `l_basis` ON on all types (cheap, exhaustive).** Types with 0 basis seeds
+   contribute 0 to the census (no orthogonal prism-end to glue onto); this eliminates the
+   103 intractable low-k types up front. Result: the six seed-bearing types.
+2. **Census pass — `l_basis` OFF on the (few) seed-bearing types only.** These are tractable
+   (the pathological explosions were all in the *seedless* types, now excluded), and basis-OFF
+   enumerates every prism-glued polytope. CoxIter-gate the output.
+
+So on d=5 the answer is complete: **51, matching both Ma–Zheng and Burcroff, every member
+CoxIter-verified.** The one load-bearing assumption is the seed lemma **(0 basis seeds ⇒ 0
+census)**; it held exactly here (6 seed types = 6 realizing types) and should be confirmed from
+Ma–Zheng §5 before being relied on for d=6.
+
+**Next: carry the method to d=6** (the actual open problem). Run the seed pass (`l_basis` ON)
+over the d=6, 10-facet types to find the seed-bearing ones, confirm **P^B₆'s type is among
+them**, then the census pass (`l_basis` OFF) on those — recovering P^B₆ and settling whether
+any second compact 6-polytope with 10 facets exists.
+
 ---
 
 ## 7. References
