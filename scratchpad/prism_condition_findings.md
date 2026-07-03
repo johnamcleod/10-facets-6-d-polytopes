@@ -129,7 +129,50 @@ REAL compact polytopes as a CANONICAL SELECTION (P9_322: 18 real compact -> 3 ke
 "51" counts prism-canonical representatives, not raw compact polytopes. Important framing
 for d=6.
 
-## FINAL SYNTHESIS (2026-07-03) — screen is sound; gap is compute in exploding types
+## RESOLVED (2026-07-03) — the 39 missing = prism-glued polytopes (Ma-Zheng per-type data)
+
+Deep-research recovered Ma-Zheng per-type breakdown (arXiv:2203.16049v3 Table 13, Figs 6-9).
+Only 6 of 109 types realize; each count splits basis(seed) -> final(census) via GLUING compact
+simplicial 5-prisms onto orthogonal prism-end facets:
+  P322 5->18(+13), P319 3->22(+19), P302 1->6(+5), P313 1->3(+2), P312 1->1, P284 1->1.
+  basis total = 12, census = 51.
+OUR pipeline reproduces the BASIS column EXACTLY: same 6 types, count multiset {5,3,1,1,1,1}=12
+(our tids 0/6/5/19/29/63 -> 5/3/1/1/1/1). So the gap IS exactly the 39 prism-glued polytopes.
+=> Missing step = PRISM-GLUING enumeration. l_basis ON forces prism-ends orthogonal (weight 2)
+   = the SEED condition (12 seeds; campaign exhaustive+screen-sound confirms no more seeds). The
+   39 have NON-orthogonal ends; Ma-Zheng generate them by gluing 5-prisms at orthogonal ends
+   (l_basis OFF would brute-enumerate them = the branch that explodes). Gluing is the cheap
+   structured route. Math/construction task, SHARED BY d=6 (P^B6 is prism-type).
+CORRECTS earlier: "P9_322 basis-ON->3 = census" was a num-mislabel; P322 basis=5 (=our tid0),
+   census=18. l_basis ON = seeds, NOT census. Generator k=2/3 split 50/34 confirmed correct
+   (paper "54/30" was an extraction error).
+NEXT: implement 5-prism gluing per basis seed at each orthogonal prism-end; validate finals
+   {18,22,6,3,1,1}=51 via CoxIter. Ground truth: Table 13/16, Figs 6-9, Burcroff map Table 15.
+
+## (superseded by RESOLVED above) CORRECTION — gap is upstream of the screen
+
+Superseded the "compute wall" reading below. Verified since:
+- Campaign was EXHAUSTIVE, not a timeout: runs/d5_n9/d5_campaign done with empty todo/wip,
+  all 109 types COMPLETE; it SCREENED 11,967,720 candidates for tid1 (197,511,868 for tid16)
+  to 0. So our completed answer is genuinely 12.
+- Screen SOUND: 1500-candidate sample from tid1 all superhyperbolic (sig (2,7)x1499,(3,6)x1;
+  min rank resid 1.07), zero feasible. Plus tid11 oracle 0, tid38/tid18 all superhyperbolic.
+- Generator MATCHES Ma-Zheng: paper arXiv:2203.16049 Table 2 examines exactly 109 k>=2 types;
+  we produce 109; k=4/5/6 counts (15/7/3) match EXACTLY. (k=2/3 split ours 50/34 vs paper
+  ~54/30 — confirm.) So all 51 live in our 109.
+- 51 proven independently (Ma-Zheng + Burcroff).
+=> By elimination the 12-vs-51 gap is UPSTREAM of the (sound) screen: block-paste candidate
+   GENERATION incompleteness or the exact SOLVE dropping realizers. A CORRECTNESS bug, not a
+   scaling wall. The "port in-layer killing to scale" plan is therefore the WRONG fix.
+
+REVISED NEXT STEP:
+1. Get Ma-Zheng per-type realizing list (Section 7 of arXiv:2203.16049 / Burcroff thesis /
+   HCPdm final data) -> which types hold the missing ~39. Prompt: research_prompt_d5_pertype_list.md
+2. Paste-completeness audit: trace one known-real d=5 diagram (from a type we return 0 on)
+   through paste->expand->screen->solve to find the drop stage. (tid0 paste already matches
+   MZ count 5, so audit a MISSING type.)
+
+## (superseded) FINAL SYNTHESIS (2026-07-03) — screen is sound; gap is compute in exploding types
 
 Verified our screen is SOUND on every completable d=5 type tested (candidates it kills are
 genuinely non-realizable). Feasibility = thorough multistart (scipy trf) search for dotted

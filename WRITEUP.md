@@ -908,17 +908,24 @@ driver sets `USE_L4_BASIS = (d ≥ 5)` so each dimension reproduces its own publ
 P9_322 (type 6) → **3 = Ma–Zheng exact**. **11 types are INCOMPLETE** — the low-k types with
 no prism-end facets get no `l_basis` pruning, so their candidate sets are enormous
 (cluster-scale, worse than d=4 due to S5 seeds); the driver aborts them under a per-type
-budget. The remaining ~39 of the census 51 live in those intractable types. So on a single
-machine d=5 reproduces the census **exactly per tractable type** (and exactly on the anchor)
-but not the full 51-total — the identical low-k scale wall as d=4, and the reason Ma–Zheng
-used a cluster (PARATERA).
+budget. So on a single machine d=5 reproduces the census **exactly per tractable type** (and
+exactly on the anchor) but not the full 51-total. *(Superseded by §6.7–§6.8: those 11 types
+were later run to **exhaustion** — not merely budget-aborted — and still yield 0 with a
+verified-sound screen, so the missing ~39 are NOT simply "unreached in those types." The
+gap is upstream of the screen; see §6.8.)*
 
 **Validation summary (d=4 and d=5).** Both dimensions: method sound and CoxIter-validated,
 reproducing the published census **per-type where tractable** (d=4 dk6 = 294 exact; d=5
 anchor = 3 exact) and matching the census totals up to the low-k types that are genuinely
 cluster-scale on one machine (d=4 → 338 of 348; d=5 → 12 of 51 captured).
 
-### 6.7 d=5 exhaustive campaign (2026-07-03) and prism-condition derivation — the gap is compute, not the prism condition
+### 6.7 d=5 exhaustive campaign (2026-07-03) and prism-condition derivation — the prism condition is not the blocker
+
+> **Note (correction):** an intermediate draft of this section concluded "the gap is a
+> compute wall." That is **also withdrawn** — see §6.8. The enumeration turned out to be
+> *exhaustive* (not a timeout), so the 12-vs-51 gap is upstream of the screen, in candidate
+> generation or the exact solve. The prism-condition findings below stand; only the
+> "compute wall" conclusion is superseded.
 
 The 11 intractable d=5 types were run to **exhaustion** on a single machine via a resumable,
 auto-splitting nights/weekends campaign (`run_d5_campaign.py`; 5,466 work-units in ~13.5 h,
@@ -928,8 +935,9 @@ realizers**, so the method's single-machine d=5 total is **12**.
 An earlier draft of this section read the 12-vs-51 gap as evidence that the prism-base saver
 `l_basis` was mis-specified — "not a clean global ON/OFF … a subtler per-facet condition …
 an algorithmic/mathematical blocker." **That reading is now withdrawn: it was wrong.** The
-prism condition has been derived from Ma–Zheng's source and papers and verified faithful, and
-the gap is a pure enumeration-scale (compute) wall.
+prism condition has been derived from Ma–Zheng's source and papers and verified faithful.
+(The nature of the *remaining* gap is treated in §6.8 — it is neither the prism condition nor,
+as a later check showed, a compute wall.)
 
 **The prism/`l_basis` condition, derived.** In Ma–Zheng's data definitions (HCPdm
 `figures/data5.png`, item 4): `l5_basis`/`l4_basis` is the set of *five/four facets that bound
@@ -950,26 +958,99 @@ OFF give *identical* paste counts, so the saver is provably not the pruner there
 "ON over-prunes" claim conflated dimensions: ON is wrong for *d=4* — real census P2 polytopes
 carry basis ridges at π/3, so d=4 correctly runs OFF — but ON is exactly right for d=5.)
 
-**Where the missing ~39 actually are: exploding candidate tables, not lost realizers.** Our 109
-types split (basis ON) into 6 that realize (= 12 polytopes), 59 with no paste candidates, and
-44 whose candidates the sound structured screen rejects. The completable members of the latter
-two groups are **legitimately empty**, confirmed independently of the screen: tid11 (k=4) →
-Ma–Zheng oracle **0** (= ours); tid38 and tid18 (k=5) → *every* candidate is **superhyperbolic**
-(best signature (2, 7), rank residual ≈ 1.4–1.55 under exhaustive multistart search), so the
-screen is **sound**. The remaining census members live in the exploding-candidate types — e.g.
-tid1 (k=5) blows the block-paste table past **12 million** rows — which are cluster-scale in
-**both** pipelines: Ma–Zheng's chcp59 itself OOM-kills on their `num=2`/`num=4` on one machine.
-Our 0 on those is a **timeout, not a result**.
+**The screen is sound (verified).** Our 109 types split (basis ON) into 6 that realize
+(= 12 polytopes), 59 with no paste candidates, and 44 whose candidates the structured screen
+rejects. The screen's rejections are correct: tid11 (k=4) → Ma–Zheng oracle **0** (= ours);
+tid38 and tid18 (k=5) → *every* candidate is **superhyperbolic** (best signature (2, 7), rank
+residual ≈ 1.4–1.55 under exhaustive multistart search); and a 1,500-candidate sample from the
+hard type tid1 → **all superhyperbolic, zero feasible**. So the screen is not dropping
+realizers among the candidates it sees.
 
-**Conclusion.** The prism condition is settled — derived, faithfully implemented, uniform and
-correct for d=5 (and correctly OFF for d=4). The d=5 12-vs-51 gap is a **compute** wall on ~11
-exploding-candidate types, identical in kind to the d=4 low-k wall and the reason Ma–Zheng used
-a cluster (PARATERA). Reaching 51 — and unlocking d=6, which shares this wall — is an
-**enumeration-scale** problem (a memory-bounded block-paste that inserts the refined killing
-earlier/in-layer, or a cluster), not a mathematical one. One framing point for d=6: `l_basis`
-is a *canonical selection* that deliberately drops genuinely-compact polytopes (P9_322: 18
-CoxIter-compact representatives → 3 kept), so the census counts prism-canonical representatives,
-not raw compact polytopes. (Full derivation and evidence: `scratchpad/prism_condition_findings.md`.)
+**Prism-condition conclusion.** The prism condition is settled — derived, faithfully
+implemented, uniform and correct for d=5 (and correctly OFF for d=4). One framing point for
+d=6: `l_basis` is a *canonical selection* that deliberately drops genuinely-compact polytopes
+(P9_322: 18 CoxIter-compact representatives → 3 kept), so the census counts prism-canonical
+representatives, not raw compact polytopes. **Where the 12-vs-51 gap actually lives is a
+separate, still-open question — see §6.8.** (Full derivation and evidence:
+`scratchpad/prism_condition_findings.md`.)
+
+### 6.8 The 12-vs-51 gap is upstream of the screen (correction of "compute wall")
+
+Attempting to attack the gap as a scaling problem forced a check of the premises, and the
+"compute wall" reading of §6.7 does **not** survive it. Four facts, each verified:
+
+- **The enumeration was exhaustive, not a timeout.** The nights/weekends campaign
+  (`runs/d5_n9/d5_campaign/`) completed with an **empty queue** (`todo/`, `wip/` empty) and
+  every one of the 109 types marked COMPLETE. It *screened* enormous candidate sets to zero —
+  e.g. **11,967,720** label-assignments for tid1, **197,511,868** for tid16 — not "ran out of
+  budget." So our pipeline's answer, run to completion, is genuinely **12**.
+- **The screen is sound** (evidence above in §6.7): the candidates it rejects are truly
+  non-realizable (superhyperbolic), including a 1,500-candidate sample from the hardest type.
+- **The generator matches Ma–Zheng.** Their paper (arXiv:2203.16049, Table 2) examines exactly
+  the **109** combinatorial types with ≥2 disjoint facet pairs; our generator produces exactly
+  109, and our k = 4/5/6 type-counts (**15 / 7 / 3**) match theirs *exactly*. So all 51
+  realizable polytopes must live among the types we already have. (Our k=2/k=3 split is 50/34,
+  which — after checking the paper's Table 2 label lists directly — matches exactly; the
+  "~54/30" in an earlier extraction was a mis-read. Generator confirmed correct.)
+- **51 is not in doubt:** it is proved independently by Ma–Zheng and by Burcroff.
+
+Putting these together: the gap is **neither compute, nor the screen, nor the prism condition,
+nor missing combinatorial types.** By elimination it is **upstream of the screen** — our
+block-paste is failing to *generate* some realizable label-assignments (a candidate-generation
+completeness bug), or the exact solve is dropping them, so those ~39 polytopes never reach the
+(sound) screen. This is a **correctness** issue, not a scaling one; a bigger machine or an
+in-layer-killing port would not recover them.
+
+The "generation completeness" diagnosis was correct in direction; §6.9 (below) identifies the
+exact mechanism from Ma–Zheng's per-type data. Evidence and harnesses:
+`scratchpad/prism_condition_findings.md`, `scratchpad/mz_inject_run.py`, and the campaign
+aggregates under `runs/d5_n9/d5_campaign/`.
+
+### 6.9 Resolved: the missing 39 are prism-glued polytopes (per-type data recovered)
+
+Ma–Zheng's per-type breakdown (arXiv:2203.16049v3, Table 13 + Figures 6–9) resolves the gap
+completely. **Only six of the 109 types realize**, and each type's count splits into a *basis*
+(seed) count and a *final* count reached by **gluing compact simplicial 5-prisms onto the
+orthogonal "prism-end" facets** of the seeds:
+
+| type | basis seeds | final (census) | glued extra |
+|---|---|---|---|
+| P322 | 5 | 18 | +13 |
+| P319 | 3 | 22 | +19 |
+| P302 | 1 | 6 | +5 |
+| P313 | 1 | 3 | +2 |
+| P312 | 1 | 1 | 0 (no 4-simplex facet) |
+| P284 | 1 | 1 | 0 |
+| **total** | **12** | **51** | **+39** |
+
+**Our pipeline reproduces the basis column exactly** — the same six types, and the count
+multiset {5, 3, 1, 1, 1, 1} = 12 matches to the number (verified: our realizing tids
+0/6/5/19/29/63 → 5/3/1/1/1/1). So the 12-vs-51 gap **is** the 39 prism-glued polytopes, and
+nothing else. This is a *missing construction step*, not compute, screen, generator, or the
+prism condition per se.
+
+Mechanistically: `l_basis` ON fixes every prism-end facet **orthogonal** (weight 2), which is
+exactly the *seed* condition — it yields the 12 basis Grams and no more (our exhaustive,
+screen-sound campaign confirms there are no further seeds). The other 39 have **non-orthogonal**
+prism-ends; Ma–Zheng generate them by explicitly gluing compact simplicial 5-prisms at the
+orthogonal ends of the seeds (equivalently, `l_basis` OFF would enumerate them by brute force —
+this is exactly the branch that explodes / is intractable, which is why our OFF runs and their
+own single-machine runs wall out; the gluing is the *cheap, structured* way to get them).
+
+Corrections this pins down:
+- The earlier note that "P9_322 basis-ON → 3 = census" was a **num-mislabel**: P322's *basis*
+  count is 5 (= our tid0), and its *census* is 18. `l_basis` ON gives seeds, **not** the census.
+- So §6.7's "`l_basis` ON is correct for d=5" holds only for the **seed** count; the full census
+  needs the gluing step on top. §6.8's "generation-completeness" diagnosis was right; the exact
+  missing generator is the prism-gluing enumeration.
+
+**Next step (concrete).** Implement the 5-prism gluing: for each basis seed, at each orthogonal
+prism-end facet, enumerate the compact simplicial 5-prisms that can be glued (Ma–Zheng's
+construction; the extras are bounded and structured, 39 total here). Validate by reproducing the
+per-type finals {18, 22, 6, 3, 1, 1} = 51, CoxIter-checking each. The **same gluing step is the
+gate for d=6** (P^B₆ and its relatives are prism-type), so this is the highest-leverage build.
+Per-type ground truth and diagram/length data: Table 13, Table 16, Figures 6–9 of
+arXiv:2203.16049v3; seed↔Burcroff map (H1–H5) in its Table 15.
 
 ---
 
