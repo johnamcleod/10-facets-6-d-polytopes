@@ -75,10 +75,12 @@
 >      missing label-assignments. It points to a **census counting-convention difference**
 >      or a **shared exact-solver subtlety** (both methods use the same accept test) — the
 >      genuine remaining question, now sharply localized.
->    - One porting bug found+fixed: Ma–Zheng's `l4_basis` prism-end orthogonality saver
->      OVER-PRUNES (verified type-6 polytopes have non-orthogonal tetrahedral-facet ridges);
->      it is a gauge/efficiency choice, not a soundness condition — disabled; the exact
->      solver is the arbiter.
+>    - Ma–Zheng's `l_basis` prism-base saver is **dimension-scoped**, not a global switch
+>      (see §6.7 for the derivation). For **d=4** it must be OFF: real census type-6 polytopes
+>      carry non-orthogonal tetrahedral-facet ridges, so forcing them to π/2 over-prunes
+>      (49 → 12). For **d=5** it must be ON: it is Ma–Zheng's canonical prism-base selection
+>      and reproduces their per-type counts exactly (P9_322 → 3, tid0 → 5). The driver sets
+>      `USE_L4_BASIS = (d ≥ 5)` accordingly; the exact solver + CoxIter remain the arbiters.
 >
 > **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
 > are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
@@ -916,26 +918,58 @@ reproducing the published census **per-type where tractable** (d=4 dk6 = 294 exa
 anchor = 3 exact) and matching the census totals up to the low-k types that are genuinely
 cluster-scale on one machine (d=4 → 338 of 348; d=5 → 12 of 51 captured).
 
-### 6.7 d=5 exhaustive campaign (2026-07-03) — completed, and it relocates the open question
+### 6.7 d=5 exhaustive campaign (2026-07-03) and prism-condition derivation — the gap is compute, not the prism condition
 
 The 11 intractable d=5 types were run to **exhaustion** on a single machine via a resumable,
 auto-splitting nights/weekends campaign (`run_d5_campaign.py`; 5,466 work-units in ~13.5 h,
 type 1's split recursion *terminating* at 2,520 units). Result: **all 11 types → 0
-realizers**, so the method's d=5 total is exactly **12**.
+realizers**, so the method's single-machine d=5 total is **12**.
 
-But this **corrects** the earlier "gap is a convention" reading. d=4's 338-vs-348 gap is ~3%
-(convention-plausible); d=5's **12-vs-51 is ~76%** — far too large to be a counting
-convention. The campaign ran with the prism-base saver **`l_basis` ON** (justified only by the
-P9_322 anchor → 3), and `l_basis` ON is independently known to **over-prune** (d=4 type 6:
-ON → 12 vs the correct 49). So the exhaustive **12 is an under-count artifact of `l_basis` ON
-dropping most d=5 realizers**, not the true count.
+An earlier draft of this section read the 12-vs-51 gap as evidence that the prism-base saver
+`l_basis` was mis-specified — "not a clean global ON/OFF … a subtler per-facet condition …
+an algorithmic/mathematical blocker." **That reading is now withdrawn: it was wrong.** The
+prism condition has been derived from Ma–Zheng's source and papers and verified faithful, and
+the gap is a pure enumeration-scale (compute) wall.
 
-The real open issue is therefore **the prism-end condition itself**: `l_basis` is not a clean
-global ON/OFF — ON matches P9_322 (→3) but under-counts the rest, while OFF over-counts
-P9_322 (→18) and is intractable elsewhere. The correct condition is subtler (per-facet /
-genuine-prism-only) and must be taken from Ma–Zheng's construction. This is an
-**algorithmic/mathematical** blocker (shared by d=6), not a compute one — and the campaign
-harness is validated and ready to re-run once the condition is right.
+**The prism/`l_basis` condition, derived.** In Ma–Zheng's data definitions (HCPdm
+`figures/data5.png`, item 4): `l5_basis`/`l4_basis` is the set of *five/four facets that bound
+a 4-simplex/3-simplex facet*, a **subset of the Lannér set** `l5`/`l4`; and crucially
+"`lⱼ_basis` can be non-empty only for a *j*-dimensional polytope." Operationally (chcp48
+`l4_basis`, chcp59 `l5_basis`, both identical in form) it forces, for each **simplex facet**
+(a facet with exactly *d* vertices), every incident non-disjoint ridge to **π/2**. Our
+`USE_L4_BASIS` computes the **byte-identical edge set** (verified static and at runtime on d=4
+type 6). Its application is dimension-scoped: chcp48 applies it always (d=4); chcp59 applies it
+under `flag=2`, the documented default (d=5). Our driver's `USE_L4_BASIS = (d ≥ 5)` reproduces
+each dimension's published convention.
+
+**`l_basis` ON is uniform and correct for d=5 — it does not over-prune.** Verified against
+Ma–Zheng's *own* code by injecting our vertex data into chcp59 (`scratchpad/mz_inject_run.py`):
+per-type flag=2 counts match ours exactly on every tractable type tested — **tid0 (k=6) → 5**
+and the **P9_322 anchor → 3**. On the 59 d=5 types that yield no candidates, `l_basis` ON vs
+OFF give *identical* paste counts, so the saver is provably not the pruner there. (The earlier
+"ON over-prunes" claim conflated dimensions: ON is wrong for *d=4* — real census P2 polytopes
+carry basis ridges at π/3, so d=4 correctly runs OFF — but ON is exactly right for d=5.)
+
+**Where the missing ~39 actually are: exploding candidate tables, not lost realizers.** Our 109
+types split (basis ON) into 6 that realize (= 12 polytopes), 59 with no paste candidates, and
+44 whose candidates the sound structured screen rejects. The completable members of the latter
+two groups are **legitimately empty**, confirmed independently of the screen: tid11 (k=4) →
+Ma–Zheng oracle **0** (= ours); tid38 and tid18 (k=5) → *every* candidate is **superhyperbolic**
+(best signature (2, 7), rank residual ≈ 1.4–1.55 under exhaustive multistart search), so the
+screen is **sound**. The remaining census members live in the exploding-candidate types — e.g.
+tid1 (k=5) blows the block-paste table past **12 million** rows — which are cluster-scale in
+**both** pipelines: Ma–Zheng's chcp59 itself OOM-kills on their `num=2`/`num=4` on one machine.
+Our 0 on those is a **timeout, not a result**.
+
+**Conclusion.** The prism condition is settled — derived, faithfully implemented, uniform and
+correct for d=5 (and correctly OFF for d=4). The d=5 12-vs-51 gap is a **compute** wall on ~11
+exploding-candidate types, identical in kind to the d=4 low-k wall and the reason Ma–Zheng used
+a cluster (PARATERA). Reaching 51 — and unlocking d=6, which shares this wall — is an
+**enumeration-scale** problem (a memory-bounded block-paste that inserts the refined killing
+earlier/in-layer, or a cluster), not a mathematical one. One framing point for d=6: `l_basis`
+is a *canonical selection* that deliberately drops genuinely-compact polytopes (P9_322: 18
+CoxIter-compact representatives → 3 kept), so the census counts prism-canonical representatives,
+not raw compact polytopes. (Full derivation and evidence: `scratchpad/prism_condition_findings.md`.)
 
 ---
 
