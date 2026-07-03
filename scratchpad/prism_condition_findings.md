@@ -3,6 +3,35 @@
 Session goal (branch feat/prism-condition): derive the correct prism-end condition,
 which the last commit (525a08a) flagged as the real open blocker for d=5 (and d=6).
 
+---
+## >>> RESUME HERE (handoff, session paused 2026-07-03) <<<
+
+**DONE this session:** prism/l_basis condition fully derived; **d=5 census REPRODUCED = 51,
+all CoxIter-compact** (committed 627a8f1). Working method (two-phase), NO new gluing code:
+  1. SEED pass: `bp.USE_L4_BASIS=True` (l_basis ON), run on ALL types -> the seed-bearing
+     types (those with distinct>0). Seedless types = 0 census. Cheap/exhaustive.
+  2. CENSUS pass: `bp.USE_L4_BASIS=False` (l_basis OFF), run `process_type` on ONLY the
+     seed-bearing types -> enumerates prism-glued polytopes; CoxIter-gate.
+  d=5: 6 seed types (tids 0,6,5,19,29,63) -> basis-OFF distinct {22,18,1,6,3,1}=51, all
+  CoxIter-compact. Data: runs/d5_n9/blockpaste_basisOFF/type_{0,6,5,19,29,63}.json.
+
+**NEXT (d=6, the actual goal — CLAUDE.md):** carry the two-phase method to d=6, 10 facets.
+  - Types ready: runs/d6_n10/stage2/types.json (746 types). Driver supports d=6.
+  - Step A (was about to launch when paused): SEED pass, l_basis ON, all 746 types:
+      `python3 run_blockpaste_parallel.py all <nproc> 1 6 90`
+      (args: all types, nproc, partition_depth=1, d=6, 90s/type budget; l_basis ON is the
+       d>=5 default; output -> runs/d6_n10/blockpaste/). Long run; most types die fast (0).
+  - Step B: collect seed-bearing types (distinct>0). **CONFIRM P^B6's type is among them**
+    (P^B6 was type_379 in the OLD runs/d6_n10_full; re-identify in the 746-type file by its
+     Gram/missing-faces, or just verify a seed-bearing type recovers P^B6's diagram).
+  - Step C: CENSUS pass, l_basis OFF, on the seed-bearing types only -> recover P^B6 and
+    test UNIQUENESS (only P^B6, or a 2nd compact 6-polytope with 10 facets?).
+  - VERIFY the seed lemma (0 basis seeds => 0 census) from Ma-Zheng arXiv:2203.16049 §5
+    before trusting Step A's elimination of seedless d=6 types.
+
+Nothing is running (clean shutdown). All work committed on branch feat/prism-condition.
+---
+
 ## What the condition IS (read from HCPdm source — CONFIRMED)
 
 Ma-Zheng name: `l4_basis` (chcp48, d=4) / `l5_basis` (chcp59, d=5). Definition is
