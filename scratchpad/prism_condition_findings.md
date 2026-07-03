@@ -30,6 +30,23 @@ all CoxIter-compact** (committed 627a8f1). Working method (two-phase), NO new gl
     before trusting Step A's elimination of seedless d=6 types.
 
 Nothing is running (clean shutdown). All work committed on branch feat/prism-condition.
+
+### Path to a PROVABLE d=6 answer (uniqueness / non-existence of a 2nd polytope)
+The pipeline can currently DISCOVER a 2nd polytope (sound: CoxIter-gated) but CANNOT yet
+PROVE uniqueness. A "only P^B6" output is NOT a proof until these are closed, in order:
+  1. Recover P^B6 exactly (CLAUDE.md §3 anchor; empty d=6 = BUG).
+  2. Close d=4 to EXACTLY 348 (currently 338/348 — direct proof the method still undercounts;
+     until fixed, any negative/uniqueness claim is untrustworthy). Likely blocker: exact
+     solver on high-degree algebraic weights from labels >=7 (d=4 allows pi/7,8,10,12; d=5's
+     low-weight lemma <=5 is why d=5 completed exactly but d=4 did not).
+  3. PROVE the SEED LEMMA (0 basis seeds => 0 census) — the load-bearing assumption that lets
+     phase-1 skip seedless types. Held empirically for d=5; unproven. Research prompt drafted:
+     scratchpad/research_prompt_seed_lemma.md. If false even once in d=6 => false "unique".
+  4. Validate d=6 generator completeness: reconcile our 746 types vs Burcroff's 265 candidates;
+     confirm P^B6's type is present.
+  5. Exact Q(sqrt5) arithmetic throughout; CoxIter-verify every survivor.
+Only with 1-5 does "only P^B6 survives" become a theorem. The d=4 gap (338/348) is the
+standing evidence we are not there yet.
 ---
 
 ## What the condition IS (read from HCPdm source — CONFIRMED)
