@@ -963,7 +963,7 @@ def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
 
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
                                 max_count=50000, timeout=60.0, label_indices=None,
-                                prefix=None):
+                                prefix=None, state_out=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
@@ -1070,7 +1070,11 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     lg_masks = [full_lg[g] for g in range(len(lg_precomp))]
 
     assignment = [-1] * n_pairs
-    state = {"count": 0, "start": time.time(), "exhausted": False}
+    # state_out (if given) is the caller's dict: after the generator is drained,
+    # state_out["exhausted"] is True iff every branch was explored (no timeout,
+    # no max_count cut) — the rigorous complete-vs-truncated verdict.
+    state = state_out if state_out is not None else {}
+    state.update({"count": 0, "start": time.time(), "exhausted": False})
     trail = []  # (g_idx, is_lanner, old_int_mask)
 
     def _backtrack(depth):
@@ -1833,6 +1837,8 @@ def process_type_stage4(t, d,
                          label_indices=None,
                          face_tuples_max_size=4,
                          extended_lanner_max_extra=0,
+                         prefix=None,
+                         stats_out=None,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
 
@@ -1841,8 +1847,20 @@ def process_type_stage4(t, d,
     labels {2,3,4,5}, which is appropriate for d≥5 where Burcroff's low-weight
     lemma bounds labels to ≤5 for all ordinary edges.
 
+    prefix: optional tuple of label indices fixing the first len(prefix) pairs of
+    the deterministic enumeration order (see enumerate_labels_backtrack) — running
+    all prefixes of a given depth across workers partitions the search exactly.
+
+    stats_out: optional dict; on return contains screened/passed_screen/
+    exact_attempts counts plus "exhausted": True iff the verdict is rigorous
+    (the label search was fully explored — no enum timeout, no max_assignments
+    cut, no solve-budget break).  A distinct==0 with exhausted=False is a
+    TIMEOUT, not a result.
+
     Returns list of valid Gram configurations (dicts).
     """
+    if stats_out is not None:
+        stats_out["exhausted"] = False
     if not SYMPY_AVAILABLE or not NUMPY_AVAILABLE:
         return []
 
@@ -1923,6 +1941,8 @@ def process_type_stage4(t, d,
             if face_set <= v:
                 if verbose:
                     print(f"    Lannér face {face_sorted} inside vertex {sorted(v)} → infeasible")
+                if stats_out is not None:
+                    stats_out["exhausted"] = True   # provably infeasible: rigorous 0
                 return []
 
     dot_syms = {
@@ -1937,15 +1957,20 @@ def process_type_stage4(t, d,
     results = []
     t_start = time.time()
     stats = {"screened": 0, "passed_screen": 0, "exact_attempts": 0}
+    enum_state = {}
+    budget_break = False
 
     for label_assign in enumerate_labels_backtrack(
         ordinary_pairs, vertex_groups, lanner_groups,
         max_count=max_assignments,
         timeout=enum_timeout,
         label_indices=label_indices,
+        prefix=prefix,
+        state_out=enum_state,
     ):
         elapsed = time.time() - t_start
         if elapsed > enum_timeout + solve_timeout:
+            budget_break = True
             break
 
         stats["screened"] += 1
@@ -1996,8 +2021,16 @@ def process_type_stage4(t, d,
                     continue
                 for sol in _recognize_minpoly_and_verify(
                         x_hp, sym_list, label_assign, dotted_pairs, n, d, dps=100):
-                    key = tuple(sorted((kk, tuple(v["minpoly"]))
-                                       for kk, v in sol.items()))
+                    # Dedup key: prefer the exact minimal polynomial; fall back to the
+                    # high-precision numeric value when PSLQ could not recover a minpoly
+                    # (a None minpoly must not crash the key — it did for high-degree
+                    # weights in d=5 types 302/319/322, dropping those realizations).
+                    def _kpart(v):
+                        mp_ = v.get("minpoly")
+                        if mp_ is not None:
+                            return ("mp", tuple(mp_))
+                        return ("val", str(v.get("value"))[:40])
+                    key = tuple(sorted((kk, _kpart(v)) for kk, v in sol.items()))
                     if key in seen_local:
                         continue
                     seen_local.add(key)
@@ -2029,6 +2062,13 @@ def process_type_stage4(t, d,
         print(f"    screened={stats['screened']} "
               f"passed_screen={stats['passed_screen']} "
               f"exact_attempts={stats['exact_attempts']}")
+
+    if stats_out is not None:
+        stats_out.update(stats)
+        stats_out["enum_count"] = enum_state.get("count", 0)
+        # Rigorous only if the generator itself finished every branch (no enum
+        # timeout, no max_count cut) AND we never broke out on the solve budget.
+        stats_out["exhausted"] = bool(enum_state.get("exhausted")) and not budget_break
 
     return results
 

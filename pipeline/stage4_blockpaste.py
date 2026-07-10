@@ -82,10 +82,14 @@ def _setup(t):
         V = [tuple(sorted(v)) for v in t["vertex_sets"]]
     else:  # fallback: reconstruct vertices exactly from the affine-Gale diagram
         from pipeline.utils.gale_exact import AffineGale
-        d_guess = max(len(m) for m in t["missing_faces"])  # >= largest missing face
+        pts = [tuple(p) for p in t["example_points"]]
         n_guess = 1 + max(max(m) for m in t["missing_faces"])
-        ag = AffineGale([tuple(p) for p in t["example_points"]],
-                        frozenset(t["example_positive"]), n_guess - d_guess)
+        # AffineGale's 3rd arg is the polytope dimension (= vertex size). For an
+        # m-dimensional affine Gale diagram of a polytope with n facets, k = n - d =
+        # m + 2, so d = n - (m + 2).  (Verified: reproduces the stored d=5 vertex_sets
+        # on all 109 types; the old `n - max(missing_face)` guess was wrong -> empty V.)
+        d_poly = n_guess - (len(pts[0]) + 2)
+        ag = AffineGale(pts, frozenset(t["example_positive"]), d_poly)
         V = [tuple(sorted(v)) for v in ag.vertex_sets()]
     missing = [tuple(sorted(m)) for m in t["missing_faces"]]
     dotted = {m for m in missing if len(m) == 2}
