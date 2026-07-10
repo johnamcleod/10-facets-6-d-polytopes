@@ -13,15 +13,23 @@ union of subtree results deduped by canonical_key.
 
 Resumable: completed subtrees are persisted to STATE and skipped on restart.
 
-Usage:  python3 run_survivors_rigorous.py [fast|suspect|all|<tid,tid,...>] [nproc]
+Usage:  python3 run_survivors_rigorous.py [fast|suspect|all|<tid,tid,...>] [nproc] [wildcard]
+
+With the "wildcard" flag the solve is the RIGOROUS label treatment (Ma-Zheng
+Prop 3.5): labels enumerate over {2,...,6,7} with 7 = "any m >= 7" resolved by
+continuous-c range analysis + integer instantiation — no a-priori label cap.
+Without it, labels are the {2,...,10,12} alphabet (a-posteriori d=4/d=5 set;
+verdicts are then relative to that assumption).  Separate state dirs.
 """
 import json, sys, time
 from pathlib import Path
 import multiprocessing as mp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pipeline.stage4_gram import process_type_stage4, VALID_LABELS
+from pipeline.stage4_gram import process_type_stage4, VALID_LABELS, WILDCARD_INDICES
 from pipeline.stage4_blockpaste import _setup
 from run_d4 import canonical_key
+
+WILDCARD = len(sys.argv) > 3 and sys.argv[3] == "wildcard"
 
 SURV = [8, 12, 17, 34, 36, 38, 40, 51, 55, 59, 60, 61, 69, 70, 92, 103, 120, 127, 132,
         140, 154, 159, 162, 168, 173, 206, 214, 218, 220, 229, 234, 239, 255, 265, 273,
@@ -33,11 +41,12 @@ SUSPECT = [34, 40, 55, 60, 61, 103, 120, 127, 132, 159, 173, 206, 284, 286, 295,
 FAST = [t for t in SURV if t not in SUSPECT]
 
 TYPES = {t['type_id']: t for t in json.load(open('runs/d6_n10/stage2/types.json'))}
-OUTDIR = Path("runs/d6_n10/survivors_rigorous")
+OUTDIR = Path("runs/d6_n10/survivors_wildcard" if WILDCARD
+              else "runs/d6_n10/survivors_rigorous")
 STATE = OUTDIR / "state.json"
 REALIZER_DIR = OUTDIR / "realizers"
 
-N_LAB = len(VALID_LABELS)            # 10 — full labels, label_indices=None
+N_LAB = len(WILDCARD_INDICES) if WILDCARD else len(VALID_LABELS)   # 6 / 10
 MAX_DEPTH = 6
 MAXA = 50_000_000
 SOLVE_TO = 600.0
@@ -60,10 +69,13 @@ def work(task):
                                   enum_timeout=enum_to(len(prefix)),
                                   solve_timeout=SOLVE_TO,
                                   label_indices=None, prefix=tuple(prefix) or None,
-                                  stats_out=so, verbose=False) or []
+                                  stats_out=so, wildcard=WILDCARD, verbose=False) or []
         el = round(time.time() - t0, 1)
         keys = sorted(set(str(canonical_key(r, 10)) for r in res))
-        return (tid, prefix, keys, res, bool(so.get("exhausted")),
+        # a wild window hitting the scan edge means the subtree verdict cannot be
+        # closed by instantiation — treat as not exhausted (never silently rigorous)
+        exhausted = bool(so.get("exhausted")) and not so.get("wild_unbounded")
+        return (tid, prefix, keys, res, exhausted,
                 so.get("enum_count", 0), el, None)
     except Exception as e:
         return (tid, prefix, [], [], False, 0, 0.0, f"{type(e).__name__}: {e}")

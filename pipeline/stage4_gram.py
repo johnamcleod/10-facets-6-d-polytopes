@@ -89,6 +89,20 @@ _GRAM_FLOAT = {
 LABEL_CAP = 12
 VALID_LABELS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]   # covers all known d=4 labels incl. π/7, π/12
 
+# --- Ma-Zheng wildcard mode (arXiv:2201.00154 / 2203.16049, Prop. 3.5) ---------
+# {2,...,10,12} is NOT a proven label bound in any dimension — it is an a-posteriori
+# observation about the finished d=4/d=5 censuses.  The rigorous treatment enumerates
+# labels over {2,...,6,7} where 7 is a WILDCARD standing for "any m >= 7": by the
+# classification of finite Coxeter groups, a connected elliptic diagram of rank >= 3
+# has labels <= 5, so an edge with label >= 6 must be an I2(m) component of every
+# elliptic subdiagram containing it — hence every PD/Lannér test at cos(pi/7) gives
+# the same verdict as at cos(pi/m) for EVERY m >= 7 (lossless proxy).  The actual m
+# is then a continuous unknown c = cos(pi/m) in [cos(pi/7), 1) resolved by the
+# rank/signature equations plus the terminal integrality demand pi/arccos(c) in Z.
+WILDCARD_LABEL = 7
+WILDCARD_INDICES = (0, 1, 2, 3, 4, 5)      # VALID_LABELS[:6] = {2,3,4,5,6,7}
+_WILD_C_MIN = 0.9009688679024191           # cos(pi/7)
+
 
 def gram_entry_adjacent(m):
     """Exact SymPy value of G_ij = -cos(π/m) for integer m."""
@@ -1826,6 +1840,146 @@ def screen_candidate(la, dotted_pairs, minor_index, n, d):
 
 
 # ---------------------------------------------------------------------------
+# Wildcard (m >= 7) assignment solver — see WILDCARD_LABEL comment at top.
+# ---------------------------------------------------------------------------
+
+def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
+                   residual_threshold=1e-6):
+    """Best residual of the rank-(d+1) condition with the wild entries in `pinned`
+    (dict pair->c) fixed and everything else (dotted x > 1, unpinned wild
+    c in [cos(pi/7), 1)) optimized.  Returns (residual, x_dotted_at_best)."""
+    free_wild = [p for p in wild_pairs if p not in pinned]
+    base = dict(ordinary_float)
+    for p, c in pinned.items():
+        base[p] = -c
+    unknown_pairs = list(dotted_pairs) + free_wild
+    k_d = len(dotted_pairs)
+    num_zero = n - d - 1
+
+    def objective(u):
+        G = _build_gram_numpy(base, unknown_pairs, u, n)
+        s = np.linalg.svd(G, compute_uv=False)
+        return float(np.sum(s[-num_zero:] ** 2))
+
+    bounds = [(1.001, 1000.0)] * k_d + [(_WILD_C_MIN, 0.999999)] * len(free_wild)
+    starts = []
+    for x0 in (1.5, 1.1, 2.0, 3.0):
+        for m0 in (7, 8, 10, 12, 18, 30):
+            starts.append(np.array([x0] * k_d +
+                                   [float(np.cos(np.pi / m0))] * len(free_wild)))
+            if not free_wild:
+                break
+    # fast probe reject (mirrors _numerical_screen stage 1)
+    probe_vals = [objective(s0) for s0 in starts]
+    probe_best = min(probe_vals)
+    if probe_best > 0.5:
+        return probe_best, None
+    # seed with the best probe so an optimizer failure (e.g. empty unknown
+    # vector when everything is pinned) still returns the true probe residual
+    best_val = probe_best
+    best_u = starts[probe_vals.index(probe_best)]
+    if len(best_u) == 0:
+        return best_val, best_u[:k_d]
+    for s0 in starts:
+        try:
+            r = _scipy_opt.minimize(objective, s0, bounds=bounds, method='L-BFGS-B',
+                                    options={'maxiter': 200, 'ftol': 1e-20,
+                                             'gtol': 1e-12})
+            if r.fun < best_val:
+                best_val, best_u = r.fun, r.x
+        except Exception:
+            pass
+        if best_val < residual_threshold:
+            break
+    x_dotted = best_u[:k_d] if best_u is not None else None
+    return best_val, x_dotted
+
+
+def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, d,
+                           numerical_threshold=1e-6, m_scan_max=100, dps=100,
+                           flags=None):
+    """Resolve one wildcard-bearing label assignment (wild edges enumerated as 7,
+    meaning ANY m >= 7).  Returns a list of (labels_int, sol) with the wildcard
+    labels instantiated to concrete integers, each certified by the standard exact
+    path (_refine_mpmath + _recognize_minpoly_and_verify).
+
+    Method (Ma-Zheng "range analysis"): (1) joint feasibility of rank(G)=d+1 with
+    the wild entries as continuous unknowns c in [cos(pi/7), 1); (2) per-edge
+    integer window scan — for each wild edge, which integers m in [7, m_scan_max]
+    keep the system feasible with c_e = cos(pi/m) pinned; (3) every integer tuple
+    in the window product is pinned fully and, if still feasible, exactly
+    certified with those labels.  If feasibility persists at m_scan_max the type
+    CANNOT be closed by this scan: flags["wild_unbounded"] = True (loud, never a
+    silent truncation).
+    """
+    if flags is None:
+        flags = {}
+    ordinary_float = {p: _GRAM_FLOAT[m] for p, m in label_assign.items()
+                      if p not in wild_pairs}
+
+    # (1) joint feasibility — all wilds free.
+    res0, _ = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, {}, n, d)
+    if res0 > numerical_threshold:
+        return []
+
+    # (2) per-edge integer windows.
+    windows = []
+    for e in wild_pairs:
+        win = []
+        for m in range(7, m_scan_max + 1):
+            r, _ = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                  {e: float(np.cos(np.pi / m))}, n, d)
+            if r < numerical_threshold:
+                win.append(m)
+        if m_scan_max in win:
+            flags["wild_unbounded"] = True
+        windows.append(win)
+    if any(not w for w in windows):
+        return []
+
+    # (3) full pin + exact certification per integer tuple.
+    from itertools import product as _prod
+    out, seen = [], set()
+    for m_tuple in _prod(*windows):
+        pinned = {e: float(np.cos(np.pi / m)) for e, m in zip(wild_pairs, m_tuple)}
+        r, x_dotted = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                     pinned, n, d)
+        if r > numerical_threshold:
+            continue
+        labels_int = dict(label_assign)
+        for e, m in zip(wild_pairs, m_tuple):
+            labels_int[e] = int(m)
+        if dotted_pairs:
+            if x_dotted is None:
+                continue
+            x_hp = _refine_mpmath(x_dotted, labels_int, dotted_pairs, n, d, dps=dps)
+            if x_hp is None:
+                continue
+            for sol in _recognize_minpoly_and_verify(
+                    x_hp, sym_list, labels_int, dotted_pairs, n, d, dps=dps):
+                key = (m_tuple, tuple(sorted((k, v["value"]) for k, v in sol.items())))
+                if key not in seen:
+                    seen.add(key)
+                    out.append((labels_int, sol))
+        else:
+            # no dotted unknowns: G fully determined by the instantiated labels.
+            G_np = _build_gram_numpy(
+                {p: float(-np.cos(np.pi / m)) if (m := labels_int[p]) >= 7
+                 else _GRAM_FLOAT[m] for p in labels_int}, [], np.array([]), n)
+            evals = np.linalg.eigvalsh(G_np)
+            if int(np.sum(np.abs(evals) > 1e-8)) == d + 1 \
+                    and _check_signature_float(G_np, d) \
+                    and not _has_parabolic_subdiagram(G_np, n, d):
+                G_sym = build_gram_matrix(n, labels_int, frozenset(), {})
+                if G_sym.rank() == d + 1:
+                    key = (m_tuple, ())
+                    if key not in seen:
+                        seen.add(key)
+                        out.append((labels_int, {}))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Per-type Stage 4 driver
 # ---------------------------------------------------------------------------
 
@@ -1839,8 +1993,16 @@ def process_type_stage4(t, d,
                          extended_lanner_max_extra=0,
                          prefix=None,
                          stats_out=None,
+                         wildcard=False,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
+
+    wildcard: rigorous label treatment (Ma-Zheng Prop 3.5) — enumerate over
+    {2,...,6,7} with 7 = "any m >= 7"; wild-bearing assignments are resolved by
+    _solve_wild_assignment (continuous c + integer instantiation), so NO a-priori
+    label cap is assumed.  Forces label_indices = WILDCARD_INDICES.  If a wild
+    window reaches m_scan_max, stats_out["wild_unbounded"] = True and the type's
+    verdict is NOT rigorous.
 
     label_indices: tuple of indices into VALID_LABELS to restrict the ordinary-edge
     label search.  Default None = all labels.  Use (0,1,2,3) to restrict to
@@ -1863,6 +2025,11 @@ def process_type_stage4(t, d,
         stats_out["exhausted"] = False
     if not SYMPY_AVAILABLE or not NUMPY_AVAILABLE:
         return []
+    if wildcard:
+        if label_indices is not None and any(i > 5 for i in label_indices):
+            raise ValueError("wildcard mode: label_indices must be within {2..7}")
+        if label_indices is None:
+            label_indices = WILDCARD_INDICES
 
     n = d + 4
     mf_list = [frozenset(m) for m in t["missing_faces"]]
@@ -1974,6 +2141,26 @@ def process_type_stage4(t, d,
             break
 
         stats["screened"] += 1
+
+        if wildcard:
+            wild_pairs = tuple(sorted(
+                p for p, m in label_assign.items() if m == WILDCARD_LABEL))
+            if wild_pairs:
+                stats["wild_assignments"] = stats.get("wild_assignments", 0) + 1
+                wflags = {}
+                for labels_int, sol in _solve_wild_assignment(
+                        label_assign, wild_pairs, dotted_pairs, sym_list, n, d,
+                        numerical_threshold=numerical_threshold, flags=wflags):
+                    results.append({
+                        "type_id":          t["type_id"],
+                        "label_assignment": {str(p): v
+                                             for p, v in labels_int.items()},
+                        "dot_values":       sol,
+                    })
+                if wflags.get("wild_unbounded"):
+                    stats["wild_unbounded"] = True
+                continue
+
         ordinary_float = {p: _GRAM_FLOAT[m]
                           for p, m in label_assign.items()}
 
