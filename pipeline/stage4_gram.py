@@ -1869,6 +1869,23 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
         s = np.linalg.svd(G, compute_uv=False)
         return float(np.sum(s[-num_zero:] ** 2))
 
+    def objective_grad(u):
+        # f = sum of lambda_i^2 over the num_zero smallest-|lambda| eigenvalues
+        # (== smallest singular values, G symmetric).  d(lambda_i)/du_e =
+        # v_i^T (dG/du_e) v_i = -2 v[i0,i] v[j0,i], so df/du_e =
+        # -4 sum_i lambda_i v[i0,i] v[j0,i].  One eigh replaces ~(k+1) SVDs of
+        # finite differencing; same objective, same thresholds.
+        G = G_base.copy()
+        G[ui, uj] = -u
+        G[uj, ui] = -u
+        w, V = np.linalg.eigh(G)
+        idx = np.argsort(np.abs(w))[:num_zero]
+        lam = w[idx]
+        Vs = V[:, idx]
+        f = float(np.sum(lam ** 2))
+        grad = -4.0 * np.einsum('k,ek,ek->e', lam, Vs[ui, :], Vs[uj, :])
+        return f, grad
+
     bounds = [(1.001, 1000.0)] * k_d + [(_WILD_C_MIN, 0.999999)] * len(free_wild)
     starts = []
     for x0 in (1.5, 1.1, 2.0, 3.0):
@@ -1896,7 +1913,8 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
     if len(best_u) == 0:
         return best_val, best_u[:k_d]
     try:
-        r = _scipy_opt.minimize(objective, best_u, bounds=bounds, method='L-BFGS-B',
+        r = _scipy_opt.minimize(objective_grad, best_u, jac=True, bounds=bounds,
+                                method='L-BFGS-B',
                                 options={'maxiter': 60, 'ftol': 1e-20, 'gtol': 1e-12})
         if r.fun < best_val:
             best_val, best_u = r.fun, r.x
@@ -1907,7 +1925,7 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
     if best_val >= residual_threshold:
         for s0 in starts:
             try:
-                r = _scipy_opt.minimize(objective, s0, bounds=bounds,
+                r = _scipy_opt.minimize(objective_grad, s0, jac=True, bounds=bounds,
                                         method='L-BFGS-B',
                                         options={'maxiter': 200, 'ftol': 1e-20,
                                                  'gtol': 1e-12})
