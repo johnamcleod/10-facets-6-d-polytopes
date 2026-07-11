@@ -1849,15 +1849,23 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
     (dict pair->c) fixed and everything else (dotted x > 1, unpinned wild
     c in [cos(pi/7), 1)) optimized.  Returns (residual, x_dotted_at_best)."""
     free_wild = [p for p in wild_pairs if p not in pinned]
-    base = dict(ordinary_float)
-    for p, c in pinned.items():
-        base[p] = -c
     unknown_pairs = list(dotted_pairs) + free_wild
     k_d = len(dotted_pairs)
     num_zero = n - d - 1
 
+    # precompute the fixed part of G once; objective only writes the unknowns
+    G_base = np.eye(n)
+    for (i, j), v in ordinary_float.items():
+        G_base[i, j] = G_base[j, i] = v
+    for (i, j), c in pinned.items():
+        G_base[i, j] = G_base[j, i] = -c
+    ui = np.array([p[0] for p in unknown_pairs], dtype=int)
+    uj = np.array([p[1] for p in unknown_pairs], dtype=int)
+
     def objective(u):
-        G = _build_gram_numpy(base, unknown_pairs, u, n)
+        G = G_base.copy()
+        G[ui, uj] = -u
+        G[uj, ui] = -u
         s = np.linalg.svd(G, compute_uv=False)
         return float(np.sum(s[-num_zero:] ** 2))
 
@@ -1869,7 +1877,14 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
                                    [float(np.cos(np.pi / m0))] * len(free_wild)))
             if not free_wild:
                 break
-    # fast probe reject (mirrors _numerical_screen stage 1)
+    # Staged rejection cascade (profiling: the flat 24-start multistart made the
+    # wild path ~99% of heavy-type runtime).  Rejects must stay conservative:
+    #   A. probe reject (mirrors _numerical_screen stage 1) — objective > 0.5 at
+    #      every probe means the rank condition is nowhere near satisfiable;
+    #   B. one cheap descent from the best probe; lands clearly high (> 5e-2,
+    #      50000x the acceptance threshold) -> reject;
+    #   C. gray zone -> the full multistart, exactly as before.
+    # The d=5 wildcard census re-validation (51/51) gates this screen end-to-end.
     probe_vals = [objective(s0) for s0 in starts]
     probe_best = min(probe_vals)
     if probe_best > 0.5:
@@ -1880,17 +1895,28 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
     best_u = starts[probe_vals.index(probe_best)]
     if len(best_u) == 0:
         return best_val, best_u[:k_d]
-    for s0 in starts:
-        try:
-            r = _scipy_opt.minimize(objective, s0, bounds=bounds, method='L-BFGS-B',
-                                    options={'maxiter': 200, 'ftol': 1e-20,
-                                             'gtol': 1e-12})
-            if r.fun < best_val:
-                best_val, best_u = r.fun, r.x
-        except Exception:
-            pass
-        if best_val < residual_threshold:
-            break
+    try:
+        r = _scipy_opt.minimize(objective, best_u, bounds=bounds, method='L-BFGS-B',
+                                options={'maxiter': 60, 'ftol': 1e-20, 'gtol': 1e-12})
+        if r.fun < best_val:
+            best_val, best_u = r.fun, r.x
+    except Exception:
+        pass
+    if best_val > 5e-2:
+        return best_val, best_u[:k_d]
+    if best_val >= residual_threshold:
+        for s0 in starts:
+            try:
+                r = _scipy_opt.minimize(objective, s0, bounds=bounds,
+                                        method='L-BFGS-B',
+                                        options={'maxiter': 200, 'ftol': 1e-20,
+                                                 'gtol': 1e-12})
+                if r.fun < best_val:
+                    best_val, best_u = r.fun, r.x
+            except Exception:
+                pass
+            if best_val < residual_threshold:
+                break
     x_dotted = best_u[:k_d] if best_u is not None else None
     return best_val, x_dotted
 
