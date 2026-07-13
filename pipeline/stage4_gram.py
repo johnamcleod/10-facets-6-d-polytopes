@@ -1844,10 +1844,14 @@ def screen_candidate(la, dotted_pairs, minor_index, n, d):
 # ---------------------------------------------------------------------------
 
 def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
-                   residual_threshold=1e-6):
+                   residual_threshold=1e-6, warm_start=None):
     """Best residual of the rank-(d+1) condition with the wild entries in `pinned`
     (dict pair->c) fixed and everything else (dotted x > 1, unpinned wild
-    c in [cos(pi/7), 1)) optimized.  Returns (residual, x_dotted_at_best)."""
+    c in [cos(pi/7), 1)) optimized.  Returns (residual, u_best) where u_best is
+    the full unknown vector [dotted..., free_wild...] (slice [:len(dotted_pairs)]
+    for the dotted weights).  warm_start: optional u vector of the same layout,
+    tried FIRST with a cheap descent — threading the previous scan step's
+    solution through consecutive integer pins makes each step ~one descent."""
     free_wild = [p for p in wild_pairs if p not in pinned]
     unknown_pairs = list(dotted_pairs) + free_wild
     k_d = len(dotted_pairs)
@@ -1894,14 +1898,28 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
                                    [float(np.cos(np.pi / m0))] * len(free_wild)))
             if not free_wild:
                 break
-    # Staged rejection cascade (profiling: the flat 24-start multistart made the
-    # wild path ~99% of heavy-type runtime).  Rejects must stay conservative:
-    #   A. probe reject (mirrors _numerical_screen stage 1) — objective > 0.5 at
-    #      every probe means the rank condition is nowhere near satisfiable;
-    #   B. one cheap descent from the best probe; lands clearly high (> 5e-2,
-    #      50000x the acceptance threshold) -> reject;
-    #   C. gray zone -> the full multistart, exactly as before.
-    # The d=5 wildcard census re-validation (51/51) gates this screen end-to-end.
+    # Rejection = probe reject (objective > 0.5 at every probe) or the full
+    # 24-start multistart failing to reach the threshold — the ORIGINAL validated
+    # screen semantics.  (A "cheap single descent lands > 5e-2 -> reject" stage
+    # was tried here and REVERTED: it falsely rejected 4 of the 6 census
+    # realizations of d=5 type 302/tid19, whose weights x~60 need the full
+    # multistart to be reached.  The analytic eigengradient makes the multistart
+    # cheap enough that the early reject bought only ~10%.)
+    # warm start first: one cheap descent from the caller-supplied point usually
+    # settles consecutive integer pins immediately.
+    if warm_start is not None and len(warm_start) == len(unknown_pairs) \
+            and len(warm_start) > 0:
+        try:
+            w0 = np.clip(np.asarray(warm_start, dtype=float),
+                         [b[0] for b in bounds], [b[1] for b in bounds])
+            r = _scipy_opt.minimize(objective_grad, w0, jac=True, bounds=bounds,
+                                    method='L-BFGS-B',
+                                    options={'maxiter': 60, 'ftol': 1e-20,
+                                             'gtol': 1e-12})
+            if r.fun < residual_threshold:
+                return r.fun, r.x
+        except Exception:
+            pass
     probe_vals = [objective(s0) for s0 in starts]
     probe_best = min(probe_vals)
     if probe_best > 0.5:
@@ -1911,17 +1929,7 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
     best_val = probe_best
     best_u = starts[probe_vals.index(probe_best)]
     if len(best_u) == 0:
-        return best_val, best_u[:k_d]
-    try:
-        r = _scipy_opt.minimize(objective_grad, best_u, jac=True, bounds=bounds,
-                                method='L-BFGS-B',
-                                options={'maxiter': 60, 'ftol': 1e-20, 'gtol': 1e-12})
-        if r.fun < best_val:
-            best_val, best_u = r.fun, r.x
-    except Exception:
-        pass
-    if best_val > 5e-2:
-        return best_val, best_u[:k_d]
+        return best_val, best_u
     if best_val >= residual_threshold:
         for s0 in starts:
             try:
@@ -1935,13 +1943,51 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
                 pass
             if best_val < residual_threshold:
                 break
-    x_dotted = best_u[:k_d] if best_u is not None else None
-    return best_val, x_dotted
+    return best_val, best_u
+
+
+def _float_kernel_jacobian_deficient(base_float, dotted_pairs, x_dotted, n, d,
+                                     ratio=1e-7):
+    """Cheap float pre-gate for the mpmath isolation test: numerical rank of the
+    (d+2)-minor kernel Jacobian wrt the dotted weights, at the float point.
+    Returns True only when the Jacobian is CLEARLY rank-deficient
+    (sigma_k < ratio * sigma_1) — the point sits on a positive-dimensional
+    component and the mpmath isolation gate would reject it after minutes of
+    work.  Genuine isolated polytopes have a well-conditioned Jacobian and pass
+    untouched; the d=5 wildcard census re-validation gates this empirically."""
+    from itertools import combinations as _c
+    k = len(dotted_pairs)
+    if k == 0:
+        return False
+    dot_idx = {i for p in dotted_pairs for i in p}
+    rows = [list(c) for c in _c(range(n), d + 2) if dot_idx & set(c)]
+    di = np.array([p[0] for p in dotted_pairs], dtype=int)
+    dj = np.array([p[1] for p in dotted_pairs], dtype=int)
+
+    def fvals(xl):
+        G = np.eye(n)
+        for (i, j), v in base_float.items():
+            G[i, j] = G[j, i] = v
+        G[di, dj] = -np.asarray(xl)
+        G[dj, di] = -np.asarray(xl)
+        return np.array([np.linalg.det(G[np.ix_(r, r)]) for r in rows])
+
+    eps = 1e-6
+    J = np.empty((len(rows), k))
+    x0 = np.asarray(x_dotted, dtype=float)
+    for c in range(k):
+        xp = x0.copy(); xp[c] += eps
+        xm = x0.copy(); xm[c] -= eps
+        J[:, c] = (fvals(xp) - fvals(xm)) / (2 * eps)
+    s = np.linalg.svd(J, compute_uv=False)
+    if s.size == 0 or s[0] == 0:
+        return True
+    return bool(s[min(k, len(s)) - 1] < ratio * s[0])
 
 
 def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, d,
                            numerical_threshold=1e-6, m_scan_max=100, dps=100,
-                           flags=None):
+                           deadline_s=1200.0, flags=None):
     """Resolve one wildcard-bearing label assignment (wild edges enumerated as 7,
     meaning ANY m >= 7).  Returns a list of (labels_int, sol) with the wildcard
     labels instantiated to concrete integers, each certified by the standard exact
@@ -1958,23 +2004,35 @@ def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, 
     """
     if flags is None:
         flags = {}
+    t_dead = time.time() + deadline_s
     ordinary_float = {p: _GRAM_FLOAT[m] for p, m in label_assign.items()
                       if p not in wild_pairs}
 
     # (1) joint feasibility — all wilds free.
-    res0, _ = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, {}, n, d)
+    res0, u_joint = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, {}, n, d)
     if res0 > numerical_threshold:
         return []
 
-    # (2) per-edge integer windows.
+    # (2) per-edge integer windows.  Warm-start each pin from the previous
+    # feasible solution (layout: dotted + free wilds minus the scanned edge).
+    k_d = len(dotted_pairs)
     windows = []
-    for e in wild_pairs:
+    for ei, e in enumerate(wild_pairs):
         win = []
+        # joint solution without the scanned edge's own entry
+        warm = None
+        if u_joint is not None and len(u_joint) == k_d + len(wild_pairs):
+            warm = np.delete(u_joint, k_d + ei)
         for m in range(7, m_scan_max + 1):
-            r, _ = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
-                                  {e: float(np.cos(np.pi / m))}, n, d)
+            if time.time() > t_dead:
+                flags["wild_deadline"] = True
+                return []
+            r, u = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                  {e: float(np.cos(np.pi / m))}, n, d,
+                                  warm_start=warm)
             if r < numerical_threshold:
                 win.append(m)
+                warm = u
         if m_scan_max in win:
             flags["wild_unbounded"] = True
         windows.append(win)
@@ -1984,17 +2042,45 @@ def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, 
     # (3) full pin + exact certification per integer tuple.
     from itertools import product as _prod
     out, seen = [], set()
+    warm_tuple = None if u_joint is None else np.asarray(u_joint[:k_d])
     for m_tuple in _prod(*windows):
+        if time.time() > t_dead:
+            flags["wild_deadline"] = True
+            return out
         pinned = {e: float(np.cos(np.pi / m)) for e, m in zip(wild_pairs, m_tuple)}
-        r, x_dotted = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
-                                     pinned, n, d)
+        # thread the previous feasible tuple's solution: lexicographic order makes
+        # consecutive tuples adjacent (one integer step), so one descent settles it
+        r, u_pin = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                  pinned, n, d, warm_start=warm_tuple)
+        x_dotted = None if u_pin is None else u_pin[:k_d]
         if r > numerical_threshold:
             continue
+        warm_tuple = x_dotted
         labels_int = dict(label_assign)
         for e, m in zip(wild_pairs, m_tuple):
             labels_int[e] = int(m)
         if dotted_pairs:
             if x_dotted is None:
+                continue
+            # Float pre-gates: signature (d,1) and no parabolic subdiagram at the
+            # pinned point — the same conditions the mpmath certification enforces
+            # later at ~1000x the cost.  A tuple failing here (generous float
+            # tolerances) fails there; this is what keeps positive-dimensional
+            # near-solutions from grinding hours of mpmath per assignment.
+            base_f = dict(ordinary_float)
+            for e, c in pinned.items():
+                base_f[e] = -c
+            G_np = _build_gram_numpy(base_f, list(dotted_pairs),
+                                     np.asarray(x_dotted), n)
+            if not _check_signature_float(G_np, d, tol=1e-3):
+                continue
+            if _has_parabolic_subdiagram(G_np, n, d):
+                continue
+            # float isolation pre-gate: a clearly rank-deficient kernel Jacobian
+            # means a positive-dimensional component — the mpmath isolation gate
+            # would reject it after ~minutes; skip it in ~10ms.
+            if _float_kernel_jacobian_deficient(base_f, dotted_pairs, x_dotted,
+                                                n, d):
                 continue
             x_hp = _refine_mpmath(x_dotted, labels_int, dotted_pairs, n, d, dps=dps)
             if x_hp is None:
@@ -2203,6 +2289,8 @@ def process_type_stage4(t, d,
                     })
                 if wflags.get("wild_unbounded"):
                     stats["wild_unbounded"] = True
+                if wflags.get("wild_deadline"):
+                    stats["wild_deadline"] = True
                 continue
 
         ordinary_float = {p: _GRAM_FLOAT[m]
@@ -2298,8 +2386,11 @@ def process_type_stage4(t, d,
         stats_out.update(stats)
         stats_out["enum_count"] = enum_state.get("count", 0)
         # Rigorous only if the generator itself finished every branch (no enum
-        # timeout, no max_count cut) AND we never broke out on the solve budget.
-        stats_out["exhausted"] = bool(enum_state.get("exhausted")) and not budget_break
+        # timeout, no max_count cut), we never broke out on the solve budget,
+        # and no wild assignment was cut short by its per-assignment deadline.
+        stats_out["exhausted"] = (bool(enum_state.get("exhausted"))
+                                  and not budget_break
+                                  and not stats.get("wild_deadline"))
 
     return results
 
