@@ -40,6 +40,15 @@ SUSPECT = [34, 40, 55, 60, 61, 103, 120, 127, 132, 159, 173, 206, 284, 286, 295,
            329, 344, 379]
 FAST = [t for t in SURV if t not in SUSPECT]
 
+# Killed by THEOREM, not enumeration: Burcroff (arXiv:2201.03437; CLAUDE.md §1)
+# proves every compact Coxeter 6-polytope with 10 facets contains a missing face
+# of size 3 or 4.  Types 159 and 329 have missing-face profile (2,2,2,2,2,2) —
+# no size-3/4 face — so they realize NOTHING.  They are exactly the two types
+# with no Lannér subdiagram constraints (hence the deepest enumeration grinders);
+# their partial enumeration (hundreds of exhausted subtrees, zero candidates)
+# stands as independent consistency evidence.
+BURCROFF_MF34_KILLED = [159, 329]
+
 TYPES = {t['type_id']: t for t in json.load(open('runs/d6_n10/stage2/types.json'))}
 OUTDIR = Path("runs/d6_n10/survivors_wildcard" if WILDCARD
               else "runs/d6_n10/survivors_rigorous")
@@ -98,7 +107,7 @@ def main():
     state = json.loads(STATE.read_text()) if STATE.exists() else {}
 
     # 379 (P^B6 anchor) always first if present.
-    tids = sorted(set(tids), key=lambda t: (t != 379, t))
+    tids = sorted(set(tids) - set(BURCROFF_MF34_KILLED), key=lambda t: (t != 379, t))
     queue = [(tid, ()) for tid in tids]
 
     wave = 0
@@ -155,6 +164,12 @@ def main():
         return all(covered(tid, tuple(pfx) + (li,)) for li in range(N_LAB))
 
     verdict = {}
+    for tid in BURCROFF_MF34_KILLED:
+        verdict[tid] = {"distinct": 0, "rigorous": True, "subtrees": 0,
+                        "by": "Burcroff-mf34-theorem (arXiv:2201.03437): no "
+                              "missing face of size 3 or 4 -> realizes nothing"}
+        print(f"VERDICT tid {tid}: distinct=0 RIGOROUS (Burcroff mf-3/4 theorem)",
+              flush=True)
     for tid in tids:
         ks = [s for key, s in state.items() if key.startswith(f"{tid}|")]
         keys = sorted(set(k for s in ks for k in s.get("keys", [])))
