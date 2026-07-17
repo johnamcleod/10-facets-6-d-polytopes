@@ -56,7 +56,9 @@ STATE = OUTDIR / "state.json"
 REALIZER_DIR = OUTDIR / "realizers"
 
 N_LAB = len(WILDCARD_INDICES) if WILDCARD else len(VALID_LABELS)   # 6 / 10
-MAX_DEPTH = 6
+# 6 -> 8 (2026-07-17): the deep (2^5,3,5)-profile cores reach depth-6 timeouts;
+# refinement continues losslessly from cached state on relaunch.
+MAX_DEPTH = 8
 MAXA = 50_000_000
 SOLVE_TO = 600.0
 
