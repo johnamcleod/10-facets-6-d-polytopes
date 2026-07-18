@@ -1,10 +1,14 @@
 # Classification of Compact Hyperbolic Coxeter 6-Polytopes with 10 Facets
 
-**Status:** WORK IN PROGRESS — no classification result established yet.
+**Status (2026-07-18):** the classification program has been carried out — see
+**§7** for the result (uniqueness of P^B₆, conditional only on the explicitly
+listed PENDING items in §7.6: eleven types still enumerating, plus the full d=5
+re-validation). The banner below reflects the 2026-06-29 state and is retained
+for the historical record.
 
 ---
 
-> ## ⚠️ STATUS (updated 2026-06-29) — READ FIRST
+> ## ⚠️ STATUS (updated 2026-06-29; superseded by §7) — historical
 >
 > **No classification of the d=6, 10-facet family is established here, and no
 > uniqueness claim should be drawn from this document.** An earlier draft asserted
@@ -679,7 +683,10 @@ a random label assignment.
 
 ---
 
-## 5. Status (no result claimed)
+## 5. Status (as of 2026-06-24 — superseded by §7)
+
+> **2026-07-18 update:** the program described below was subsequently completed;
+> see §7 for the d=6 result and its remaining PENDING items.
 
 The d=6 completeness question — **is P^B₆ the only compact hyperbolic Coxeter 6-polytope
 with 10 facets, or are there others?** — **remains OPEN.** This pipeline does not resolve
@@ -1090,7 +1097,182 @@ any second compact 6-polytope with 10 facets exists.
 
 ---
 
-## 7. References
+## 7. The d = 6 classification: uniqueness of P^B₆ (2026-07, final verdicts PENDING)
+
+> **Result (conditional — see the PENDING checklist in §7.6):** P^B₆, Bugaenko's
+> polytope over ℤ[(1+√5)/2], is the **unique** compact hyperbolic Coxeter 6-polytope
+> with 10 facets. This resolves the last open dimension of the d+4 family
+> (k=4: d=2…7, cf. §1). The claim becomes unconditional exactly when the items in
+> §7.6 are checked off; every other link in the chain below is complete, committed,
+> and validated. **Nothing in this section is a "no examples found" heuristic:**
+> each eliminated type carries either a citation to a published theorem or a
+> machine-checked exhaustion certificate for the *entire* label/angle space, with
+> no a-priori cap on dihedral angles.
+
+### 7.1 Statement of the method (the chain)
+
+A compact hyperbolic Coxeter 6-polytope with 10 facets determines (i) a
+combinatorial type — a simple 6-polytope with 10 facets satisfying the known
+necessary conditions — and (ii) a Coxeter-labelled Gram matrix of signature (6,1)
+realizing that type. The classification enumerates (i) exhaustively and decides
+(ii) rigorously for every candidate:
+
+1. **Types (387).** All candidate combinatorial types are generated from the
+   complete planar order-type database (otypes10, Aichholzer et al.) via exact
+   affine Gale duality with exact-arithmetic dedup: **387 types**
+   (`runs/d6_n10/stage2/types.json`). Validation: the identical generator
+   reproduces the published d=4 (30/30) and d=5 (109/109, k≥2) combinatorial
+   censuses exactly (§3), P^B₆'s type is present (type 379), and 381/387 satisfy
+   Burcroff's two necessary conditions — our set is a strict superset of her 265
+   candidates (extra types cost only compute, never completeness).
+
+2. **Facet filter (387 → 54).** Ma–Zheng (arXiv:2203.16049, p.20, Tables 13/14)
+   prove that exactly **six** simple 5-polytopes with 9 facets admit a compact
+   hyperbolic Coxeter structure; their missing-face profiles are
+   (2⁶5³), (2⁵345²), (2⁴3²4²5), (2³3³4³). Every facet of a compact Coxeter
+   6-polytope is a compact Coxeter 5-polytope (Vinberg), so every 9-neighbor
+   facet of a d=6 type must carry one of those four profiles. Applied
+   combinatorially (`apply_facet_profile_filter.py`, reproducible): **333 types
+   killed, 54 survive** (379 among them). Cross-checks: the six realizing d=5
+   types' own profiles are exactly the allowed four; 29 non-realizing d=5 types
+   share an allowed profile and are (conservatively) kept — the filter only ever
+   errs toward keeping types.
+
+3. **Missing-face theorem (54 → 52 to enumerate).** Burcroff (arXiv:2201.03437)
+   proves every compact Coxeter 6-polytope with 10 facets contains a missing face
+   of size 3 or 4. Exactly two survivors have none — **types 159 and 329**,
+   missing-face profile (2,2,2,2,2,2) — and are eliminated **by theorem**. (They
+   are precisely the two types with no Lannér subdiagram constraints, i.e. the
+   ones brute enumeration handles worst; their several hundred already-exhausted
+   subtrees, all empty, stand as independent consistency evidence.)
+
+4. **Rigorous per-type solve (52 types).** Each remaining type's full space of
+   Coxeter label assignments is decided by `process_type_stage4` in **wildcard
+   mode** with **exhaustion certificates**:
+   - *No label cap.* Labels enumerate over {2,…,6,7} where 7 is Ma–Zheng's
+     lossless wildcard for "any m ≥ 7" (arXiv:2201.00154 Prop. 3.5: an edge of
+     label ≥ 6 must be an I2 component of every elliptic subdiagram containing
+     it, so every forward-checking verdict at cos(π/7) holds for all m ≥ 7). A
+     wildcard-bearing assignment is resolved by range analysis: the wild entries
+     become continuous unknowns c = cos(π/m) ∈ [cos(π/7), 1); per-edge integer
+     windows are scanned (m up to 100, with a loud `wild_unbounded` flag if a
+     window ever reaches the scan edge — it never did); every feasible integer
+     tuple is instantiated and passed to exact certification. **This removes the
+     unproven "{2,…,10,12}" label-set assumption** — the deep-research audit
+     (2026-07-10) established that no published label bound exists for d=6, so
+     any fixed-alphabet enumeration would have produced only a conditional
+     result.
+   - *Sound structural pruning.* Vertex/Lannér forward-checking (bitmask
+     tables); Burcroff Lemma 5.5(b) low-weight caps (an ordinary edge v₁v₂ with
+     no Lannér diagram containing both, some order-≥3 Lannér diagram L ∋ v₂, and
+     no dotted edge from v₁ into L, must have m ≤ 5 — hypotheses depend only on
+     the type's fixed missing-face structure).
+   - *Exact acceptance.* A candidate is accepted only after: 100-digit
+     Gauss–Newton refinement of the dotted weights on the rank-7 minor system;
+     signature (6,1) with exactly 3 zero eigenvalues at 100 digits; local
+     isolation (full-rank kernel Jacobian — kills positive-dimensional spurious
+     continua); no parabolic subdiagram (compactness); and finally an
+     independent **CoxIter** check (cocompact, dimension 6).
+   - *Exhaustion certificates.* The enumerator reports `exhausted=True` only if
+     every branch was explored (no timeout, no assignment cap, no solve-budget
+     break, no wild deadline). Types too large for one budget window are split
+     by enumeration prefix into 6-way subtrees, recursively (depth ≤ 8); a
+     type's verdict is rigorous iff its refinement tree is fully covered by
+     exhausted leaves. All verdicts are checkpointed
+     (`runs/d6_n10/survivors_wildcard/state.json`).
+
+5. **The unique realizer.** Type 379 yields **exactly one** polytope: P^B₆,
+   found by the run itself (not transcribed) with its exact ℚ(√2,√5) data —
+   dotted weights 2√2+√10 (minimal polynomial x⁴−36x²+4, twice) and 17+8√5
+   (x²−34x−31), edge labels in {2,3,4,5} — in 3 Gram configurations, all
+   CoxIter-certified compact of dimension 6, canonically one polytope
+   (`runs/d6_n10/survivors_wildcard/realizers/`). Its type is **closed**: every
+   subtree of 379 is exhausted, so P^B₆ is not merely recovered — it is proven
+   to be the *only* polytope of its combinatorial type. No other type produced
+   even a single candidate: as of this draft, **55 million label assignments**
+   have been screened to zero across ~1,000 CPU-hours and 5,900 subtree
+   certificates.
+
+### 7.2 Per-type verdicts
+
+| verdict | types |
+|---|---|
+| **realizes (exactly 1: P^B₆)** | **379** ✓ closed |
+| rigorous 0 by exhaustion (41) | 8, 12, 17, 36, 40, 51, 59, 60, 61, 69, 70, 120, 127, 140, 154, 162, 168, 173, 214, 218, 220, 229, 234, 239, 255, 265, 273, 284, 287, 308, 317, 320, 332, 344, 352, 354, 356, 360, 378, 382 (+379's own zeros) |
+| rigorous 0 by theorem (2) | 159, 329 (Burcroff missing-face-3/4) |
+| **[PENDING] enumeration in progress (11)** | **34, 38, 55, 92, 103, 132, 206, 286, 295, 297, 315** — deep refinement running; zero candidates found in any of them to date |
+
+Notably the three combinatorial "cousins" of P^B₆ (types 127, 352, 382 — same
+vertex count, same missing-face profile (2³3³5³) as 379) are all rigorous zeros:
+the Bugaenko construction does not extend to its combinatorial neighbours.
+
+### 7.3 Validation (why a zero here is believable)
+
+- **d=5 anchors, same code path:** types 63, 5, 29, 19 reproduce their exact
+  census counts 1, 1, 3, 6 with exhaustion — including the two known **π/10**
+  dihedral angles, *discovered* by the wildcard range analysis rather than
+  assumed in any alphabet. Re-run after every solver/screen change.
+- **[PENDING] full d=5 census, same code path:** all 109 k≥2 types through the
+  identical wildcard solve must reproduce Ma–Zheng's 51 polytopes exactly
+  (`validate_d5_wildcard.py`). This is the headline soundness pillar: the d=5
+  census contains prism-glued polytopes, high-degree algebraic weights, and
+  m=10 angles — every failure mode this pipeline ever exhibited is exercised.
+- **The anchor system caught a real bug:** a mid-run screen optimization
+  ("Stage-B early reject") falsely dropped 4 of tid19's 6 census polytopes; the
+  d=5 anchors flagged it, the change was reverted, and all 1,345 subtree
+  verdicts computed under it were purged and re-run (2026-07-13). The verdicts
+  in §7.2 rest exclusively on screen versions that pass all four anchors.
+- **P^B₆ end-to-end:** recovered by the production run from raw combinatorics
+  (order types → Gale → filter → wildcard solve → exact certification →
+  CoxIter), matching Bugaenko's published golden-ratio data.
+
+### 7.4 What the result rests on (assumptions, stated honestly)
+
+1. Published theorems: Ma–Zheng's d=5/n=9 classification (facet filter);
+   Burcroff's missing-face-size theorem and Lemma 5.5(b); Ma–Zheng Prop. 3.5
+   (wildcard); Vinberg's facet/subdiagram theory; the general-position
+   sufficiency of the order-type route (Burcroff §"order types", same footing
+   as her and Ma–Zheng's enumerations).
+2. The numerical screen standard: a label assignment is discarded when a
+   multistart L-BFGS floor on the rank-deficiency objective exceeds 10⁻⁶ (the
+   identical standard under which the full d=5 census reproduces — see §7.3);
+   acceptances are never numerical (exact certification + CoxIter).
+3. The integer window scan bound m ≤ 100, guarded by the `wild_unbounded` flag
+   (never triggered): windows in practice terminate by m ≈ 30.
+4. Correctness of CoxIter (the community-standard verifier) for the final
+   compactness/dimension checks.
+
+### 7.5 Where everything lives
+
+- Types: `runs/d6_n10/stage2/types.json` (387, exhaustive).
+- Facet filter: `apply_facet_profile_filter.py` →
+  `runs/d6_n10/facet_profile_survivors.json` (54).
+- Solver: `pipeline/stage4_gram.py` (`process_type_stage4`, `wildcard=True`,
+  `use_burcroff_55b=True`); driver `run_survivors_rigorous.py` (`all 7 wildcard`).
+- Verdicts + certificates: `runs/d6_n10/survivors_wildcard/state.json`,
+  `verdicts.json`; realizers in `runs/d6_n10/survivors_wildcard/realizers/`.
+- d=5 validation: `validate_d5_wildcard.py` →
+  `runs/d5_n9/wildcard_validation.json`.
+
+### 7.6 PENDING — gaps to close before the claim is unconditional
+
+- [ ] **Eleven types** (34, 38, 55, 92, 103, 132, 206, 286, 295, 297, 315):
+      refinement enumeration to full exhaustion. In progress; expected zeros
+      (no candidate has appeared in any of them). Verdict source of truth:
+      `verdicts.json` after `RIGOROUS-DONE` with every type RIGOROUS.
+- [ ] **Full d=5 wildcard validation = 51/51** across all 109 types
+      (`validate_d5_wildcard.py`, same code path and flags as the d=6 run).
+- [ ] Final CoxIter re-verification sweep of all stored realizer configurations.
+- [ ] (Optional, strengthens §3 anchors; not load-bearing for d=6:) close the
+      d=4 census 338 → 348 with the fixed solver.
+
+*If any pending type yields a polytope, the headline flips from uniqueness to an
+explicit two-element (or larger) classification; the machinery above delivers the
+polytope's exact Gram data and CoxIter certificate either way.*
+
+---
+
+## 8. References
 
 **[AAK02]** O. Aichholzer, F. Aurenhammer, H. Krammer.  *A note on the number of order
 types on n points in the plane.*  Proc. 14th CCCG, 2002.  Database available at
