@@ -977,7 +977,7 @@ def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
 
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
                                 max_count=50000, timeout=60.0, label_indices=None,
-                                prefix=None, state_out=None):
+                                prefix=None, state_out=None, edge_max_label=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
@@ -1084,6 +1084,17 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     lg_masks = [full_lg[g] for g in range(len(lg_precomp))]
 
     assignment = [-1] * n_pairs
+    # Per-edge label caps (edge_max_label: pair -> max label VALUE, e.g. 5 for
+    # edges forced low-weight by Burcroff Lemma 5.5).  A prefix entry outside a
+    # pair's allowed set prunes that subtree entirely — sound: the cap encodes a
+    # theorem that no real polytope carries a higher label there.
+    allowed_li = [tuple(range(n_labels))] * n_pairs
+    if edge_max_label:
+        for i, p in enumerate(pairs_list):
+            cap = edge_max_label.get(p)
+            if cap is not None:
+                allowed_li[i] = tuple(li for li in range(n_labels)
+                                      if actual_labels[li] <= cap)
     # state_out (if given) is the caller's dict: after the generator is drained,
     # state_out["exhausted"] is True iff every branch was explored (no timeout,
     # no max_count cut) — the rigorous complete-vs-truncated verdict.
@@ -1104,9 +1115,11 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
 
         # Partition support: at fixed-prefix depths, only the prefix's label.
         if prefix is not None and depth < len(prefix):
+            if prefix[depth] not in allowed_li[pi]:
+                return          # capped-out subtree: provably empty
             li_choices = (prefix[depth],)
         else:
-            li_choices = range(n_labels)
+            li_choices = allowed_li[pi]
         for li in li_choices:
             assignment[pi] = li
             ok = True
@@ -1839,6 +1852,45 @@ def screen_candidate(la, dotted_pairs, minor_index, n, d):
     return []
 
 
+def burcroff_55b_low_weight_edges(mf_list, ordinary_pairs):
+    """Ordinary edges forced LOW WEIGHT (label m <= 5) by Burcroff Lemma 5.5(b)
+    (arXiv:2201.03437; holds for admissible diagrams in any dimension):
+
+        Let v1v2 be an ordinary edge.  If Sigma has no Lannér diagram containing
+        v1 and v2, Sigma has a Lannér diagram L of order > 2 containing v2, and
+        there is no dashed (dotted) edge from v1 to any vertex of L, then v1v2
+        has low weight.
+
+    Combinatorially: Lannér diagrams of order >= 3 are exactly the missing faces
+    of size >= 3 (a Lannér subdiagram's support is a minimal non-face; ordinary
+    triangles that are faces are forced elliptic by the vertex-PD constraints,
+    and order-2 "Lannér" needs a dotted edge, excluded on ordinary pairs).  So
+    the hypotheses depend only on the type's missing-face structure.
+
+    Returns {pair: 5} suitable for enumerate_labels_backtrack(edge_max_label=).
+    """
+    dotted = [frozenset(m) for m in mf_list if len(m) == 2]
+    big = [frozenset(m) for m in mf_list if len(m) >= 3]
+    caps = {}
+    for (u, v) in ordinary_pairs:
+        if any(u in M and v in M for M in big):
+            continue                       # (a)-territory / hypothesis fails
+        forced = False
+        for (v1, v2) in ((u, v), (v, u)):
+            for M in big:
+                if v2 not in M:
+                    continue
+                if any(v1 in D and (D - {v1}) & M for D in dotted):
+                    continue               # dashed edge from v1 into L
+                forced = True
+                break
+            if forced:
+                break
+        if forced:
+            caps[(u, v)] = 5
+    return caps
+
+
 # ---------------------------------------------------------------------------
 # Wildcard (m >= 7) assignment solver — see WILDCARD_LABEL comment at top.
 # ---------------------------------------------------------------------------
@@ -2124,6 +2176,7 @@ def process_type_stage4(t, d,
                          prefix=None,
                          stats_out=None,
                          wildcard=False,
+                         use_burcroff_55b=False,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
 
@@ -2257,6 +2310,13 @@ def process_type_stage4(t, d,
     enum_state = {}
     budget_break = False
 
+    edge_caps = (burcroff_55b_low_weight_edges(mf_list, ordinary_pairs)
+                 if use_burcroff_55b else None)
+    if verbose and edge_caps:
+        print(f"    Burcroff 5.5(b) low-weight caps on {len(edge_caps)} edges")
+    if stats_out is not None and edge_caps:
+        stats_out["burcroff_55b_edges"] = len(edge_caps)
+
     for label_assign in enumerate_labels_backtrack(
         ordinary_pairs, vertex_groups, lanner_groups,
         max_count=max_assignments,
@@ -2264,6 +2324,7 @@ def process_type_stage4(t, d,
         label_indices=label_indices,
         prefix=prefix,
         state_out=enum_state,
+        edge_max_label=edge_caps,
     ):
         elapsed = time.time() - t_start
         if elapsed > enum_timeout + solve_timeout:

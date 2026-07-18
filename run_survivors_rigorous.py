@@ -80,7 +80,8 @@ def work(task):
                                   enum_timeout=enum_to(len(prefix)),
                                   solve_timeout=SOLVE_TO,
                                   label_indices=None, prefix=tuple(prefix) or None,
-                                  stats_out=so, wildcard=WILDCARD, verbose=False) or []
+                                  stats_out=so, wildcard=WILDCARD,
+                                  use_burcroff_55b=WILDCARD, verbose=False) or []
         el = round(time.time() - t0, 1)
         keys = sorted(set(str(canonical_key(r, 10)) for r in res))
         # a wild window hitting the scan edge means the subtree verdict cannot be
