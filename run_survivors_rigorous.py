@@ -56,9 +56,13 @@ STATE = OUTDIR / "state.json"
 REALIZER_DIR = OUTDIR / "realizers"
 
 N_LAB = len(WILDCARD_INDICES) if WILDCARD else len(VALID_LABELS)   # 6 / 10
-# 6 -> 8 (2026-07-17): the deep (2^5,3,5)-profile cores reach depth-6 timeouts;
-# refinement continues losslessly from cached state on relaunch.
-MAX_DEPTH = 8
+# 6 -> 8 (2026-07-17): the deep (2^5,3,5)-profile cores reach depth-6 timeouts.
+# 8 -> 10 (2026-07-25): tid34 pfx=(0,1,0,0,0,1,0,3) hit the depth-8 cap itself
+# (TIMEOUT->refine d9 tag, 1800s, still not exhausted) -> would surface as
+# UNRESOLVED under the old cap. Extending preemptively rather than waiting for
+# the rest of wave 8 (5202 tasks) to finish and discover more such cases.
+# Refinement continues losslessly from cached state on relaunch.
+MAX_DEPTH = 10
 MAXA = 50_000_000
 SOLVE_TO = 600.0
 
