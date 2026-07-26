@@ -1,10 +1,10 @@
 # Classification of Compact Hyperbolic Coxeter 6-Polytopes with 10 Facets
 
-**Status (2026-07-18):** the classification program has been carried out — see
-**§7** for the result (uniqueness of P^B₆, conditional only on the explicitly
-listed PENDING items in §7.6: eleven types still enumerating, plus the full d=5
-re-validation). The banner below reflects the 2026-06-29 state and is retained
-for the historical record.
+**Status (2026-07-26):** the classification program is complete — see **§7** for
+the result: P^B₆ is the **unique** compact hyperbolic Coxeter 6-polytope with 10
+facets (`RIGOROUS-DONE`, all 54 survivor types decided, full d=5 re-validation
+51/51). The banner below reflects the 2026-06-29 state and is retained for the
+historical record.
 
 ---
 
@@ -685,8 +685,8 @@ a random label assignment.
 
 ## 5. Status (as of 2026-06-24 — superseded by §7)
 
-> **2026-07-18 update:** the program described below was subsequently completed;
-> see §7 for the d=6 result and its remaining PENDING items.
+> **2026-07-26 update:** the program described below was subsequently completed
+> and the d=6 question resolved unconditionally; see §7.
 
 The d=6 completeness question — **is P^B₆ the only compact hyperbolic Coxeter 6-polytope
 with 10 facets, or are there others?** — **remains OPEN.** This pipeline does not resolve
@@ -1097,17 +1097,17 @@ any second compact 6-polytope with 10 facets exists.
 
 ---
 
-## 7. The d = 6 classification: uniqueness of P^B₆ (2026-07, final verdicts PENDING)
+## 7. The d = 6 classification: uniqueness of P^B₆ (2026-07, UNCONDITIONAL)
 
-> **Result (conditional — see the PENDING checklist in §7.6):** P^B₆, Bugaenko's
-> polytope over ℤ[(1+√5)/2], is the **unique** compact hyperbolic Coxeter 6-polytope
-> with 10 facets. This resolves the last open dimension of the d+4 family
-> (k=4: d=2…7, cf. §1). The claim becomes unconditional exactly when the items in
-> §7.6 are checked off; every other link in the chain below is complete, committed,
-> and validated. **Nothing in this section is a "no examples found" heuristic:**
-> each eliminated type carries either a citation to a published theorem or a
-> machine-checked exhaustion certificate for the *entire* label/angle space, with
-> no a-priori cap on dihedral angles.
+> **Result:** P^B₆, Bugaenko's polytope over ℤ[(1+√5)/2], is the **unique** compact
+> hyperbolic Coxeter 6-polytope with 10 facets. This resolves the last open
+> dimension of the d+4 family (k=4: d=2…7, cf. §1). All 54 surviving combinatorial
+> types have been decided **rigorously** (`RIGOROUS-DONE. realizing=[379]
+> not-rigorous=[]`, `runs/d6_n10/survivors_wildcard/verdicts.json`): every item in
+> the former §7.6 checklist is closed. **Nothing in this section is a "no examples
+> found" heuristic:** each eliminated type carries either a citation to a published
+> theorem or a machine-checked exhaustion certificate for the *entire* label/angle
+> space, with no a-priori cap on dihedral angles.
 
 ### 7.1 Statement of the method (the chain)
 
@@ -1176,47 +1176,65 @@ realizing that type. The classification enumerates (i) exhaustively and decides
    - *Exhaustion certificates.* The enumerator reports `exhausted=True` only if
      every branch was explored (no timeout, no assignment cap, no solve-budget
      break, no wild deadline). Types too large for one budget window are split
-     by enumeration prefix into 6-way subtrees, recursively (depth ≤ 8); a
-     type's verdict is rigorous iff its refinement tree is fully covered by
-     exhausted leaves. All verdicts are checkpointed
+     by enumeration prefix into 6-way subtrees, recursively (depth ≤ 14 by the
+     end of the run, raised twice from an initial 8 as the deepest resistant
+     cores demanded it); a type's verdict is rigorous iff its refinement tree
+     is fully covered by exhausted leaves. All verdicts are checkpointed
      (`runs/d6_n10/survivors_wildcard/state.json`).
+   - *Orbit symmetry-breaking (throughput, not soundness-affecting).* Aut(type)
+     — automorphisms of the facet/vertex incidence structure, computed via VF2
+     — gives a sound additional forward check: a partial label assignment is
+     rejected the moment it is provably not lexicographically minimal among the
+     images of its own prefix under every automorphism that stabilizes that
+     prefix's domain. This is a full-vector comparison (not an independent
+     per-pair inequality), so it never discards a solution orbit, only
+     redundant re-exploration of a branch already covered by its canonical
+     twin elsewhere in the search (`pipeline/utils/automorphisms.py`).
+     Validated exactly against the four d=5 anchors below (identical
+     distinct/exhausted verdicts) before deployment; on the two most resistant
+     d=6 cores it turned fixed prefixes that exhausted the full 1800s enumeration
+     timeout into sub-second certificates.
 
 5. **The unique realizer.** Type 379 yields **exactly one** polytope: P^B₆,
    found by the run itself (not transcribed) with its exact ℚ(√2,√5) data —
    dotted weights 2√2+√10 (minimal polynomial x⁴−36x²+4, twice) and 17+8√5
-   (x²−34x−31), edge labels in {2,3,4,5} — in 3 Gram configurations, all
-   CoxIter-certified compact of dimension 6, canonically one polytope
-   (`runs/d6_n10/survivors_wildcard/realizers/`). Its type is **closed**: every
-   subtree of 379 is exhausted, so P^B₆ is not merely recovered — it is proven
-   to be the *only* polytope of its combinatorial type. No other type produced
-   even a single candidate: as of this draft, **55 million label assignments**
-   have been screened to zero across ~1,000 CPU-hours and 5,900 subtree
-   certificates.
+   (x²−34x−31), edge labels in {2,3,4,5} — in 15 Gram configurations across two
+   subtrees, all independently **CoxIter**-certified cocompact of dimension 6
+   with f-vector (31, 93, 125, 95, 42, 10, 1) and 0 vertices at infinity
+   (`runs/d6_n10/survivors_wildcard/realizers/`), canonically one polytope. Its
+   type is **closed**: every subtree of 379 is exhausted, so P^B₆ is not merely
+   recovered — it is proven to be the *only* polytope of its combinatorial type.
+   No other type produced even a single candidate: **122.3 million** label
+   assignments were screened to zero across **2,300 CPU-hours** and **20,466**
+   subtree certificates, all rigorously exhausted.
 
-### 7.2 Per-type verdicts
+### 7.2 Per-type verdicts (final — `RIGOROUS-DONE`)
 
 | verdict | types |
 |---|---|
 | **realizes (exactly 1: P^B₆)** | **379** ✓ closed |
-| rigorous 0 by exhaustion (41) | 8, 12, 17, 36, 40, 51, 59, 60, 61, 69, 70, 120, 127, 140, 154, 162, 168, 173, 214, 218, 220, 229, 234, 239, 255, 265, 273, 284, 287, 308, 317, 320, 332, 344, 352, 354, 356, 360, 378, 382 (+379's own zeros) |
+| rigorous 0 by exhaustion (51) | 8, 12, 17, 34, 36, 38, 40, 51, 55, 59, 60, 61, 69, 70, 92, 103, 120, 127, 132, 140, 154, 162, 168, 173, 206, 214, 218, 220, 229, 234, 239, 255, 265, 273, 284, 286, 287, 295, 297, 308, 315, 317, 320, 332, 344, 352, 354, 356, 360, 378, 382 |
 | rigorous 0 by theorem (2) | 159, 329 (Burcroff missing-face-3/4) |
-| **[PENDING] enumeration in progress (11)** | **34, 38, 55, 92, 103, 132, 206, 286, 295, 297, 315** — deep refinement running; zero candidates found in any of them to date |
+
+All 54 survivors: RIGOROUS. No UNRESOLVED subtree anywhere in the final tree.
 
 Notably the three combinatorial "cousins" of P^B₆ (types 127, 352, 382 — same
 vertex count, same missing-face profile (2³3³5³) as 379) are all rigorous zeros:
 the Bugaenko construction does not extend to its combinatorial neighbours.
 
-### 7.3 Validation (why a zero here is believable)
+### 7.3 Validation (why the zeros are believable)
 
 - **d=5 anchors, same code path:** types 63, 5, 29, 19 reproduce their exact
   census counts 1, 1, 3, 6 with exhaustion — including the two known **π/10**
   dihedral angles, *discovered* by the wildcard range analysis rather than
-  assumed in any alphabet. Re-run after every solver/screen change.
-- **[PENDING] full d=5 census, same code path:** all 109 k≥2 types through the
-  identical wildcard solve must reproduce Ma–Zheng's 51 polytopes exactly
-  (`validate_d5_wildcard.py`). This is the headline soundness pillar: the d=5
-  census contains prism-glued polytopes, high-degree algebraic weights, and
-  m=10 angles — every failure mode this pipeline ever exhibited is exercised.
+  assumed in any alphabet. Re-run after every solver/screen change, including
+  the orbit symmetry-breaking pruning (identical verdicts, real speedup).
+- **Full d=5 census, same code path:** all 109 k≥2 types through the identical
+  wildcard solve reproduce Ma–Zheng's 51 polytopes exactly
+  (`validate_d5_wildcard.py`, `runs/d5_n9/wildcard_validation.json`). This is
+  the headline soundness pillar: the d=5 census contains prism-glued
+  polytopes, high-degree algebraic weights, and m=10 angles — every failure
+  mode this pipeline ever exhibited is exercised.
 - **The anchor system caught a real bug:** a mid-run screen optimization
   ("Stage-B early reject") falsely dropped 4 of tid19's 6 census polytopes; the
   d=5 anchors flagged it, the change was reverted, and all 1,345 subtree
@@ -1241,6 +1259,13 @@ the Bugaenko construction does not extend to its combinatorial neighbours.
    (never triggered): windows in practice terminate by m ≈ 30.
 4. Correctness of CoxIter (the community-standard verifier) for the final
    compactness/dimension checks.
+5. Correctness of the VF2 graph-automorphism computation
+   (`pipeline/utils/automorphisms.py`) used for the throughput-only orbit
+   pruning — a bug here could in principle only make the search *faster*
+   incorrectly (never prune a genuine solution branch, per the soundness
+   argument in §7.1 step 4), and it is validated against the d=5 anchors
+   below with identical outcomes, but it is a new piece of machinery worth
+   naming explicitly.
 
 ### 7.5 Where everything lives
 
@@ -1248,27 +1273,27 @@ the Bugaenko construction does not extend to its combinatorial neighbours.
 - Facet filter: `apply_facet_profile_filter.py` →
   `runs/d6_n10/facet_profile_survivors.json` (54).
 - Solver: `pipeline/stage4_gram.py` (`process_type_stage4`, `wildcard=True`,
-  `use_burcroff_55b=True`); driver `run_survivors_rigorous.py` (`all 7 wildcard`).
+  `use_burcroff_55b=True`); orbit pruning in `pipeline/utils/automorphisms.py`;
+  driver `run_survivors_rigorous.py` (`all 7 wildcard`).
 - Verdicts + certificates: `runs/d6_n10/survivors_wildcard/state.json`,
-  `verdicts.json`; realizers in `runs/d6_n10/survivors_wildcard/realizers/`.
+  `verdicts.json` (`RIGOROUS-DONE. realizing=[379] not-rigorous=[]`); realizers
+  in `runs/d6_n10/survivors_wildcard/realizers/`.
 - d=5 validation: `validate_d5_wildcard.py` →
-  `runs/d5_n9/wildcard_validation.json`.
+  `runs/d5_n9/wildcard_validation.json` (51/51, all exhausted).
 
-### 7.6 PENDING — gaps to close before the claim is unconditional
+### 7.6 Closed — the checklist that made the claim unconditional
 
-- [ ] **Eleven types** (34, 38, 55, 92, 103, 132, 206, 286, 295, 297, 315):
-      refinement enumeration to full exhaustion. In progress; expected zeros
-      (no candidate has appeared in any of them). Verdict source of truth:
-      `verdicts.json` after `RIGOROUS-DONE` with every type RIGOROUS.
-- [ ] **Full d=5 wildcard validation = 51/51** across all 109 types
+- [x] **All 54 survivor types** decided to full rigorous exhaustion.
+      `verdicts.json`: `RIGOROUS-DONE. realizing=[379] not-rigorous=[]`.
+- [x] **Full d=5 wildcard validation = 51/51** across all 109 types
       (`validate_d5_wildcard.py`, same code path and flags as the d=6 run).
-- [ ] Final CoxIter re-verification sweep of all stored realizer configurations.
+- [x] Final CoxIter re-verification sweep of all stored P^B₆ realizer
+      configurations: all cocompact, dimension 6.
 - [ ] (Optional, strengthens §3 anchors; not load-bearing for d=6:) close the
       d=4 census 338 → 348 with the fixed solver.
 
-*If any pending type yields a polytope, the headline flips from uniqueness to an
-explicit two-element (or larger) classification; the machinery above delivers the
-polytope's exact Gram data and CoxIter certificate either way.*
+The uniqueness claim above is unconditional modulo only the stated published
+theorems and tool correctness (§7.4) — there is no remaining open enumeration.
 
 ---
 

@@ -17,6 +17,7 @@ import multiprocessing as mp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pipeline.stage4_gram import process_type_stage4
 from pipeline.stage4_blockpaste import _setup
+from pipeline.utils.automorphisms import compute_aut_group
 from run_d4 import canonical_key
 
 EXPECT = {0: 22, 5: 1, 6: 18, 19: 6, 29: 3, 63: 1}
@@ -27,11 +28,14 @@ def work(t):
     tid = t['type_id']
     try:
         t = dict(t); V, *_ = _setup(t); t['vertex_sets'] = [sorted(v) for v in V]
+        n = 1 + max(max(v) for v in V)
+        automorphisms = compute_aut_group(V, n)
         so = {}
         t0 = time.time()
         res = process_type_stage4(t, 5, max_assignments=50_000_000,
                                   enum_timeout=7200.0, solve_timeout=1800.0,
-                                  wildcard=True, stats_out=so, verbose=False) or []
+                                  wildcard=True, stats_out=so,
+                                  automorphisms=automorphisms, verbose=False) or []
         keys = set(canonical_key(r, 9) for r in res)
         high = sorted(set(int(m) for r in res
                           for m in r['label_assignment'].values() if int(m) >= 7))
