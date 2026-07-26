@@ -27,6 +27,7 @@ import multiprocessing as mp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pipeline.stage4_gram import process_type_stage4, VALID_LABELS, WILDCARD_INDICES
 from pipeline.stage4_blockpaste import _setup
+from pipeline.utils.automorphisms import compute_aut_group
 from run_d4 import canonical_key
 
 WILDCARD = len(sys.argv) > 3 and sys.argv[3] == "wildcard"
@@ -61,8 +62,15 @@ N_LAB = len(WILDCARD_INDICES) if WILDCARD else len(VALID_LABELS)   # 6 / 10
 # (TIMEOUT->refine d9 tag, 1800s, still not exhausted) -> would surface as
 # UNRESOLVED under the old cap. Extending preemptively rather than waiting for
 # the rest of wave 8 (5202 tasks) to finish and discover more such cases.
-# Refinement continues losslessly from cached state on relaunch.
-MAX_DEPTH = 10
+# 10 -> 14 (2026-07-26): with orbit-symmetry pruning deployed, wave 10 (the
+# depth-10 leaves) already shows 3 tid34 prefixes hitting the full 1800s
+# timeout AT the cap itself (TIMEOUT->refine d11) -- these are genuinely
+# canonical branches (not symmetric duplicates, or they'd have resolved in
+# ~0.1s), so they need real further depth, not just a bigger timeout.
+# Extending well past the observed failure point rather than incrementally,
+# to avoid a third restart. Refinement continues losslessly from cached
+# state on relaunch.
+MAX_DEPTH = 14
 MAXA = 50_000_000
 SOLVE_TO = 600.0
 
@@ -72,6 +80,28 @@ def enum_to(depth):
 
 def _key(tid, prefix):
     return f"{tid}|{','.join(map(str, prefix))}"
+
+
+# Orbit-based symmetry-breaking (pipeline/utils/automorphisms.py): validated
+# exactly against all 4 d=5 anchors (identical distinct/exhausted, real
+# speedup) and against a direct 180s-window benchmark on the two most
+# resistant d=6 types (tid34/tid103: full 180s timeout -> 0.1s exhausted).
+# Sound because it does a full-vector lex comparison against every
+# domain-stabilizing automorphism image of the CURRENT fixed prefix, never an
+# independent per-pair inequality -- a non-canonical prefix's entire subtree
+# is provably redundant with the (separately-scheduled) canonical prefix's
+# subtree, so reporting it empty+exhausted immediately loses no solutions.
+# Computed once per type before the pool forks (cheap: VF2 on <=42 ordinary
+# pairs), so per-task overhead is just a lookup.
+_AUT_CACHE: dict = {}
+
+
+def _aut_for(tid):
+    if tid not in _AUT_CACHE:
+        t = dict(TYPES[tid]); V, *_ = _setup(t)
+        n = 1 + max(max(v) for v in V)
+        _AUT_CACHE[tid] = compute_aut_group(V, n)
+    return _AUT_CACHE[tid]
 
 
 def work(task):
@@ -85,7 +115,8 @@ def work(task):
                                   solve_timeout=SOLVE_TO,
                                   label_indices=None, prefix=tuple(prefix) or None,
                                   stats_out=so, wildcard=WILDCARD,
-                                  use_burcroff_55b=WILDCARD, verbose=False) or []
+                                  use_burcroff_55b=WILDCARD,
+                                  automorphisms=_aut_for(tid), verbose=False) or []
         el = round(time.time() - t0, 1)
         keys = sorted(set(str(canonical_key(r, 10)) for r in res))
         # a wild window hitting the scan edge means the subtree verdict cannot be
@@ -116,6 +147,12 @@ def main():
     # 379 (P^B6 anchor) always first if present.
     tids = sorted(set(tids) - set(BURCROFF_MF34_KILLED), key=lambda t: (t != 379, t))
     queue = [(tid, ()) for tid in tids]
+
+    # Precompute Aut(type) for every type up front, before the pool forks, so
+    # workers inherit the cache via copy-on-write instead of recomputing VF2
+    # per task.
+    for tid in tids:
+        _aut_for(tid)
 
     wave = 0
     while queue:

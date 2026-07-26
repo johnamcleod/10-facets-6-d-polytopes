@@ -979,7 +979,8 @@ def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
                                 max_count=50000, timeout=60.0, label_indices=None,
                                 prefix=None, state_out=None, edge_max_label=None,
-                                dotted_pairs=(), n_facets=None):
+                                dotted_pairs=(), n_facets=None,
+                                custom_order=None, automorphisms=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
@@ -1017,6 +1018,20 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     is recomputed from scratch each time — no incremental/undo bookkeeping
     needed.
 
+    custom_order: optional explicit pair ordering to use instead of the
+    ``_vertex_first_ordering`` heuristic (same pair SET, different order) —
+    used to align orbit blocks for ``automorphisms``-based pruning.
+
+    automorphisms: optional list of facet-index permutations (Aut(type), see
+    pipeline/utils/automorphisms.py) fixing the combinatorial type.  When
+    given, a SOUND additional forward check rejects any partial assignment
+    that is not lexicographically minimal among the images of its prefix
+    under every automorphism whose induced pair-position permutation
+    stabilizes the prefix domain — i.e. it never eliminates a genuine
+    solution-orbit, only redundant symmetric re-exploration of one already
+    covered elsewhere in the search (see automorphisms.py docstring for the
+    proof).  No effect if ``automorphisms`` is None (default: off).
+
     Yields dicts {(i,j): m} for each valid assignment.
     """
     if lanner_groups is None:
@@ -1028,8 +1043,16 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     n_labels = len(label_indices)
     actual_labels = [VALID_LABELS[i] for i in label_indices]
 
-    pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
+    if custom_order is not None:
+        pairs_list = list(custom_order)
+    else:
+        pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
     n_pairs = len(pairs_list)
+
+    sym_checks = None
+    if automorphisms:
+        from pipeline.utils.automorphisms import symmetry_prefix_checks
+        sym_checks = symmetry_prefix_checks(pairs_list, automorphisms)
     pair_idx = {p: i for i, p in enumerate(pairs_list)}
 
     # Precompute valid arrays for all groups (filtered to label_indices)
@@ -1204,6 +1227,20 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
             if ok and check_orthogonal_cut and actual_labels[li] == 2:
                 if _disconnected(depth):
                     ok = False
+
+            # Orbit symmetry-breaking (see automorphisms.py): reject this
+            # prefix if a domain-stabilizing automorphism image is
+            # lexicographically smaller — a same-orbit branch already covers
+            # (or will cover) this case elsewhere in the search.
+            if ok and sym_checks is not None:
+                k = depth + 1
+                lst = sym_checks[k]
+                if lst:
+                    cur = assignment[:k]
+                    for inv in lst:
+                        if [cur[j] for j in inv] < cur:
+                            ok = False
+                            break
 
             # Fallback: on-the-fly checks for groups too large to precompute
             if ok and (pair_to_vg_bt[pi] or pair_to_lg_bt[pi]):
@@ -2248,6 +2285,8 @@ def process_type_stage4(t, d,
                          stats_out=None,
                          wildcard=False,
                          use_burcroff_55b=False,
+                         custom_order=None,
+                         automorphisms=None,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
 
@@ -2398,6 +2437,8 @@ def process_type_stage4(t, d,
         edge_max_label=edge_caps,
         dotted_pairs=dotted_pairs,
         n_facets=n,
+        custom_order=custom_order,
+        automorphisms=automorphisms,
     ):
         elapsed = time.time() - t_start
         if elapsed > enum_timeout + solve_timeout:
