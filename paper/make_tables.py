@@ -59,7 +59,9 @@ def _c(n):
     return f"{n:,}".replace(",", "{,}")
 DEG_KILLED = {int(k) for k, v in FLAGS.items() if v["max_dashed_degree"] >= 3}
 BIGMF_KILLED = {int(k) for k, v in FLAGS.items() if v["has_missing_face_of_size_d"]}
-COMB_KILLED = DEG_KILLED | BIGMF_KILLED
+PRISM_KILLED = {int(k) for k, v in FLAGS.items()
+                if not v.get("degree2_facet_is_prism", True)}
+COMB_KILLED = DEG_KILLED | BIGMF_KILLED | PRISM_KILLED
 
 
 def _closed(tid, pfx=()):
@@ -149,6 +151,7 @@ def main():
         "NumSearchedLess": str(len(SURV) - len(THREE_FREE) - 1),
         "NumDegKilled": str(len(DEG_KILLED)),
         "NumBigMF": str(len(BIGMF_KILLED - DEG_KILLED)),
+        "NumPrism": str(len(PRISM_KILLED - DEG_KILLED - BIGMF_KILLED)),
         "NumAfterComb": str(len(TYPES) - len(COMB_KILLED)),
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
         "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -

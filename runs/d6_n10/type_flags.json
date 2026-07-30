@@ -2,2111 +2,2637 @@
 "d6_n10": {
 "0": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "1": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "2": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "3": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "4": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "5": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "6": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "7": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "8": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "9": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "10": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "11": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "12": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "13": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "14": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "15": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "16": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "17": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "18": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "19": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "20": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "21": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "22": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "23": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "24": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "25": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "26": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "27": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "28": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "29": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "30": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "31": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "32": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "33": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "34": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "35": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "36": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "37": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "38": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "39": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "40": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "41": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "42": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "43": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "44": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "45": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "46": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "47": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "48": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "49": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "50": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "51": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "52": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "53": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "54": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "55": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "56": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "57": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "58": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "59": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "60": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "61": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "62": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "63": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "64": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "65": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "66": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "67": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "68": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "69": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "70": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "71": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "72": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "73": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "74": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "75": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "76": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "77": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "78": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "79": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "80": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "81": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "82": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "83": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "84": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "85": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "86": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "87": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "88": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "89": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "90": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "91": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "92": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "93": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "94": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "95": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "96": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "97": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "98": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "99": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "100": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "101": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "102": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "103": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "104": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "105": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "106": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "107": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "108": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "109": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "110": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "111": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "112": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "113": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "114": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "115": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "116": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "117": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "118": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "119": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "120": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "121": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "122": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "123": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "124": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "125": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "126": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "127": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "128": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "129": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "130": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "131": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "132": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "133": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "134": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "135": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "136": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "137": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "138": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "139": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "140": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "141": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "142": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "143": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "144": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "145": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "146": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "147": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "148": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "149": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "150": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "151": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "152": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "153": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "154": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "155": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "156": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "157": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "158": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "159": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "160": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "161": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "162": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "163": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "164": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "165": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "166": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "167": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "168": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "169": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "170": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "171": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "172": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "173": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "174": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "175": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "176": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "177": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "178": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "179": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "180": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "181": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "182": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "183": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "184": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "185": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "186": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "187": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "188": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "189": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "190": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "191": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "192": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "193": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "194": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "195": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "196": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "197": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "198": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "199": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "200": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "201": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "202": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "203": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "204": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "205": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "206": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "207": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "208": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "209": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "210": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "211": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "212": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "213": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "214": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "215": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "216": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "217": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "218": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "219": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "220": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "221": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "222": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "223": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "224": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "225": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "226": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "227": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "228": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "229": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "230": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "231": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "232": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "233": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "234": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "235": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "236": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "237": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "238": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "239": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "240": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "241": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "242": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "243": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "244": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "245": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "246": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "247": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "248": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "249": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "250": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "251": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "252": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "253": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "254": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "255": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "256": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "257": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "258": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "259": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "260": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "261": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "262": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "263": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "264": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "265": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "266": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "267": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "268": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "269": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "270": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "271": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "272": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "273": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "274": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "275": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "276": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "277": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "278": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "279": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "280": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "281": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "282": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "283": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "284": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "285": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "286": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "287": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "288": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "289": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "290": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "291": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "292": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "293": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "294": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "295": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "296": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "297": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "298": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "299": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "300": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "301": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "302": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "303": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "304": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "305": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "306": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "307": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "308": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "309": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "310": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "311": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "312": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "313": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "314": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "315": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "316": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "317": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "318": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "319": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "320": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "321": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "322": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "323": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "324": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "325": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "326": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "327": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "328": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "329": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "330": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "331": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "332": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "333": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "334": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "335": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "336": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "337": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "338": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "339": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "340": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "341": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "342": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "343": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "344": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "345": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "346": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "347": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "348": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "349": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "350": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "351": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "352": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "353": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "354": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "355": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "356": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "357": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "358": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "359": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "360": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "361": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "362": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "363": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "364": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "365": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "366": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "367": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "368": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "369": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "370": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "371": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "372": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "373": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "374": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "375": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "376": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "377": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "378": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": false
 },
 "379": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "380": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": true
+"has_missing_face_of_size_d": true,
+"degree2_facet_is_prism": true
 },
 "381": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "382": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "383": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "384": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": false
 },
 "385": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "386": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 }
 },
 "d5_n9": {
 "0": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "1": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "2": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "3": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "4": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "5": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "6": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "7": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "8": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "9": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "10": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "11": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "12": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "13": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "14": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "15": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "16": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "17": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "18": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "19": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "20": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "21": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "22": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "23": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "24": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "25": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "26": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "27": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "28": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "29": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "30": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "31": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "32": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "33": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "34": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "35": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "36": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "37": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "38": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "39": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "40": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "41": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "42": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "43": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "44": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "45": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "46": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "47": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "48": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "49": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "50": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "51": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "52": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "53": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "54": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "55": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "56": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "57": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "58": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "59": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "60": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "61": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "62": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "63": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "64": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "65": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "66": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "67": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "68": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "69": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "70": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "71": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "72": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "73": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "74": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "75": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "76": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "77": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "78": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "79": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "80": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "81": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "82": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "83": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "84": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "85": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "86": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "87": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "88": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "89": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "90": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "91": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "92": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "93": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "94": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "95": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "96": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "97": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "98": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "99": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "100": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "101": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "102": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "103": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "104": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "105": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "106": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "107": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "108": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 }
 },
 "d4_n8": {
 "0": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "1": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "2": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "3": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "4": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "5": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "6": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "7": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "8": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "9": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "10": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "11": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "12": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "13": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "14": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "15": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "16": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "17": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "18": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "19": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "20": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "21": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "22": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "23": {
 "max_dashed_degree": 3,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "24": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "25": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "26": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "27": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "28": {
 "max_dashed_degree": 2,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 },
 "29": {
 "max_dashed_degree": 1,
-"has_missing_face_of_size_d": false
+"has_missing_face_of_size_d": false,
+"degree2_facet_is_prism": true
 }
 }
 }

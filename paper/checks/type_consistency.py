@@ -96,6 +96,34 @@ def check(d, n):
     return types, errors, killable, degen
 
 
+PRISM_PROFILE = (2, 5)   # Delta^{d-2} x I, the only compact Coxeter (d-1)-polytope
+                         # with (d-1)+2 facets in dimension d-1 >= 5
+
+
+def facet_profile(V, i, n):
+    """Missing-face size profile of the facet f_i, and its number of facets.
+
+    The link of i: take the vertices containing i, delete i, and compute the
+    minimal non-faces of the resulting complex.  This is the rule of the paper's
+    Lemma 4.5, not the naive "missing faces of P avoiding i".
+    """
+    sub = [frozenset(v) - {i} for v in V if i in v]
+    facets = sorted(set().union(*sub)) if sub else []
+
+    def is_face(S):
+        return any(S <= v for v in sub)
+
+    mf = []
+    for size in range(2, len(facets) + 1):
+        for S in itertools.combinations(facets, size):
+            fs = frozenset(S)
+            if is_face(fs):
+                continue
+            if all(is_face(fs - {x}) for x in fs):
+                mf.append(fs)
+    return tuple(sorted(len(m) for m in mf)), len(facets)
+
+
 def emit_flags():
     """Write runs/d6_n10/type_flags.json, the artifact the driver and make_tables
     read for the two combinatorial exclusions."""
@@ -112,8 +140,22 @@ def emit_flags():
             V = vertices(t)
             big = bool({frozenset(c) for c in itertools.combinations(range(n), d)
                         if not any(m <= frozenset(c) for m in mf)} - V)
+            # Lemma 4.3': a facet disjoint from exactly 2 others is a compact
+            # Coxeter (d-1)-polytope with (d-1)+2 facets; for d-1 >= 5 the only
+            # such type is the simplicial prism Delta^{d-2} x I (Kaplinskaja;
+            # Esselmann's products of two simplices occur only in dimension 4),
+            # whose missing-face profile is 2^1 (d-1)^1.
+            prism_ok = True
+            if d >= 6:
+                for i in range(n):
+                    if deg.get(i, 0) == 2:
+                        pr, nf = facet_profile(V, i, n)
+                        if nf != n - 3 or pr != (2, d - 1):
+                            prism_ok = False
+                            break
             rec[str(tid)] = {"max_dashed_degree": max(deg.values()) if deg else 0,
-                             "has_missing_face_of_size_d": big}
+                             "has_missing_face_of_size_d": big,
+                             "degree2_facet_is_prism": prism_ok}
         out[f"d{d}_n{n}"] = rec
         print(f"  d={d}: flagged {len(rec)} types")
     p = ROOT / "runs/d6_n10/type_flags.json"

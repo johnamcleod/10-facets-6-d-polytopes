@@ -118,7 +118,13 @@ if _flags_path.exists():
     LEMMA_KILLED = sorted(
         t for t in SURV
         if (_fl.get(str(t), {}).get("max_dashed_degree", 0) >= 3
-            or _fl.get(str(t), {}).get("has_missing_face_of_size_d", False)))
+            or _fl.get(str(t), {}).get("has_missing_face_of_size_d", False)
+            # Lemma 4.3': a facet disjoint from exactly two others is a compact
+            # Coxeter (d-1)-polytope with (d-1)+2 facets, and for d-1 >= 5 the only
+            # such combinatorial type is the simplicial prism Delta^{d-2} x I
+            # (Kaplinskaja 1974; Esselmann 1996 shows the products of two simplices
+            # occur only in dimension 4).
+            or not _fl.get(str(t), {}).get("degree2_facet_is_prism", True)))
 
 # Output directory.  `out=NAME` selects a different one, which is how a FRESH run
 # is started: without it the driver resumes the existing state and every cached
@@ -341,7 +347,12 @@ def main():
                                     NF - 1 - _f.get("max_dashed_degree", 0))
                if _f.get("max_dashed_degree", 0) >= 3 else
                "Lemma 4.3: the type has a minimal non-face of size %d, which would "
-               "require a Lanner subdiagram of that order; none exists above 5" % D)
+               "require a Lanner subdiagram of that order; none exists above 5" % D
+               if _f.get("has_missing_face_of_size_d") else
+               "Lemma 4.3': a facet disjoint from exactly two others would be a "
+               "compact Coxeter 5-polytope with 7 facets, hence combinatorially "
+               "Delta^4 x I (Kaplinskaja; Esselmann), but its missing-face profile "
+               "is not that of the prism")
         verdict[tid] = {"distinct": 0, "rigorous": True, "subtrees": 0, "by": why}
         print(f"VERDICT tid {tid}: distinct=0 RIGOROUS ({why[:46]}...)", flush=True)
     for tid in ESSELMANN_3FREE_KILLED:
