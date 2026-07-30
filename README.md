@@ -17,7 +17,14 @@ every place where the text's claims outrun what the data strictly establish.
 
 ---
 
-## 1. Quick start — verify the polytope (≈ 3 minutes)
+## 1. How to verify the results
+
+Everything needed to check the paper is in this repository: the verification
+scripts, all nine claim-by-claim checks, and the run certificates the numbers are
+derived from. None of it requires re-running the classification, and the two
+commands in §1.1 and §1.2 do not import the pipeline at all.
+
+### 1.1 The polytope (≈ 3 minutes)
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
@@ -64,6 +71,75 @@ w(6,7) = w(8,9) = 2√2 + √10 = √2(2+√5) ≈ 5.990705     minpoly x⁴ −
 w(7,8)          = 17 + 8√5           ≈ 34.888544      minpoly x² − 34x − 31
 w(7,8) = w(6,7)² − 1        field of definition Q(√2, √5)
 ```
+
+### 1.2 The classification: totals, coverage and the absence of truncations
+
+```bash
+python3 paper/make_tables.py
+```
+
+This reads the run certificates and re-derives every number the paper quotes. It
+does not trust the stored verdicts: it recomputes the coverage recursion from the
+subtree certificates and **fails** if any of the 52 searched types is not closed, or
+if any verdict rests on a truncation at the refinement depth cap, on a wildcard
+window that reached its scan edge, or on a per-assignment deadline. Expected tail:
+
+```
+  NumTypes           387        NumSurvivors       54
+  NumSearched        52         NumThreeFree       2      (types 159, 329)
+  NumSubtrees        1,156      CPUHours           173
+  MaxDepth           11         RealizingType      379
+  DFiveTotal         51         DFourFound         348
+
+all paper invariants re-checked OK
+```
+
+It also regenerates `paper/tables/pertype.tex` (Table 1) and
+`paper/tables/summary_nums.tex`; those two files are the only route by which run
+data reaches the paper, so no number in it is transcribed by hand.
+
+### 1.3 Claim-by-claim checks
+
+Each script substantiates one claim of the paper and prints a verdict line.
+
+```bash
+for f in paper/checks/*.py; do echo "== $f"; python3 "$f" | tail -2; done
+```
+
+| script | claim |
+|---|---|
+| `d4_census_reconciliation.py` | the d=4 census agrees with Burcroff Appendix A type by type (348) |
+| `burcroff_appendixA.py` | three corrections to Burcroff's 111-entry d=5 candidate list |
+| `burcroff_fig5_isomorphism.py` | our polytope is isomorphic to Burcroff Fig. 5, edge for edge and label for label |
+| `lanner_label_bound.py` | re-derives Lannér's order-4 and order-5 diagrams (9 and 5) from the definition |
+| `wildcard_soundness.py` | the m ≥ 7 wildcard predicate is insensitive to the value of m |
+| `forward_check_margins.py` | forward-checking eigenvalue tolerances carry 10³–10⁶ margin |
+| `cascade_reachability.py` | the bounded-box fallback is structurally unreachable at d=6; the pair-resultant path is never entered |
+| `screen_margins.py` | margins at the cascade's decision thresholds |
+| `mz_p8_17_crosscheck.py` | our d=4 solutions all appear in Ma–Zheng's own published candidate list |
+
+### 1.4 The certificates themselves
+
+| path | contents |
+|---|---|
+| `runs/d6_n10/stage2/types.json` | the 387 combinatorial types, with missing faces and vertex sets |
+| `runs/d6_n10/facet_profile_survivors.json` | the 54 survivors of the facet filter |
+| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the d=6 classification of record: 1,156 subtree certificates, merged by `make_tables.py` |
+| `runs/d6_n10/d6_tangency/realizers/` | the realizer records for the unique polytope |
+| `runs/d5_n9/d5_discfix.json` | the d=5 census, 51 polytopes over 109 types |
+| `runs/d4_n8/survivors_discfix/` | the d=4 census, 348 polytopes over 30 types |
+
+A subtree certificate records its prefix, whether the subtree was exhausted, how
+many labellings it enumerated, the polytopes found, and per-gate diagnostics. A
+type is decided when its root is exhausted, or when all six children are
+recursively decided — the recursion `make_tables.py` recomputes.
+
+### 1.5 The companion note on the polytope
+
+`paper/polytope.tex` compiles standalone (`pdflatex polytope.tex`) and gives the
+Coxeter diagram, the exact Gram matrix over Q(√2, √5), the automorphism computation
+behind "exactly one up to isometry", the identification with Burcroff Fig. 5, and
+the polytope's position relative to the Felikson–Tumarkin class.
 
 ---
 
