@@ -26,9 +26,17 @@ paper/make_tables.py
 paper/tables/
 paper/paper.pdf
 paper/paper.bbl
-README.md
 REVIEW_NOTES.md
+REVIEWER_RESPONSES.md
 verify_polytope.py
+# the six standalone checks ship with the paper; only the three that import this
+# pipeline are tracked here
+paper/checks/burcroff_appendixA.py
+paper/checks/burcroff_fig5_isomorphism.py
+paper/checks/d4_census_reconciliation.py
+paper/checks/forward_check_margins.py
+paper/checks/lanner_label_bound.py
+paper/checks/wildcard_soundness.py
 
 # compiled artifacts of pipeline/c (sources are tracked, binaries are not)
 pipeline/c/aak_parse
