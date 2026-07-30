@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Consistency of the generated combinatorial types, checked exhaustively.
 
-A referee asked for this, and it is worth having: the generator produces two
-representations of each type -- a missing-face hypergraph and a vertex list -- and
-the whole pipeline relies on them agreeing.  This script checks every generated
+The generator produces two representations of each type -- a missing-face
+hypergraph and a vertex list -- and the whole pipeline relies on them agreeing, so
+the agreement is worth checking rather than assuming.  This script checks every generated
 type in every dimension available, and reports three distinct things, which must
 not be conflated.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Did deduplication on truncated missing-face data merge distinct types?
 
-A referee raised this and it is a genuine completeness risk, so it is checked here
-rather than argued about.
+This is a genuine completeness risk, so it is checked here rather than argued
+about.
 
 The generator records minimal non-faces up to size 5 only, and identifies two
 candidates when a permutation carries one such truncated hypergraph to the other.

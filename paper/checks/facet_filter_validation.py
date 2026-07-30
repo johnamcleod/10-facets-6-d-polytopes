@@ -3,9 +3,9 @@
 
 The filter is the largest reduction in the paper: it removes 333 of 387 types at
 d=6, using the completed classification of compact Coxeter 5-polytopes with 9
-facets.  A referee objected, correctly, that the IMPLEMENTATION is exercised only
-at d=6, where the answer is unknown, and asked for it to be run in a dimension
-where the answer is known.
+facets.  But the IMPLEMENTATION of the filter is exercised only at d=6, where the
+answer is unknown, so on its own it is untested code carrying the largest reduction
+in the paper.  It should be run in a dimension where the answer is known.
 
 That is what this script does.  The d=5 analogue of the filter uses the completed
 d=4 classification: a facet of a 5-polytope with 9 facets that meets all eight
