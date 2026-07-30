@@ -34,3 +34,7 @@ verify_polytope.py
 pipeline/c/aak_parse
 pipeline/c/stage2_filter
 pipeline/c/libwildkernel.dylib
+
+# Development scratch: exploratory scripts, logs, vendored third-party checkouts
+# (CoxIter, HCPdm) and intermediate data.  Never an input to a published result.
+scratchpad/
