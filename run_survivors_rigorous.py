@@ -95,6 +95,31 @@ if NF < 2 * D:
 else:
     ESSELMANN_3FREE_KILLED = []
 
+# Two further combinatorial exclusions, each a theorem, both consequences of
+# Lannér's classification (paper Lemmas 4.2 and 4.3):
+#
+#   LEMMA 4.2 (bounded dashed degree).  A facet disjoint from t others is a compact
+#   Coxeter (d-1)-polytope with n-1-t facets.  For d-1 >= 5 such a polytope is not
+#   a simplex, so it has at least d+1 facets and t <= n-d-2.  For d=6, n=10 this
+#   caps the dashed-edge degree at 2.
+#
+#   LEMMA 4.3 (no missing face of size d).  It would need a Lannér subdiagram of
+#   order d, and Lannér diagrams exist only in orders 2..5.  Detected by comparing
+#   the vertex list with the d-subsets containing no RECORDED missing face, since
+#   the generator records minimal non-faces only up to size 5.
+#
+# The flags are precomputed by paper/checks/type_consistency.py --emit into
+# runs/d{D}_n{NF}/type_flags.json; if that artifact is absent the exclusions are
+# simply not applied, so the driver still runs (conservatively) without it.
+LEMMA_KILLED = []
+_flags_path = Path(f"{_RUNDIR}/type_flags.json")
+if _flags_path.exists():
+    _fl = json.loads(_flags_path.read_text()).get(f"d{D}_n{NF}", {})
+    LEMMA_KILLED = sorted(
+        t for t in SURV
+        if (_fl.get(str(t), {}).get("max_dashed_degree", 0) >= 3
+            or _fl.get(str(t), {}).get("has_missing_face_of_size_d", False)))
+
 # Output directory.  `out=NAME` selects a different one, which is how a FRESH run
 # is started: without it the driver resumes the existing state and every cached
 # subtree is skipped, so a "re-run" would silently re-emit the old verdicts
@@ -239,7 +264,7 @@ def main():
     # d=6: put the known realizer (type 379) first, so the anchor is checked
     # before the long tail.  Other dimensions have no such anchor.
     anchor = 379 if D == 6 else None
-    tids = sorted(set(tids) - set(ESSELMANN_3FREE_KILLED),
+    tids = sorted(set(tids) - set(ESSELMANN_3FREE_KILLED) - set(LEMMA_KILLED),
                   key=lambda t: (t != anchor, t))
     queue = [(tid, ()) for tid in tids]
 
@@ -307,6 +332,18 @@ def main():
         return all(covered(tid, tuple(pfx) + (li,)) for li in range(N_LAB))
 
     verdict = {}
+    for tid in LEMMA_KILLED:
+        _f = _fl.get(str(tid), {})
+        why = ("Lemma 4.2: a facet is disjoint from %d others, so it would be a "
+               "compact Coxeter 5-polytope with %d facets, i.e. a simplex or "
+               "smaller, and compact hyperbolic Coxeter simplices exist only for "
+               "d <= 4 (Lanner)" % (_f.get("max_dashed_degree", 0),
+                                    NF - 1 - _f.get("max_dashed_degree", 0))
+               if _f.get("max_dashed_degree", 0) >= 3 else
+               "Lemma 4.3: the type has a minimal non-face of size %d, which would "
+               "require a Lanner subdiagram of that order; none exists above 5" % D)
+        verdict[tid] = {"distinct": 0, "rigorous": True, "subtrees": 0, "by": why}
+        print(f"VERDICT tid {tid}: distinct=0 RIGOROUS ({why[:46]}...)", flush=True)
     for tid in ESSELMANN_3FREE_KILLED:
         verdict[tid] = {"distinct": 0, "rigorous": True, "subtrees": 0,
                         "by": "Esselmann-3free-bound (Esselmann 1994, Lemma 6.7; "

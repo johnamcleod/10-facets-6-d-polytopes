@@ -96,7 +96,35 @@ def check(d, n):
     return types, errors, killable, degen
 
 
+def emit_flags():
+    """Write runs/d6_n10/type_flags.json, the artifact the driver and make_tables
+    read for the two combinatorial exclusions."""
+    out = {}
+    for d, n in CASES:
+        path = ROOT / f"runs/d{d}_n{n}/stage2/types.json"
+        if not path.exists():
+            continue
+        rec = {}
+        for t in json.load(open(path)):
+            tid = t["type_id"]
+            deg = Counter(x for m in t["missing_faces"] if len(m) == 2 for x in m)
+            mf = [frozenset(m) for m in t["missing_faces"]]
+            V = vertices(t)
+            big = bool({frozenset(c) for c in itertools.combinations(range(n), d)
+                        if not any(m <= frozenset(c) for m in mf)} - V)
+            rec[str(tid)] = {"max_dashed_degree": max(deg.values()) if deg else 0,
+                             "has_missing_face_of_size_d": big}
+        out[f"d{d}_n{n}"] = rec
+        print(f"  d={d}: flagged {len(rec)} types")
+    p = ROOT / "runs/d6_n10/type_flags.json"
+    p.write_text(json.dumps(out, indent=0))
+    print(f"written {p}")
+    return 0
+
+
 def main():
+    if "--emit" in sys.argv[1:]:
+        return emit_flags()
     rc = 0
     for d, n in CASES:
         r = check(d, n)

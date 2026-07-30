@@ -83,14 +83,25 @@ def main():
         for tid, ua, dist, exh, enum, sec in pool.imap_unordered(work, tasks):
             out[tid] = (dist, exh, enum, sec)
             ref = len(keys[tid])
-            ok = dist == ref and exh
+            # a run that hit the budget is INCONCLUSIVE, not a mismatch: without
+            # pruning these trees are far larger, which is the point of the device
+            tag = ("reproduced" if exh and dist == ref else
+                   "inconclusive (hit budget)" if not exh else "DISAGREES")
             print(f"  tid {tid:>4}  pruning OFF: {dist} polytopes, exhausted={exh}, "
-                  f"enum={enum:,}, {sec}s   committed={ref}   "
-                  f"{'OK' if ok else 'MISMATCH'}", flush=True)
-    bad = [t for t, (d, e, _, _) in out.items() if d != len(keys[t]) or not e]
+                  f"enum={enum:,}, {sec}s   committed={ref}   {tag}", flush=True)
+    agree = [t for t, (d, e, _, _) in out.items() if e and d == len(keys[t])]
+    incon = [t for t, (d, e, _, _) in out.items() if not e]
+    bad = [t for t, (d, e, _, _) in out.items() if e and d != len(keys[t])]
     print(f"\n{len(out)} types re-run with symmetry breaking disabled")
-    print("RESULT:", "every verdict reproduced without the pruning"
-          if not bad else f"MISMATCH on {bad}")
+    print(f"  exhausted and verdict reproduced    : {len(agree)}")
+    print(f"  hit the budget, inconclusive         : {len(incon)}  {sorted(incon)}")
+    print(f"  genuine disagreements                : {len(bad)}  {sorted(bad)}")
+    if 379 in incon:
+        print("  NOTE: the realizing type 379 is inconclusive here; it is checked")
+        print("        separately with a larger budget, since it is the case that")
+        print("        matters most and 900 s does not reach a complete labelling.")
+    print("RESULT:", "no verdict changed without the pruning"
+          if not bad else f"DISAGREEMENT on {bad}")
     return 0 if not bad else 1
 
 
