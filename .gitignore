@@ -7,3 +7,30 @@ runs/
 *.egg-info/
 dist/
 build/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.blg
+paper/*.toc
+
+# The paper, its data artifacts and its standalone verification scripts now live
+# in a separate repository (10-facets-6-d-polytopes-paper), so that the paper can
+# be checked without reading or running this pipeline.  The three checks under
+# paper/checks/ that import this pipeline ARE tracked here -- they cannot run
+# standalone, and the paper cites them by that path.
+paper/paper.tex
+paper/references.bib
+paper/make_tables.py
+paper/tables/
+paper/paper.pdf
+paper/paper.bbl
+README.md
+REVIEW_NOTES.md
+verify_polytope.py
+
+# compiled artifacts of pipeline/c (sources are tracked, binaries are not)
+pipeline/c/aak_parse
+pipeline/c/stage2_filter
+pipeline/c/libwildkernel.dylib

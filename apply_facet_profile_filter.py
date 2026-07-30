@@ -23,7 +23,32 @@ import json, sys
 from itertools import combinations
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pipeline.stage4_blockpaste import _setup
+from pipeline.utils.gale_exact import AffineGale
+
+
+def vertex_sets(t):
+    """Vertex sets (each a tuple of the d facets meeting there) of a combinatorial
+    type, from its stored affine Gale diagram.
+
+    Same derivation as ``pipeline.stage4_blockpaste._setup``, inlined so that this
+    script -- the reproducible artifact that produces the 54-survivor list -- has
+    no dependency on the block-paste module (and hence none on pandas).
+    Cross-checked against ``_setup`` on all 387 d=6 types.
+    """
+    if t.get("vertex_sets"):
+        return [tuple(sorted(v)) for v in t["vertex_sets"]]
+    pts = [tuple(p) for p in t["example_points"]]
+    n = 1 + max(max(m) for m in t["missing_faces"])
+    # For an m-dimensional affine Gale diagram of a polytope with n facets,
+    # k = n - d = m + 2, hence d = n - (m + 2).
+    d_poly = n - (len(pts[0]) + 2)
+    ag = AffineGale(pts, frozenset(t["example_positive"]), d_poly)
+    V = [tuple(sorted(v)) for v in ag.vertex_sets()]
+    if V:
+        d = len(V[0])
+        for v in V:
+            assert len(v) == d, f"non-simple vertex {v} (expected {d} facets)"
+    return V
 
 REALIZING_N9_PROFILES = {
     (2, 2, 2, 2, 2, 2, 5, 5, 5),
@@ -65,7 +90,7 @@ def main():
     survivors, killed = [], []
     for t in types:
         tid = t['type_id']
-        V, *_ = _setup(dict(t))
+        V = vertex_sets(dict(t))
         vsets = [frozenset(v) for v in V]
         in_dotted = set()
         for m in t['missing_faces']:
