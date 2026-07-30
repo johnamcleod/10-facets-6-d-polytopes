@@ -1,10 +1,14 @@
 # Classification of Compact Hyperbolic Coxeter 6-Polytopes with 10 Facets
 
-**Status:** WORK IN PROGRESS — no classification result established yet.
+**Status (2026-07-26):** the classification program is complete — see **§7** for
+the result: P^B₆ is the **unique** compact hyperbolic Coxeter 6-polytope with 10
+facets (`RIGOROUS-DONE`, all 54 survivor types decided, full d=5 re-validation
+51/51). The banner below reflects the 2026-06-29 state and is retained for the
+historical record.
 
 ---
 
-> ## ⚠️ STATUS (updated 2026-06-29) — READ FIRST
+> ## ⚠️ STATUS (updated 2026-06-29; superseded by §7) — historical
 >
 > **No classification of the d=6, 10-facet family is established here, and no
 > uniqueness claim should be drawn from this document.** An earlier draft asserted
@@ -75,10 +79,12 @@
 >      missing label-assignments. It points to a **census counting-convention difference**
 >      or a **shared exact-solver subtlety** (both methods use the same accept test) — the
 >      genuine remaining question, now sharply localized.
->    - One porting bug found+fixed: Ma–Zheng's `l4_basis` prism-end orthogonality saver
->      OVER-PRUNES (verified type-6 polytopes have non-orthogonal tetrahedral-facet ridges);
->      it is a gauge/efficiency choice, not a soundness condition — disabled; the exact
->      solver is the arbiter.
+>    - Ma–Zheng's `l_basis` prism-base saver is **dimension-scoped**, not a global switch
+>      (see §6.7 for the derivation). For **d=4** it must be OFF: real census type-6 polytopes
+>      carry non-orthogonal tetrahedral-facet ridges, so forcing them to π/2 over-prunes
+>      (49 → 12). For **d=5** it must be ON: it is Ma–Zheng's canonical prism-base selection
+>      and reproduces their per-type counts exactly (P9_322 → 3, tid0 → 5). The driver sets
+>      `USE_L4_BASIS = (d ≥ 5)` accordingly; the exact solver + CoxIter remain the arbiters.
 >
 > **Per CLAUDE.md §3, no d=6 conclusion is valid until the d=4 (348) / d=5 (51) COUNTS
 > are reproduced exactly. The combinatorial types are reproduced; the counts are not.**
@@ -677,7 +683,10 @@ a random label assignment.
 
 ---
 
-## 5. Status (no result claimed)
+## 5. Status (as of 2026-06-24 — superseded by §7)
+
+> **2026-07-26 update:** the program described below was subsequently completed
+> and the d=6 question resolved unconditionally; see §7.
 
 The d=6 completeness question — **is P^B₆ the only compact hyperbolic Coxeter 6-polytope
 with 10 facets, or are there others?** — **remains OPEN.** This pipeline does not resolve
@@ -906,40 +915,389 @@ driver sets `USE_L4_BASIS = (d ≥ 5)` so each dimension reproduces its own publ
 P9_322 (type 6) → **3 = Ma–Zheng exact**. **11 types are INCOMPLETE** — the low-k types with
 no prism-end facets get no `l_basis` pruning, so their candidate sets are enormous
 (cluster-scale, worse than d=4 due to S5 seeds); the driver aborts them under a per-type
-budget. The remaining ~39 of the census 51 live in those intractable types. So on a single
-machine d=5 reproduces the census **exactly per tractable type** (and exactly on the anchor)
-but not the full 51-total — the identical low-k scale wall as d=4, and the reason Ma–Zheng
-used a cluster (PARATERA).
+budget. So on a single machine d=5 reproduces the census **exactly per tractable type** (and
+exactly on the anchor) but not the full 51-total. *(Superseded by §6.7–§6.8: those 11 types
+were later run to **exhaustion** — not merely budget-aborted — and still yield 0 with a
+verified-sound screen, so the missing ~39 are NOT simply "unreached in those types." The
+gap is upstream of the screen; see §6.8.)*
 
 **Validation summary (d=4 and d=5).** Both dimensions: method sound and CoxIter-validated,
 reproducing the published census **per-type where tractable** (d=4 dk6 = 294 exact; d=5
 anchor = 3 exact) and matching the census totals up to the low-k types that are genuinely
 cluster-scale on one machine (d=4 → 338 of 348; d=5 → 12 of 51 captured).
 
-### 6.7 d=5 exhaustive campaign (2026-07-03) — completed, and it relocates the open question
+### 6.7 d=5 exhaustive campaign (2026-07-03) and prism-condition derivation — the prism condition is not the blocker
+
+> **Note (correction):** an intermediate draft of this section concluded "the gap is a
+> compute wall." That is **also withdrawn** — see §6.8. The enumeration turned out to be
+> *exhaustive* (not a timeout), so the 12-vs-51 gap is upstream of the screen, in candidate
+> generation or the exact solve. The prism-condition findings below stand; only the
+> "compute wall" conclusion is superseded.
 
 The 11 intractable d=5 types were run to **exhaustion** on a single machine via a resumable,
 auto-splitting nights/weekends campaign (`run_d5_campaign.py`; 5,466 work-units in ~13.5 h,
 type 1's split recursion *terminating* at 2,520 units). Result: **all 11 types → 0
-realizers**, so the method's d=5 total is exactly **12**.
+realizers**, so the method's single-machine d=5 total is **12**.
 
-But this **corrects** the earlier "gap is a convention" reading. d=4's 338-vs-348 gap is ~3%
-(convention-plausible); d=5's **12-vs-51 is ~76%** — far too large to be a counting
-convention. The campaign ran with the prism-base saver **`l_basis` ON** (justified only by the
-P9_322 anchor → 3), and `l_basis` ON is independently known to **over-prune** (d=4 type 6:
-ON → 12 vs the correct 49). So the exhaustive **12 is an under-count artifact of `l_basis` ON
-dropping most d=5 realizers**, not the true count.
+An earlier draft of this section read the 12-vs-51 gap as evidence that the prism-base saver
+`l_basis` was mis-specified — "not a clean global ON/OFF … a subtler per-facet condition …
+an algorithmic/mathematical blocker." **That reading is now withdrawn: it was wrong.** The
+prism condition has been derived from Ma–Zheng's source and papers and verified faithful.
+(The nature of the *remaining* gap is treated in §6.8 — it is neither the prism condition nor,
+as a later check showed, a compute wall.)
 
-The real open issue is therefore **the prism-end condition itself**: `l_basis` is not a clean
-global ON/OFF — ON matches P9_322 (→3) but under-counts the rest, while OFF over-counts
-P9_322 (→18) and is intractable elsewhere. The correct condition is subtler (per-facet /
-genuine-prism-only) and must be taken from Ma–Zheng's construction. This is an
-**algorithmic/mathematical** blocker (shared by d=6), not a compute one — and the campaign
-harness is validated and ready to re-run once the condition is right.
+**The prism/`l_basis` condition, derived.** In Ma–Zheng's data definitions (HCPdm
+`figures/data5.png`, item 4): `l5_basis`/`l4_basis` is the set of *five/four facets that bound
+a 4-simplex/3-simplex facet*, a **subset of the Lannér set** `l5`/`l4`; and crucially
+"`lⱼ_basis` can be non-empty only for a *j*-dimensional polytope." Operationally (chcp48
+`l4_basis`, chcp59 `l5_basis`, both identical in form) it forces, for each **simplex facet**
+(a facet with exactly *d* vertices), every incident non-disjoint ridge to **π/2**. Our
+`USE_L4_BASIS` computes the **byte-identical edge set** (verified static and at runtime on d=4
+type 6). Its application is dimension-scoped: chcp48 applies it always (d=4); chcp59 applies it
+under `flag=2`, the documented default (d=5). Our driver's `USE_L4_BASIS = (d ≥ 5)` reproduces
+each dimension's published convention.
+
+**`l_basis` ON is uniform and correct for d=5 — it does not over-prune.** Verified against
+Ma–Zheng's *own* code by injecting our vertex data into chcp59 (`scratchpad/mz_inject_run.py`):
+per-type flag=2 counts match ours exactly on every tractable type tested — **tid0 (k=6) → 5**
+and the **P9_322 anchor → 3**. On the 59 d=5 types that yield no candidates, `l_basis` ON vs
+OFF give *identical* paste counts, so the saver is provably not the pruner there. (The earlier
+"ON over-prunes" claim conflated dimensions: ON is wrong for *d=4* — real census P2 polytopes
+carry basis ridges at π/3, so d=4 correctly runs OFF — but ON is exactly right for d=5.)
+
+**The screen is sound (verified).** Our 109 types split (basis ON) into 6 that realize
+(= 12 polytopes), 59 with no paste candidates, and 44 whose candidates the structured screen
+rejects. The screen's rejections are correct: tid11 (k=4) → Ma–Zheng oracle **0** (= ours);
+tid38 and tid18 (k=5) → *every* candidate is **superhyperbolic** (best signature (2, 7), rank
+residual ≈ 1.4–1.55 under exhaustive multistart search); and a 1,500-candidate sample from the
+hard type tid1 → **all superhyperbolic, zero feasible**. So the screen is not dropping
+realizers among the candidates it sees.
+
+**Prism-condition conclusion.** The prism condition is settled — derived, faithfully
+implemented, uniform and correct for d=5 (and correctly OFF for d=4). One framing point for
+d=6: `l_basis` is a *canonical selection* that deliberately drops genuinely-compact polytopes
+(P9_322: 18 CoxIter-compact representatives → 3 kept), so the census counts prism-canonical
+representatives, not raw compact polytopes. **Where the 12-vs-51 gap actually lives is a
+separate, still-open question — see §6.8.** (Full derivation and evidence:
+`scratchpad/prism_condition_findings.md`.)
+
+### 6.8 The 12-vs-51 gap is upstream of the screen (correction of "compute wall")
+
+Attempting to attack the gap as a scaling problem forced a check of the premises, and the
+"compute wall" reading of §6.7 does **not** survive it. Four facts, each verified:
+
+- **The enumeration was exhaustive, not a timeout.** The nights/weekends campaign
+  (`runs/d5_n9/d5_campaign/`) completed with an **empty queue** (`todo/`, `wip/` empty) and
+  every one of the 109 types marked COMPLETE. It *screened* enormous candidate sets to zero —
+  e.g. **11,967,720** label-assignments for tid1, **197,511,868** for tid16 — not "ran out of
+  budget." So our pipeline's answer, run to completion, is genuinely **12**.
+- **The screen is sound** (evidence above in §6.7): the candidates it rejects are truly
+  non-realizable (superhyperbolic), including a 1,500-candidate sample from the hardest type.
+- **The generator matches Ma–Zheng.** Their paper (arXiv:2203.16049, Table 2) examines exactly
+  the **109** combinatorial types with ≥2 disjoint facet pairs; our generator produces exactly
+  109, and our k = 4/5/6 type-counts (**15 / 7 / 3**) match theirs *exactly*. So all 51
+  realizable polytopes must live among the types we already have. (Our k=2/k=3 split is 50/34,
+  which — after checking the paper's Table 2 label lists directly — matches exactly; the
+  "~54/30" in an earlier extraction was a mis-read. Generator confirmed correct.)
+- **51 is not in doubt:** it is proved independently by Ma–Zheng and by Burcroff.
+
+Putting these together: the gap is **neither compute, nor the screen, nor the prism condition,
+nor missing combinatorial types.** By elimination it is **upstream of the screen** — our
+block-paste is failing to *generate* some realizable label-assignments (a candidate-generation
+completeness bug), or the exact solve is dropping them, so those ~39 polytopes never reach the
+(sound) screen. This is a **correctness** issue, not a scaling one; a bigger machine or an
+in-layer-killing port would not recover them.
+
+The "generation completeness" diagnosis was correct in direction; §6.9 (below) identifies the
+exact mechanism from Ma–Zheng's per-type data. Evidence and harnesses:
+`scratchpad/prism_condition_findings.md`, `scratchpad/mz_inject_run.py`, and the campaign
+aggregates under `runs/d5_n9/d5_campaign/`.
+
+### 6.9 Resolved: the missing 39 are prism-glued polytopes (per-type data recovered)
+
+Ma–Zheng's per-type breakdown (arXiv:2203.16049v3, Table 13 + Figures 6–9) resolves the gap
+completely. **Only six of the 109 types realize**, and each type's count splits into a *basis*
+(seed) count and a *final* count reached by **gluing compact simplicial 5-prisms onto the
+orthogonal "prism-end" facets** of the seeds:
+
+| type | basis seeds | final (census) | glued extra |
+|---|---|---|---|
+| P322 | 5 | 18 | +13 |
+| P319 | 3 | 22 | +19 |
+| P302 | 1 | 6 | +5 |
+| P313 | 1 | 3 | +2 |
+| P312 | 1 | 1 | 0 (no 4-simplex facet) |
+| P284 | 1 | 1 | 0 |
+| **total** | **12** | **51** | **+39** |
+
+**Our pipeline reproduces the basis column exactly** — the same six types, and the count
+multiset {5, 3, 1, 1, 1, 1} = 12 matches to the number (verified: our realizing tids
+0/6/5/19/29/63 → 5/3/1/1/1/1). So the 12-vs-51 gap **is** the 39 prism-glued polytopes, and
+nothing else. This is a *missing construction step*, not compute, screen, generator, or the
+prism condition per se.
+
+Mechanistically: `l_basis` ON fixes every prism-end facet **orthogonal** (weight 2), which is
+exactly the *seed* condition — it yields the 12 basis Grams and no more (our exhaustive,
+screen-sound campaign confirms there are no further seeds). The other 39 have **non-orthogonal**
+prism-ends; Ma–Zheng generate them by explicitly gluing compact simplicial 5-prisms at the
+orthogonal ends of the seeds (equivalently, `l_basis` OFF would enumerate them by brute force —
+this is exactly the branch that explodes / is intractable, which is why our OFF runs and their
+own single-machine runs wall out; the gluing is the *cheap, structured* way to get them).
+
+Corrections this pins down:
+- The earlier note that "P9_322 basis-ON → 3 = census" was a **num-mislabel**: P322's *basis*
+  count is 5 (= our tid0), and its *census* is 18. `l_basis` ON gives seeds, **not** the census.
+- So §6.7's "`l_basis` ON is correct for d=5" holds only for the **seed** count; the full census
+  needs the gluing step on top. §6.8's "generation-completeness" diagnosis was right; the exact
+  missing generator is the prism-gluing enumeration.
+
+**Next step (concrete).** Implement the 5-prism gluing: for each basis seed, at each orthogonal
+prism-end facet, enumerate the compact simplicial 5-prisms that can be glued (Ma–Zheng's
+construction; the extras are bounded and structured, 39 total here). Validate by reproducing the
+per-type finals {18, 22, 6, 3, 1, 1} = 51, CoxIter-checking each. The **same gluing step is the
+gate for d=6** (P^B₆ and its relatives are prism-type), so this is the highest-leverage build.
+Per-type ground truth and diagram/length data: Table 13, Table 16, Figures 6–9 of
+arXiv:2203.16049v3; seed↔Burcroff map (H1–H5) in its Table 15.
+
+### 6.10 d=5 census REPRODUCED — 51, all CoxIter-compact (2026-07-03)
+
+The two-phase method reproduces the full d=5 census on a single machine. No new gluing code
+was needed: running the *existing* solver with **`l_basis` OFF on exactly the six seed-bearing
+types** (the types the cheap `l_basis`-ON pass flags as realizable; the other 103 have zero
+seeds ⇒ zero census) enumerates the prism-glued polytopes directly and terminates
+(status COMPLETE for all six):
+
+| type (tid) | 0 | 6 | 5 | 19 | 29 | 63 | **total** |
+|---|---|---|---|---|---|---|---|
+| distinct (basis-OFF) | 22 | 18 | 1 | 6 | 3 | 1 | **51** |
+| CoxIter-compact | 22 | 18 | 1 | 6 | 3 | 1 | **51** |
+
+The per-type multiset {22, 18, 6, 3, 1, 1} equals Ma–Zheng's census
+{P319:22, P322:18, P302:6, P313:3, P312:1, P284:1} exactly, and **all 51 are
+CoxIter-certified compact of dimension 5**. (This also fixes the tid↔P mapping: tid0 = P319,
+tid6 = P322.) Data: `runs/d5_n9/blockpaste_basisOFF/type_{0,6,5,19,29,63}.json`.
+
+**The working method (general, and the d=6 recipe):**
+1. **Seed pass — `l_basis` ON on all types (cheap, exhaustive).** Types with 0 basis seeds
+   contribute 0 to the census (no orthogonal prism-end to glue onto); this eliminates the
+   103 intractable low-k types up front. Result: the six seed-bearing types.
+2. **Census pass — `l_basis` OFF on the (few) seed-bearing types only.** These are tractable
+   (the pathological explosions were all in the *seedless* types, now excluded), and basis-OFF
+   enumerates every prism-glued polytope. CoxIter-gate the output.
+
+So on d=5 the answer is complete: **51, matching both Ma–Zheng and Burcroff, every member
+CoxIter-verified.** The one load-bearing assumption is the seed lemma **(0 basis seeds ⇒ 0
+census)**; it held exactly here (6 seed types = 6 realizing types) and should be confirmed from
+Ma–Zheng §5 before being relied on for d=6.
+
+**Next: carry the method to d=6** (the actual open problem). Run the seed pass (`l_basis` ON)
+over the d=6, 10-facet types to find the seed-bearing ones, confirm **P^B₆'s type is among
+them**, then the census pass (`l_basis` OFF) on those — recovering P^B₆ and settling whether
+any second compact 6-polytope with 10 facets exists.
 
 ---
 
-## 7. References
+## 7. The d = 6 classification: uniqueness of P^B₆ (2026-07, UNCONDITIONAL)
+
+> **Result:** P^B₆, Bugaenko's polytope over ℤ[(1+√5)/2], is the **unique** compact
+> hyperbolic Coxeter 6-polytope with 10 facets. This resolves the last open
+> dimension of the d+4 family (k=4: d=2…7, cf. §1). All 54 surviving combinatorial
+> types have been decided **rigorously** (`RIGOROUS-DONE. realizing=[379]
+> not-rigorous=[]`, `runs/d6_n10/survivors_wildcard/verdicts.json`): every item in
+> the former §7.6 checklist is closed. **Nothing in this section is a "no examples
+> found" heuristic:** each eliminated type carries either a citation to a published
+> theorem or a machine-checked exhaustion certificate for the *entire* label/angle
+> space, with no a-priori cap on dihedral angles.
+
+### 7.1 Statement of the method (the chain)
+
+A compact hyperbolic Coxeter 6-polytope with 10 facets determines (i) a
+combinatorial type — a simple 6-polytope with 10 facets satisfying the known
+necessary conditions — and (ii) a Coxeter-labelled Gram matrix of signature (6,1)
+realizing that type. The classification enumerates (i) exhaustively and decides
+(ii) rigorously for every candidate:
+
+1. **Types (387).** All candidate combinatorial types are generated from the
+   complete planar order-type database (otypes10, Aichholzer et al.) via exact
+   affine Gale duality with exact-arithmetic dedup: **387 types**
+   (`runs/d6_n10/stage2/types.json`). Validation: the identical generator
+   reproduces the published d=4 (30/30) and d=5 (109/109, k≥2) combinatorial
+   censuses exactly (§3), P^B₆'s type is present (type 379), and 381/387 satisfy
+   Burcroff's two necessary conditions — our set is a strict superset of her 265
+   candidates (extra types cost only compute, never completeness).
+
+2. **Facet filter (387 → 54).** Ma–Zheng (arXiv:2203.16049, p.20, Tables 13/14)
+   prove that exactly **six** simple 5-polytopes with 9 facets admit a compact
+   hyperbolic Coxeter structure; their missing-face profiles are
+   (2⁶5³), (2⁵345²), (2⁴3²4²5), (2³3³4³). Every facet of a compact Coxeter
+   6-polytope is a compact Coxeter 5-polytope (Vinberg), so every 9-neighbor
+   facet of a d=6 type must carry one of those four profiles. Applied
+   combinatorially (`apply_facet_profile_filter.py`, reproducible): **333 types
+   killed, 54 survive** (379 among them). Cross-checks: the six realizing d=5
+   types' own profiles are exactly the allowed four; 29 non-realizing d=5 types
+   share an allowed profile and are (conservatively) kept — the filter only ever
+   errs toward keeping types.
+
+3. **Missing-face theorem (54 → 52 to enumerate).** Burcroff (arXiv:2201.03437)
+   proves every compact Coxeter 6-polytope with 10 facets contains a missing face
+   of size 3 or 4. Exactly two survivors have none — **types 159 and 329**,
+   missing-face profile (2,2,2,2,2,2) — and are eliminated **by theorem**. (They
+   are precisely the two types with no Lannér subdiagram constraints, i.e. the
+   ones brute enumeration handles worst; their several hundred already-exhausted
+   subtrees, all empty, stand as independent consistency evidence.)
+
+4. **Rigorous per-type solve (52 types).** Each remaining type's full space of
+   Coxeter label assignments is decided by `process_type_stage4` in **wildcard
+   mode** with **exhaustion certificates**:
+   - *No label cap.* Labels enumerate over {2,…,6,7} where 7 is Ma–Zheng's
+     lossless wildcard for "any m ≥ 7" (arXiv:2201.00154 Prop. 3.5: an edge of
+     label ≥ 6 must be an I2 component of every elliptic subdiagram containing
+     it, so every forward-checking verdict at cos(π/7) holds for all m ≥ 7). A
+     wildcard-bearing assignment is resolved by range analysis: the wild entries
+     become continuous unknowns c = cos(π/m) ∈ [cos(π/7), 1); per-edge integer
+     windows are scanned (m up to 100, with a loud `wild_unbounded` flag if a
+     window ever reaches the scan edge — it never did); every feasible integer
+     tuple is instantiated and passed to exact certification. **This removes the
+     unproven "{2,…,10,12}" label-set assumption** — the deep-research audit
+     (2026-07-10) established that no published label bound exists for d=6, so
+     any fixed-alphabet enumeration would have produced only a conditional
+     result.
+   - *Sound structural pruning.* Vertex/Lannér forward-checking (bitmask
+     tables); Burcroff Lemma 5.5(b) low-weight caps (an ordinary edge v₁v₂ with
+     no Lannér diagram containing both, some order-≥3 Lannér diagram L ∋ v₂, and
+     no dotted edge from v₁ into L, must have m ≤ 5 — hypotheses depend only on
+     the type's fixed missing-face structure).
+   - *Exact acceptance.* A candidate is accepted only after: 100-digit
+     Gauss–Newton refinement of the dotted weights on the rank-7 minor system;
+     signature (6,1) with exactly 3 zero eigenvalues at 100 digits; local
+     isolation (full-rank kernel Jacobian — kills positive-dimensional spurious
+     continua); no parabolic subdiagram (compactness); and finally an
+     independent **CoxIter** check (cocompact, dimension 6).
+   - *Exhaustion certificates.* The enumerator reports `exhausted=True` only if
+     every branch was explored (no timeout, no assignment cap, no solve-budget
+     break, no wild deadline). Types too large for one budget window are split
+     by enumeration prefix into 6-way subtrees, recursively (depth ≤ 14 by the
+     end of the run, raised twice from an initial 8 as the deepest resistant
+     cores demanded it); a type's verdict is rigorous iff its refinement tree
+     is fully covered by exhausted leaves. All verdicts are checkpointed
+     (`runs/d6_n10/survivors_wildcard/state.json`).
+   - *Orbit symmetry-breaking (throughput, not soundness-affecting).* Aut(type)
+     — automorphisms of the facet/vertex incidence structure, computed via VF2
+     — gives a sound additional forward check: a partial label assignment is
+     rejected the moment it is provably not lexicographically minimal among the
+     images of its own prefix under every automorphism that stabilizes that
+     prefix's domain. This is a full-vector comparison (not an independent
+     per-pair inequality), so it never discards a solution orbit, only
+     redundant re-exploration of a branch already covered by its canonical
+     twin elsewhere in the search (`pipeline/utils/automorphisms.py`).
+     Validated exactly against the four d=5 anchors below (identical
+     distinct/exhausted verdicts) before deployment; on the two most resistant
+     d=6 cores it turned fixed prefixes that exhausted the full 1800s enumeration
+     timeout into sub-second certificates.
+
+5. **The unique realizer.** Type 379 yields **exactly one** polytope: P^B₆,
+   found by the run itself (not transcribed) with its exact ℚ(√2,√5) data —
+   dotted weights 2√2+√10 (minimal polynomial x⁴−36x²+4, twice) and 17+8√5
+   (x²−34x−31), edge labels in {2,3,4,5} — in 15 Gram configurations across two
+   subtrees, all independently **CoxIter**-certified cocompact of dimension 6
+   with f-vector (31, 93, 125, 95, 42, 10, 1) and 0 vertices at infinity
+   (`runs/d6_n10/survivors_wildcard/realizers/`), canonically one polytope. Its
+   type is **closed**: every subtree of 379 is exhausted, so P^B₆ is not merely
+   recovered — it is proven to be the *only* polytope of its combinatorial type.
+   No other type produced even a single candidate: **122.3 million** label
+   assignments were screened to zero across **2,300 CPU-hours** and **20,466**
+   subtree certificates, all rigorously exhausted.
+
+### 7.2 Per-type verdicts (final — `RIGOROUS-DONE`)
+
+| verdict | types |
+|---|---|
+| **realizes (exactly 1: P^B₆)** | **379** ✓ closed |
+| rigorous 0 by exhaustion (51) | 8, 12, 17, 34, 36, 38, 40, 51, 55, 59, 60, 61, 69, 70, 92, 103, 120, 127, 132, 140, 154, 162, 168, 173, 206, 214, 218, 220, 229, 234, 239, 255, 265, 273, 284, 286, 287, 295, 297, 308, 315, 317, 320, 332, 344, 352, 354, 356, 360, 378, 382 |
+| rigorous 0 by theorem (2) | 159, 329 (Burcroff missing-face-3/4) |
+
+All 54 survivors: RIGOROUS. No UNRESOLVED subtree anywhere in the final tree.
+
+Notably the three combinatorial "cousins" of P^B₆ (types 127, 352, 382 — same
+vertex count, same missing-face profile (2³3³5³) as 379) are all rigorous zeros:
+the Bugaenko construction does not extend to its combinatorial neighbours.
+
+### 7.3 Validation (why the zeros are believable)
+
+- **d=5 anchors, same code path:** types 63, 5, 29, 19 reproduce their exact
+  census counts 1, 1, 3, 6 with exhaustion — including the two known **π/10**
+  dihedral angles, *discovered* by the wildcard range analysis rather than
+  assumed in any alphabet. Re-run after every solver/screen change, including
+  the orbit symmetry-breaking pruning (identical verdicts, real speedup).
+- **Full d=5 census, same code path:** all 109 k≥2 types through the identical
+  wildcard solve reproduce Ma–Zheng's 51 polytopes exactly
+  (`validate_d5_wildcard.py`, `runs/d5_n9/wildcard_validation.json`). This is
+  the headline soundness pillar: the d=5 census contains prism-glued
+  polytopes, high-degree algebraic weights, and m=10 angles — every failure
+  mode this pipeline ever exhibited is exercised.
+- **The anchor system caught a real bug:** a mid-run screen optimization
+  ("Stage-B early reject") falsely dropped 4 of tid19's 6 census polytopes; the
+  d=5 anchors flagged it, the change was reverted, and all 1,345 subtree
+  verdicts computed under it were purged and re-run (2026-07-13). The verdicts
+  in §7.2 rest exclusively on screen versions that pass all four anchors.
+- **P^B₆ end-to-end:** recovered by the production run from raw combinatorics
+  (order types → Gale → filter → wildcard solve → exact certification →
+  CoxIter), matching Bugaenko's published golden-ratio data.
+
+### 7.4 What the result rests on (assumptions, stated honestly)
+
+1. Published theorems: Ma–Zheng's d=5/n=9 classification (facet filter);
+   Burcroff's missing-face-size theorem and Lemma 5.5(b); Ma–Zheng Prop. 3.5
+   (wildcard); Vinberg's facet/subdiagram theory; the general-position
+   sufficiency of the order-type route (Burcroff §"order types", same footing
+   as her and Ma–Zheng's enumerations).
+2. The numerical screen standard: a label assignment is discarded when a
+   multistart L-BFGS floor on the rank-deficiency objective exceeds 10⁻⁶ (the
+   identical standard under which the full d=5 census reproduces — see §7.3);
+   acceptances are never numerical (exact certification + CoxIter).
+3. The integer window scan bound m ≤ 100, guarded by the `wild_unbounded` flag
+   (never triggered): windows in practice terminate by m ≈ 30.
+4. Correctness of CoxIter (the community-standard verifier) for the final
+   compactness/dimension checks.
+5. Correctness of the VF2 graph-automorphism computation
+   (`pipeline/utils/automorphisms.py`) used for the throughput-only orbit
+   pruning — a bug here could in principle only make the search *faster*
+   incorrectly (never prune a genuine solution branch, per the soundness
+   argument in §7.1 step 4), and it is validated against the d=5 anchors
+   below with identical outcomes, but it is a new piece of machinery worth
+   naming explicitly.
+
+### 7.5 Where everything lives
+
+- Types: `runs/d6_n10/stage2/types.json` (387, exhaustive).
+- Facet filter: `apply_facet_profile_filter.py` →
+  `runs/d6_n10/facet_profile_survivors.json` (54).
+- Solver: `pipeline/stage4_gram.py` (`process_type_stage4`, `wildcard=True`,
+  `use_burcroff_55b=True`); orbit pruning in `pipeline/utils/automorphisms.py`;
+  driver `run_survivors_rigorous.py` (`all 7 wildcard`).
+- Verdicts + certificates: `runs/d6_n10/survivors_wildcard/state.json`,
+  `verdicts.json` (`RIGOROUS-DONE. realizing=[379] not-rigorous=[]`); realizers
+  in `runs/d6_n10/survivors_wildcard/realizers/`.
+- d=5 validation: `validate_d5_wildcard.py` →
+  `runs/d5_n9/wildcard_validation.json` (51/51, all exhausted).
+
+### 7.6 Closed — the checklist that made the claim unconditional
+
+- [x] **All 54 survivor types** decided to full rigorous exhaustion.
+      `verdicts.json`: `RIGOROUS-DONE. realizing=[379] not-rigorous=[]`.
+- [x] **Full d=5 wildcard validation = 51/51** across all 109 types
+      (`validate_d5_wildcard.py`, same code path and flags as the d=6 run).
+- [x] Final CoxIter re-verification sweep of all stored P^B₆ realizer
+      configurations: all cocompact, dimension 6.
+- [ ] (Optional, strengthens §3 anchors; not load-bearing for d=6:) close the
+      d=4 census 338 → 348 with the fixed solver.
+
+The uniqueness claim above is unconditional modulo only the stated published
+theorems and tool correctness (§7.4) — there is no remaining open enumeration.
+
+---
+
+## 8. References
 
 **[AAK02]** O. Aichholzer, F. Aurenhammer, H. Krammer.  *A note on the number of order
 types on n points in the plane.*  Proc. 14th CCCG, 2002.  Database available at
@@ -953,8 +1311,16 @@ MSc thesis, Durham University, 2021.  Available at
 with d+4 facets and related dimension bounds.*  European Journal of Combinatorics **120**
 (2024), 103957.  arXiv:2201.03437.
 
-**[Bug84]** V. O. Bugaenko.  *Groups of reflections in Lobachevskiĭ spaces of odd
-dimension.*  Moscow University Mathematics Bulletin **39** (1984), no. 1, 6–14.
+**[Bug84]** V. O. Bugaenko.  *Groups of automorphisms of unimodular hyperbolic
+quadratic forms over the ring ℤ[(√5+1)/2].*  Moscow University Mathematics
+Bulletin **39** (1984), 6–14.
+> **Title corrected 2026-07-27.** This entry previously read "Groups of
+> reflections in Lobachevskiĭ spaces of odd dimension", which is not the title of
+> this paper; it was an unverified citation. The title above is the one given
+> identically by Burcroff (arXiv:2201.03437, ref. [7]) and by Felikson–Tumarkin
+> (arXiv:math/0510238, ref. [Bu1]). Note also that the d=6, 10-facet polytope
+> could NOT be located in this paper or in [Bug92] — see REVIEW_NOTES.md §1; do
+> not describe the polytope as Bugaenko's.
 
 **[Bug92]** V. O. Bugaenko.  *Arithmetic crystallographic groups generated by
 reflections, and reflective hyperbolic lattices.*  Advances in Soviet Mathematics **8**

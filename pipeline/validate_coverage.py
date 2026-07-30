@@ -331,11 +331,16 @@ def compare(d, stage3_dir, truth_path, verbose=True):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--d", type=int, required=True, choices=[4, 5])
-    ap.add_argument("--stage3", default=None, help="Stage-3 dir (default runs/d{d}_n{d+4}/stage3)")
+    # Default to the STAGE-2 output: that is the authoritative type list the
+    # d=6 classification is built on.  The legacy runs/d{d}_n{n}/stage3 dirs are
+    # stale artifacts of the pre-2026-06 pipeline and comparing against them
+    # reports a spurious mismatch (d=4: 27/30).
+    ap.add_argument("--stage3", default=None,
+                    help="type-list dir (default runs/d{d}_n{d+4}/stage2)")
     ap.add_argument("--truth", default=None, help="ground-truth file (default data/ground_truth/{d}d{d+4}m.txt)")
     args = ap.parse_args()
     n = args.d + 4
-    stage3 = args.stage3 or f"runs/d{args.d}_n{n}/stage3"
+    stage3 = args.stage3 or f"runs/d{args.d}_n{n}/stage2"
     truth = args.truth or f"data/ground_truth/{args.d}d{n}m.txt"
     compare(args.d, stage3, truth)
 

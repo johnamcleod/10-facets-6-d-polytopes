@@ -27,6 +27,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pipeline.utils.manifest import write_manifest
+from pipeline.utils import wild_kernel as _wk
 
 
 class _SympyTimeout(Exception):
@@ -88,6 +89,20 @@ _GRAM_FLOAT = {
 
 LABEL_CAP = 12
 VALID_LABELS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12]   # covers all known d=4 labels incl. π/7, π/12
+
+# --- Ma-Zheng wildcard mode (arXiv:2201.00154 / 2203.16049, Prop. 3.5) ---------
+# {2,...,10,12} is NOT a proven label bound in any dimension — it is an a-posteriori
+# observation about the finished d=4/d=5 censuses.  The rigorous treatment enumerates
+# labels over {2,...,6,7} where 7 is a WILDCARD standing for "any m >= 7": by the
+# classification of finite Coxeter groups, a connected elliptic diagram of rank >= 3
+# has labels <= 5, so an edge with label >= 6 must be an I2(m) component of every
+# elliptic subdiagram containing it — hence every PD/Lannér test at cos(pi/7) gives
+# the same verdict as at cos(pi/m) for EVERY m >= 7 (lossless proxy).  The actual m
+# is then a continuous unknown c = cos(pi/m) in [cos(pi/7), 1) resolved by the
+# rank/signature equations plus the terminal integrality demand pi/arccos(c) in Z.
+WILDCARD_LABEL = 7
+WILDCARD_INDICES = (0, 1, 2, 3, 4, 5)      # VALID_LABELS[:6] = {2,3,4,5,6,7}
+_WILD_C_MIN = 0.9009688679024191           # cos(pi/7)
 
 
 def gram_entry_adjacent(m):
@@ -215,6 +230,43 @@ def _numerical_screen(ordinary_float, dotted_pairs, n, d,
     return best_x, best_val
 
 
+# Diagnostic counters for _refine_mpmath outcomes.  `rescued` counts the cases the
+# 2026-07-28 bugfix recovers: the iteration met the acceptance bar and mpmath then
+# raised, which previously discarded a converged solution.
+REFINE_STATS = {"ok": 0, "rescued_exception": 0, "rescued_overshoot": 0,
+                "fail_exception": 0, "fail_threshold": 0, "fail_badstart": 0}
+
+# Diagnostic hook, off by default and untouched by any classification run.  Set to
+# a list to capture every candidate that refinement REJECTS, together with the
+# residual it stalled at.  A rejection is the one place where an emptiness verdict
+# is not backed by a proof -- it says only "Gauss-Newton did not reach the bar from
+# this start" -- so being able to re-examine those candidates offline is what makes
+# the acceptance bar auditable rather than merely plausible.
+REFINE_DUMP = None
+
+
+def _dump_reject(reason, x_approx, label_assign, dotted_pairs, best_norm):
+    if REFINE_DUMP is None:
+        return
+    try:
+        REFINE_DUMP.append({
+            "reason": reason,
+            "x_approx": [None if xi is None else float(xi) for xi in x_approx],
+            "labels": {f"{i},{j}": int(m) for (i, j), m in label_assign.items()},
+            "dotted": [list(p) for p in dotted_pairs],
+            "best_norm": None if best_norm is None else mpmath_str(best_norm),
+        })
+    except Exception:
+        pass
+
+
+def mpmath_str(v):
+    try:
+        return repr(v)
+    except Exception:
+        return str(v)
+
+
 def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=40):
     """Refine a float64 approximate solution to high (dps-digit) precision.
 
@@ -286,14 +338,35 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
     m_eqs = len(minor_rows)
 
     tol = mpmath.power(10, -(dps - 8))
+    # Acceptance bar (see the end of this function).  BUGFIX 2026-07-28: the loop
+    # used to iterate until `tol`, which is far stricter than the bar it is judged
+    # against.  Past the bar the minors can become numerically indistinguishable
+    # from zero and mpmath's LU pivoting fails outright; since the whole iteration
+    # is wrapped in a bare `except`, a FULLY CONVERGED solution was then
+    # discarded.  Observed on one of the published G12 polytopes of Burcroff's
+    # d=4 list: |f| reached 3.8e-65 at iteration 3, comfortably inside the 1e-50
+    # bar, and iteration 4 raised TypeError from mpmath.det.
+    #
+    # We keep iterating toward `tol` -- stopping early at `accept` would leave
+    # only ~dps/2 correct digits, which is NOT enough for the PSLQ minimal-
+    # polynomial recovery downstream (doing so made the P_{6,10} end-to-end gate
+    # report degree-8 minpolys instead of x^4-36x^2+4).  The fix is solely to
+    # remember the best iterate and, if the loop dies after already meeting the
+    # bar, return that instead of discarding the solution.
+    accept = mpmath.power(10, -(dps // 2))
+    best_x, best_norm = None, None
     # Guard against non-finite / absurd starts (a divergent structured-screen
     # root) — these crash mpmath.det downstream; just skip the candidate.
     import math as _math
     try:
         if any((xi is None) or (not _math.isfinite(float(xi)))
                or float(xi) <= 1.0 or float(xi) > 1e8 for xi in x_approx):
+            REFINE_STATS["fail_badstart"] += 1
+            _dump_reject("badstart", x_approx, label_assign, dotted_pairs, None)
             return None
     except (TypeError, ValueError, OverflowError):
+        REFINE_STATS["fail_badstart"] += 1
+        _dump_reject("badstart", x_approx, label_assign, dotted_pairs, None)
         return None
     x = [mpmath.mpf(xi) for xi in x_approx]
 
@@ -311,6 +384,8 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
         for _ in range(max_iter):
             f_val = compute_f(x)
             f_norm = mpmath.norm(mpmath.matrix(f_val))
+            if best_norm is None or f_norm < best_norm:
+                best_norm, best_x = f_norm, list(x)
             if f_norm < tol:
                 break
 
@@ -338,11 +413,26 @@ def _refine_mpmath(x_approx, label_assign, dotted_pairs, n, d, dps=60, max_iter=
 
         f_final = compute_f(x)
         f_norm_final = mpmath.norm(mpmath.matrix(f_final))
+        if best_norm is None or f_norm_final < best_norm:
+            best_norm, best_x = f_norm_final, list(x)
     except Exception:
+        # mpmath can fail once the minors are numerically indistinguishable from
+        # zero -- i.e. precisely when we have already succeeded.  Fall back.
+        if best_x is not None and best_norm is not None and best_norm <= accept:
+            REFINE_STATS["rescued_exception"] += 1
+            return best_x
+        REFINE_STATS["fail_exception"] += 1
+        _dump_reject("exception", x_approx, label_assign, dotted_pairs, best_norm)
         return None
     # Accept only if the GN-minor residual is genuinely tiny.
-    if f_norm_final > mpmath.power(10, -(dps // 2)):
+    if f_norm_final > accept:
+        if best_x is not None and best_norm is not None and best_norm <= accept:
+            REFINE_STATS["rescued_overshoot"] += 1
+            return best_x
+        REFINE_STATS["fail_threshold"] += 1
+        _dump_reject("threshold", x_approx, label_assign, dotted_pairs, best_norm)
         return None
+    REFINE_STATS["ok"] += 1
     return x
 
 
@@ -963,7 +1053,9 @@ def _prepare_lanner_precomputed(lanner_groups, label_indices=None):
 
 def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None,
                                 max_count=50000, timeout=60.0, label_indices=None,
-                                prefix=None):
+                                prefix=None, state_out=None, edge_max_label=None,
+                                dotted_pairs=(), n_facets=None,
+                                custom_order=None, automorphisms=None):
     """Generator: backtracking with forward-checking using precomputed vertex
     and Lannér valid-assignment tables.
 
@@ -983,6 +1075,38 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     Groups too large to precompute fall back to on-the-fly PD checking when
     the group is fully assigned.
 
+    dotted_pairs, n_facets: if n_facets is given, an additional SOUND forward
+    check is applied after every assignment of label m=2 (the only label that
+    can ever disconnect facets, since it means Gram entry 0 = orthogonal):
+    Vinberg (1967, "Discrete groups generated by reflections in Lobachevskii
+    spaces", Math. USSR-Sb. 1:3, Lemma 2) proves that the Gram matrix of ANY
+    finite-volume Coxeter polytope is NONDECOMPOSABLE — it can never split as
+    a nontrivial orthogonal direct sum G = G_1 ⊕ G_2, because a genuinely
+    positive-definite (elliptic) block would contain a nonzero vector
+    orthogonal to every other facet, forcing a spacelike ray into the
+    polytope's defining cone and contradicting finite volume. So the moment
+    enough m=2 labels are assigned to fully separate the facets (as a graph
+    where dotted pairs and not-yet-forced-non-2 ordinary pairs are edges) into
+    2+ components, that branch is provably empty — reject immediately, with
+    no need to know which component is elliptic/Lannér or track any kernel
+    dimension. n_facets is tiny (<=10 in this project), so full connectivity
+    is recomputed from scratch each time — no incremental/undo bookkeeping
+    needed.
+
+    custom_order: optional explicit pair ordering to use instead of the
+    ``_vertex_first_ordering`` heuristic (same pair SET, different order) —
+    used to align orbit blocks for ``automorphisms``-based pruning.
+
+    automorphisms: optional list of facet-index permutations (Aut(type), see
+    pipeline/utils/automorphisms.py) fixing the combinatorial type.  When
+    given, a SOUND additional forward check rejects any partial assignment
+    that is not lexicographically minimal among the images of its prefix
+    under every automorphism whose induced pair-position permutation
+    stabilizes the prefix domain — i.e. it never eliminates a genuine
+    solution-orbit, only redundant symmetric re-exploration of one already
+    covered elsewhere in the search (see automorphisms.py docstring for the
+    proof).  No effect if ``automorphisms`` is None (default: off).
+
     Yields dicts {(i,j): m} for each valid assignment.
     """
     if lanner_groups is None:
@@ -994,8 +1118,16 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     n_labels = len(label_indices)
     actual_labels = [VALID_LABELS[i] for i in label_indices]
 
-    pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
+    if custom_order is not None:
+        pairs_list = list(custom_order)
+    else:
+        pairs_list = _vertex_first_ordering(ordinary_pairs, vertex_groups, lanner_groups)
     n_pairs = len(pairs_list)
+
+    sym_checks = None
+    if automorphisms:
+        from pipeline.utils.automorphisms import symmetry_prefix_checks
+        sym_checks = symmetry_prefix_checks(pairs_list, automorphisms)
     pair_idx = {p: i for i, p in enumerate(pairs_list)}
 
     # Precompute valid arrays for all groups (filtered to label_indices)
@@ -1070,8 +1202,56 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
     lg_masks = [full_lg[g] for g in range(len(lg_precomp))]
 
     assignment = [-1] * n_pairs
-    state = {"count": 0, "start": time.time(), "exhausted": False}
+    # Per-edge label caps (edge_max_label: pair -> max label VALUE, e.g. 5 for
+    # edges forced low-weight by Burcroff Lemma 5.5).  A prefix entry outside a
+    # pair's allowed set prunes that subtree entirely — sound: the cap encodes a
+    # theorem that no real polytope carries a higher label there.
+    allowed_li = [tuple(range(n_labels))] * n_pairs
+    if edge_max_label:
+        for i, p in enumerate(pairs_list):
+            cap = edge_max_label.get(p)
+            if cap is not None:
+                allowed_li[i] = tuple(li for li in range(n_labels)
+                                      if actual_labels[li] <= cap)
+    # state_out (if given) is the caller's dict: after the generator is drained,
+    # state_out["exhausted"] is True iff every branch was explored (no timeout,
+    # no max_count cut) — the rigorous complete-vs-truncated verdict.
+    state = state_out if state_out is not None else {}
+    state.update({"count": 0, "start": time.time(), "exhausted": False})
     trail = []  # (g_idx, is_lanner, old_int_mask)
+
+    # Vinberg-nondecomposability check (see docstring).  Cheap recompute-from-
+    # scratch union-find over n_facets (<=10 in this project): dotted pairs
+    # always connect (never orthogonal, weight>1); an ordinary pair connects
+    # unless it is ALREADY assigned exactly label-value 2 (still-unassigned
+    # pairs are treated optimistically as connecting, since they might not end
+    # up being 2) — a real cut only exists once every crossing pair is
+    # decided.  Called only when the label just assigned is 2 (the only value
+    # that can newly disconnect anything).
+    check_orthogonal_cut = n_facets is not None
+
+    def _disconnected(depth):
+        parent = list(range(n_facets))
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
+
+        for (i, j) in dotted_pairs:
+            union(i, j)
+        for idx in range(n_pairs):
+            i, j = pairs_list[idx]
+            if idx > depth or actual_labels[assignment[idx]] != 2:
+                union(i, j)
+        root = find(0)
+        return any(find(k) != root for k in range(1, n_facets))
 
     def _backtrack(depth):
         if state["count"] >= max_count or time.time() - state["start"] > timeout:
@@ -1086,9 +1266,11 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
 
         # Partition support: at fixed-prefix depths, only the prefix's label.
         if prefix is not None and depth < len(prefix):
+            if prefix[depth] not in allowed_li[pi]:
+                return          # capped-out subtree: provably empty
             li_choices = (prefix[depth],)
         else:
-            li_choices = range(n_labels)
+            li_choices = allowed_li[pi]
         for li in li_choices:
             assignment[pi] = li
             ok = True
@@ -1113,6 +1295,27 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
                     if not new_m:
                         ok = False
                         break
+
+            # Vinberg nondecomposability (Lemma 2): only label 2 can newly cut
+            # an edge; check right after the (cheap) vertex/Lannér forward
+            # checks so a real cut is caught before any expensive fallback.
+            if ok and check_orthogonal_cut and actual_labels[li] == 2:
+                if _disconnected(depth):
+                    ok = False
+
+            # Orbit symmetry-breaking (see automorphisms.py): reject this
+            # prefix if a domain-stabilizing automorphism image is
+            # lexicographically smaller — a same-orbit branch already covers
+            # (or will cover) this case elsewhere in the search.
+            if ok and sym_checks is not None:
+                k = depth + 1
+                lst = sym_checks[k]
+                if lst:
+                    cur = assignment[:k]
+                    for inv in lst:
+                        if [cur[j] for j in inv] < cur:
+                            ok = False
+                            break
 
             # Fallback: on-the-fly checks for groups too large to precompute
             if ok and (pair_to_vg_bt[pi] or pair_to_lg_bt[pi]):
@@ -1553,6 +1756,67 @@ def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
     return rank, k
 
 
+# Certification-path outcome counters (diagnostics; see also REFINE_STATS).
+WILD_STATS = {
+    "joint_infeasible": 0, "empty_window": 0, "pinned_infeasible": 0,
+    "no_dotted_solution": 0, "signature_pregate": 0, "parabolic_pregate": 0,
+    "jacobian_pregate": 0, "refine_none": 0,
+}
+
+CERT_STATS = {
+    "accepted": 0, "weight_le_1": 0, "signature_reject": 0,
+    "isolation_reject": 0, "parabolic_reject": 0,
+    "eigsy_failed_rescued": 0, "eigsy_failed_discarded": 0,
+    "inertia_disagreement": 0,
+}
+
+
+def _inertia_mpmath(G, n, dps):
+    """Inertia (pos, neg, zero) of a symmetric mpmath matrix by symmetric
+    congruence elimination -- Sylvester's law of inertia: the signs of the pivots
+    of a congruence reduction give the inertia.
+
+    This exists because `mpmath.eigsy` can raise on exactly the matrices we care
+    about: a certified Gram matrix has (n-d-1) eigenvalues that are *exactly* zero,
+    which is the worst case for an iterative eigensolver.  Previously an eigsy
+    failure returned [] and silently discarded a genuine polytope -- the same bug
+    class as the 2026-07-28 `_refine_mpmath` fix.  Congruence elimination needs
+    only pivot signs, never a diagonalisation, so it survives that case.
+    """
+    import mpmath
+    tol = mpmath.power(10, -(dps // 3))
+    A = [[G[i, j] for j in range(n)] for i in range(n)]
+    pos = neg = zero = 0
+    size = n
+    while size > 0:
+        p = next((i for i in range(size) if abs(A[i][i]) > tol), None)
+        if p is None:
+            q = next(((i, j) for i in range(size) for j in range(i + 1, size)
+                      if abs(A[i][j]) > tol), None)
+            if q is None:
+                zero += size
+                break
+            i, j = q                      # x_i <- x_i + x_j (a congruence)
+            for c in range(size):
+                A[i][c] = A[i][c] + A[j][c]
+            for r in range(size):
+                A[r][i] = A[r][i] + A[r][j]
+            p = i
+        if p != 0:
+            A[0], A[p] = A[p], A[0]
+            for r in range(size):
+                A[r][0], A[r][p] = A[r][p], A[r][0]
+        piv = A[0][0]
+        if piv > 0:
+            pos += 1
+        else:
+            neg += 1
+        A = [[A[i][j] - (A[i][0] / piv) * A[0][j] for j in range(1, size)]
+             for i in range(1, size)]
+        size -= 1
+    return pos, neg, zero
+
+
 def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
                                    n, d, dps=100, recover_minpoly=True):
     """High-precision (d,1)-signature + isolation certification (field-agnostic).
@@ -1577,26 +1841,40 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
     import mpmath
     mpmath.mp.dps = dps
     if not x_hp or any(x <= mpmath.mpf('1') for x in x_hp):
+        CERT_STATS["weight_le_1"] += 1
         return []
 
     # (d,1) signature with (n-d-1) zeros -- the accept/reject decision.
     G = _build_gram_mpmath(label_assign, dotted_pairs, x_hp, n, dps=dps)
+    zero_tol = mpmath.power(10, -(dps // 3))
     try:
         E = mpmath.eigsy(G, eigvals_only=True)
         evals = [E[i] for i in range(n)]
+        pos = sum(1 for e in evals if e > zero_tol)
+        neg = sum(1 for e in evals if e < -zero_tol)
+        zero = sum(1 for e in evals if abs(e) <= zero_tol)
+        # cross-check against congruence elimination; they must agree
+        ci = _inertia_mpmath(G, n, dps)
+        if ci != (pos, neg, zero):
+            CERT_STATS["inertia_disagreement"] += 1
     except Exception:
-        return []
-    zero_tol = mpmath.power(10, -(dps // 3))
-    pos = sum(1 for e in evals if e > zero_tol)
-    neg = sum(1 for e in evals if e < -zero_tol)
-    zero = sum(1 for e in evals if abs(e) <= zero_tol)
+        # eigsy can fail precisely on a certified Gram matrix (exact zero
+        # eigenvalues).  Decide by congruence elimination instead of discarding.
+        try:
+            pos, neg, zero = _inertia_mpmath(G, n, dps)
+            CERT_STATS["eigsy_failed_rescued"] += 1
+        except Exception:
+            CERT_STATS["eigsy_failed_discarded"] += 1
+            return []
     if not (pos == d and neg == 1 and zero == n - d - 1):
+        CERT_STATS["signature_reject"] += 1
         return []
 
     # Isolation: full-rank kernel Jacobian <=> rigid (0-dim) polytope, not a point
     # on a positive-dimensional spurious continuum.
     rank, k = _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=dps)
     if rank != k:
+        CERT_STATS["isolation_reject"] += 1
         return []
 
     # Compactness: reject if any parabolic subdiagram (ideal vertex => non-compact).
@@ -1604,6 +1882,7 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
     # that removes them (e.g. d=5 P9_322: 18 signature-isolated -> 3 compact).
     G_np = np.array([[float(G[i, j]) for j in range(n)] for i in range(n)])
     if _has_parabolic_subdiagram(G_np, n, d):
+        CERT_STATS["parabolic_reject"] += 1
         return []
 
     # Best-effort exact minpoly per weight (decorative; never gates acceptance, and
@@ -1611,6 +1890,7 @@ def _recognize_minpoly_and_verify(x_hp, sym_list, label_assign, dotted_pairs,
     # high-degree weights (PSLQ exhausts every degree, ~9s, before returning None),
     # so count-only runs pass recover_minpoly=False and recover minpolys later for
     # the small final survivor set.
+    CERT_STATS["accepted"] += 1
     sol = {}
     for sym, x in zip(sym_list, x_hp):
         poly = _recover_minpoly(x, dps=dps) if recover_minpoly else None
@@ -1649,6 +1929,17 @@ def _build_minor_index(dotted_pairs, n, d):
     return out
 
 
+# Relative tolerance for calling a quadratic discriminant zero (a double root).
+# float64 determinants of a 6x6 or 7x7 minor carry ~1e-15 relative error, so 1e-10
+# is several orders above the noise floor while far below any genuine separation.
+_DISC_RTOL = 1e-10
+
+# How often the tangency case actually fires.  Every increment is a decision that
+# the pre-2026-07-28 code could have resolved either way depending on the facet
+# numbering, so this counter measures the blast radius of that bug in any run.
+DISC_STATS = {"tangent_rescued": 0, "negative_rejected": 0}
+
+
 def _quad_roots_gt1(Gsub, ii, jj, eps=1e-7):
     """Real roots > 1 of det(Gsub)(x)=0 where entry (ii,jj)=(jj,ii)=-x.
     Returns list of roots (possibly empty), or None if the minor is ~0 for all x
@@ -1664,10 +1955,30 @@ def _quad_roots_gt1(Gsub, ii, jj, eps=1e-7):
             return None if abs(c) < 1e-9 else []
         x = -c / b
         return [x] if x > 1.0 + eps else []
+    # SOUNDNESS (fixed 2026-07-28).  A TANGENTIAL solution -- one where the minor
+    # has a DOUBLE root -- has discriminant exactly zero, so in float64 it lands
+    # within a few ULP of zero with a sign that depends on the order of operations,
+    # hence on the facet numbering.  Testing `disc < 0` therefore turned a genuine
+    # polytope into a hard "provably infeasible" verdict under some numberings and
+    # accepted it under others.  Observed on Burcroff's G11 (our d=4 type 8), whose
+    # eighth polytope has a double root at the golden ratio: the exact discriminant
+    # is 0 and float64 gives -1.78e-15 in the numbering that orbit symmetry
+    # breaking selects as canonical, versus +1.78e-15 / +0.0 in the other three
+    # numberings of the same labelling.  That single ULP lost the polytope.
+    #
+    # Tangency is not exotic -- it is where the rank variety touches the constraint,
+    # i.e. exactly the rigid configurations of interest.  We therefore compare the
+    # discriminant against a RELATIVE tolerance and treat the near-zero case as the
+    # double root it is.  Erring here yields a spurious candidate at worst, which
+    # exact certification then rejects; erring the other way loses a polytope.
     disc = b * b - 4 * a * c
-    if disc < 0:
+    scale = max(abs(b * b), abs(4.0 * a * c), 1.0)
+    if disc < -_DISC_RTOL * scale:
+        DISC_STATS["negative_rejected"] += 1
         return []
-    r = float(np.sqrt(disc))
+    if disc < _DISC_RTOL * scale:
+        DISC_STATS["tangent_rescued"] += 1
+    r = float(np.sqrt(max(disc, 0.0)))
     return [x for x in ((-b + r) / (2 * a), (-b - r) / (2 * a)) if x > 1.0 + eps]
 
 
@@ -1715,11 +2026,21 @@ def _pin_pair_resultant(build, pins, S1, S2, e, f, eps=1e-7):
         if abs(a) < 1e-12:
             xfs = [-c / b] if (abs(b) > 1e-12 and -c / b > 1.0 + eps) else []
         else:
+            # Same tangency correction as in _quad_roots_gt1 (2026-07-28): a double
+            # root has discriminant exactly zero, so a bare `disc < 0` test is
+            # decided by rounding.  Milder here than on the single-unknown path,
+            # because a barren pair path yields no solutions and is then downgraded
+            # to "inconclusive" rather than to a hard refutation -- but it can still
+            # push the search onto the bounded-box fallback needlessly.
             disc = b * b - 4 * a * c
-            if disc < 0:
+            scale = max(abs(b * b), abs(4.0 * a * c), 1.0)
+            if disc < -_DISC_RTOL * scale:
+                DISC_STATS["negative_rejected"] += 1
                 xfs = []
             else:
-                r = float(np.sqrt(disc))
+                if disc < _DISC_RTOL * scale:
+                    DISC_STATS["tangent_rescued"] += 1
+                r = float(np.sqrt(max(disc, 0.0)))
                 xfs = [x for x in ((-b + r) / (2 * a), (-b - r) / (2 * a))
                        if x > 1.0 + eps]
         for xf in xfs:
@@ -1730,13 +2051,28 @@ def _pin_pair_resultant(build, pins, S1, S2, e, f, eps=1e-7):
 
 
 def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
-                       max_leaves=256):
+                       max_leaves=256, stats=None):
     """Cascade-pin screen.  Returns (decision, x_solutions):
       decision True  -> >=1 pinned assignment passes rank(d+1)+signature(d,1);
                         x_solutions is a list of dicts {edge: x_float}.
       decision False -> provably no completion (reject).
       decision None  -> cascade stuck (caller should fall back).
+
+    stats: optional dict of integer counters, incremented in place.  Purely
+    diagnostic -- it records WHICH branch decided each candidate, so that a run
+    can report how often the float64 bounded-box fallback was actually reached
+    rather than only that it is structurally reachable.  Keys:
+      cascade_true / cascade_false   decided by the cascade
+      cascade_pair                   the pair-resultant path was used at least once
+      stuck_leaves                   > max_leaves leaves        -> fall back
+      stuck_no_pair                  no pinnable edge or pair   -> fall back
+      stuck_zero_resultant           resultant vanished          -> fall back
+      stuck_minor_free               minor did not constrain the edge -> fall back
     """
+    def _bump(key):
+        if stats is not None:
+            stats[key] = stats.get(key, 0) + 1
+
     num_zero = n - d - 1
 
     def build(pins):
@@ -1750,11 +2086,29 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
     solutions = []
     stack = [(dict(), frozenset(dotted_pairs))]
     leaves = 0
+    # SOUNDNESS (fixed 2026-07-27).  The single-unknown path is exact in the
+    # relevant sense: the minor is genuinely quadratic in its unknown and the two
+    # roots are obtained in closed form, so if no root > 1 exists the labelling
+    # really is infeasible.  The PAIR path is not: _pin_pair_resultant recovers a
+    # degree-4 resultant by np.polyfit through six sampled determinants and
+    # detects the degenerate (identically-vanishing) case by a magnitude test.
+    # Both are scale-sensitive, so the verdict depends on the facet numbering.
+    # Observed on the d=4 4-cube type (Burcroff's G4): under one numbering the
+    # cascade returned None and the numerical fallback accepted (residual 5e-17);
+    # under an isomorphic renumbering it returned False and rejected outright.
+    # 11 of the 12 published G4 polytopes were being lost that way.
+    # Therefore a False verdict is only trusted when the pair path was never
+    # used; otherwise we downgrade to None and let the caller fall back.  This is
+    # strictly conservative.  It cannot change any d=5 or d=6 verdict, because no
+    # type in either dimension enters the pair path at all
+    # (paper/checks/cascade_reachability.py).
+    pair_path_used = False
     while stack:
         pins, unknown = stack.pop()
         if not unknown:
             leaves += 1
             if leaves > max_leaves:
+                _bump("stuck_leaves")
                 return None, []
             G = build(pins)
             sv = np.linalg.svd(G, compute_uv=False)
@@ -1777,11 +2131,15 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
                     pairmin[un].append(S)
             pair = next((p for p, ss in pairmin.items() if len(ss) >= 2), None)
             if pair is None:
+                _bump("stuck_no_pair")
                 return None, []                  # truly stuck -> fall back
+            _bump("cascade_pair")
+            pair_path_used = True
             e, f = pair
             pr_result = _pin_pair_resultant(build, pins, pairmin[pair][0],
                                             pairmin[pair][1], e, f)
             if pr_result is None:
+                _bump("stuck_zero_resultant")
                 return None, []          # degenerate (zero resultant) -> fall back
             for xe, xf in pr_result:
                 p2 = dict(pins); p2[e] = xe; p2[f] = xf
@@ -1792,14 +2150,23 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
         pos = {f: k for k, f in enumerate(S)}
         roots = _quad_roots_gt1(Gp[np.ix_(S, S)], pos[e[0]], pos[e[1]])
         if roots is None:
+            _bump("stuck_minor_free")
             return None, []                      # minor doesn't constrain e here
         for x in roots:
             p2 = dict(pins); p2[e] = x
             stack.append((p2, unknown - {e}))
-    return (len(solutions) > 0), solutions
+    if solutions:
+        _bump("cascade_true")
+        return True, solutions
+    if pair_path_used:
+        # not a trustworthy refutation -- see the note above
+        _bump("cascade_false_downgraded")
+        return None, []
+    _bump("cascade_false")
+    return False, []
 
 
-def screen_candidate(la, dotted_pairs, minor_index, n, d):
+def screen_candidate(la, dotted_pairs, minor_index, n, d, stats=None):
     """Screen one ordinary-label assignment ``la`` ({(i,j): m}) for a realizable Gram
     matrix and return a list of candidate solver starts ``[(la, dotted, x0), ...]`` (empty
     if provably infeasible).  Shared by the brute and block-paste drivers so both use the
@@ -1810,15 +2177,414 @@ def screen_candidate(la, dotted_pairs, minor_index, n, d):
     if not dotted_pairs:
         return [(dict(la), dotted_pairs, [])]
     ordf = {p: _GRAM_FLOAT[m] for p, m in la.items()}
-    dec, xs = _structured_screen(ordf, dotted_pairs, minor_index, n, d)
+    dec, xs = _structured_screen(ordf, dotted_pairs, minor_index, n, d, stats=stats)
     if dec:
         return [(dict(la), dotted_pairs, [s[p] for p in dotted_pairs]) for s in xs]
     if dec is None:
+        if stats is not None:
+            stats["numerical_fallback"] = stats.get("numerical_fallback", 0) + 1
         xa, res = _numerical_screen(ordf, dotted_pairs, n, d, residual_threshold=1e-6)
         if res <= 1e-6 and _check_signature_float(
                 _build_gram_numpy(ordf, dotted_pairs, xa, n), d, tol=1e-3):
             return [(dict(la), dotted_pairs, list(xa))]
     return []
+
+
+def burcroff_55b_low_weight_edges(mf_list, ordinary_pairs):
+    """Ordinary edges forced LOW WEIGHT (label m <= 5) by Burcroff Lemma 5.5(b)
+    (arXiv:2201.03437; holds for admissible diagrams in any dimension):
+
+        Let v1v2 be an ordinary edge.  If Sigma has no Lannér diagram containing
+        v1 and v2, Sigma has a Lannér diagram L of order > 2 containing v2, and
+        there is no dashed (dotted) edge from v1 to any vertex of L, then v1v2
+        has low weight.
+
+    Combinatorially: Lannér diagrams of order >= 3 are exactly the missing faces
+    of size >= 3 (a Lannér subdiagram's support is a minimal non-face; ordinary
+    triangles that are faces are forced elliptic by the vertex-PD constraints,
+    and order-2 "Lannér" needs a dotted edge, excluded on ordinary pairs).  So
+    the hypotheses depend only on the type's missing-face structure.
+
+    Returns {pair: 5} suitable for enumerate_labels_backtrack(edge_max_label=).
+    """
+    dotted = [frozenset(m) for m in mf_list if len(m) == 2]
+    big = [frozenset(m) for m in mf_list if len(m) >= 3]
+    caps = {}
+    for (u, v) in ordinary_pairs:
+        if any(u in M and v in M for M in big):
+            continue                       # (a)-territory / hypothesis fails
+        forced = False
+        for (v1, v2) in ((u, v), (v, u)):
+            for M in big:
+                if v2 not in M:
+                    continue
+                if any(v1 in D and (D - {v1}) & M for D in dotted):
+                    continue               # dashed edge from v1 into L
+                forced = True
+                break
+            if forced:
+                break
+        if forced:
+            caps[(u, v)] = 5
+    return caps
+
+
+# ---------------------------------------------------------------------------
+# Wildcard (m >= 7) assignment solver — see WILDCARD_LABEL comment at top.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Direct L-BFGS-B driver (2026-07-28 performance fix)
+#
+# `_wild_feasible` is 96% of the wall time on the heavy d=6 types (profiled on
+# type 132: 174 s of 180 s).  Of that, only ~37% is the objective itself -- the
+# rest is scipy's `ScalarFunction` bookkeeping between the optimiser and the
+# callback: 3.06M `objective_grad` evaluations dragged 6.13M `_compute_if_needed`
+# calls and 6.14M `np.all` array comparisons behind them, at ~35 us of pure
+# Python dispatch each.  `setulb` itself -- the actual Fortran L-BFGS-B -- was
+# only 15 s.
+#
+# This driver runs the SAME Fortran routine with the SAME parameters, calling the
+# objective directly.  The arithmetic is identical; only the wrapper is gone.
+# The loop mirrors scipy's `_minimize_lbfgsb` (scipy 1.15) exactly, including the
+# task codes: 3 = "need f and g at x", 1 = "new iteration", anything else = stop.
+# ---------------------------------------------------------------------------
+try:
+    from scipy.optimize import _lbfgsb as _lbfgsb_fortran
+except Exception:                                    # pragma: no cover
+    _lbfgsb_fortran = None
+
+
+def _lbfgsb_direct(fun_and_grad, x0, lo, hi, maxiter=200, ftol=1e-20,
+                   gtol=1e-12, maxcor=10, maxls=20):
+    """Minimise `fun_and_grad` (returns (f, grad)) over the box [lo, hi].
+
+    Returns (f, x).  Drop-in for scipy.optimize.minimize(..., method='L-BFGS-B')
+    with jac=True, minus the Python wrapper overhead.  Falls back to scipy if the
+    Fortran extension is unavailable.
+    """
+    if _lbfgsb_fortran is None:                      # pragma: no cover
+        r = _scipy_opt.minimize(fun_and_grad, x0, jac=True,
+                                bounds=list(zip(lo, hi)), method='L-BFGS-B',
+                                options={'maxiter': maxiter, 'ftol': ftol,
+                                         'gtol': gtol})
+        return float(r.fun), r.x
+
+    n_var = len(x0)
+    x = np.array(x0, dtype=np.float64)
+    lo = np.asarray(lo, dtype=np.float64)
+    hi = np.asarray(hi, dtype=np.float64)
+    nbd = np.full(n_var, 2, dtype=np.int32)          # 2 = both bounds finite
+    m = maxcor
+    wa = np.zeros(2 * m * n_var + 5 * n_var + 11 * m * m + 8 * m, np.float64)
+    iwa = np.zeros(3 * n_var, dtype=np.int32)
+    task = np.zeros(2, dtype=np.int32)
+    ln_task = np.zeros(2, dtype=np.int32)
+    lsave = np.zeros(4, dtype=np.int32)
+    isave = np.zeros(44, dtype=np.int32)
+    dsave = np.zeros(29, dtype=np.float64)
+    f = np.array(0.0, dtype=np.float64)
+    g = np.zeros(n_var, dtype=np.float64)
+    factr = ftol / np.finfo(float).eps
+    it = 0
+    while True:
+        _lbfgsb_fortran.setulb(m, x, lo, hi, nbd, f, g, factr, gtol, wa, iwa,
+                               task, lsave, isave, dsave, maxls, ln_task)
+        if task[0] == 3:
+            fv, gv = fun_and_grad(x)
+            f = np.array(fv, dtype=np.float64)
+            g = np.asarray(gv, dtype=np.float64)
+        elif task[0] == 1:
+            it += 1
+            if it >= maxiter:
+                break
+        else:
+            break
+    return float(f), x
+
+
+def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
+                   residual_threshold=1e-6, warm_start=None):
+    """Best residual of the rank-(d+1) condition with the wild entries in `pinned`
+    (dict pair->c) fixed and everything else (dotted x > 1, unpinned wild
+    c in [cos(pi/7), 1)) optimized.  Returns (residual, u_best) where u_best is
+    the full unknown vector [dotted..., free_wild...] (slice [:len(dotted_pairs)]
+    for the dotted weights).  warm_start: optional u vector of the same layout,
+    tried FIRST with a cheap descent — threading the previous scan step's
+    solution through consecutive integer pins makes each step ~one descent."""
+    free_wild = [p for p in wild_pairs if p not in pinned]
+    unknown_pairs = list(dotted_pairs) + free_wild
+    k_d = len(dotted_pairs)
+    num_zero = n - d - 1
+
+    # precompute the fixed part of G once; objective only writes the unknowns
+    G_base = np.eye(n)
+    for (i, j), v in ordinary_float.items():
+        G_base[i, j] = G_base[j, i] = v
+    for (i, j), c in pinned.items():
+        G_base[i, j] = G_base[j, i] = -c
+    ui = np.array([p[0] for p in unknown_pairs], dtype=int)
+    uj = np.array([p[1] for p in unknown_pairs], dtype=int)
+
+    # Fast path: pipeline/c/wild_kernel.c does the IDENTICAL computation (Jacobi
+    # eigendecomposition + the same analytic gradient formula) without numpy/
+    # scipy dispatch overhead, which profiling showed dominates this exact call
+    # site (~90% overhead vs real FLOPs on a 9x9/10x10 matrix). Equivalence
+    # verified against the numpy path on 20,000 random trials (max abs error
+    # ~1e-11). Falls back to numpy automatically if the library isn't built.
+    if _wk.available():
+        _prep = _wk.Prepared(G_base, ui, uj, num_zero)
+        objective = _prep.objective
+        objective_grad = _prep.objective_grad
+    else:
+        def objective(u):
+            G = G_base.copy()
+            G[ui, uj] = -u
+            G[uj, ui] = -u
+            s = np.linalg.svd(G, compute_uv=False)
+            return float(np.sum(s[-num_zero:] ** 2))
+
+        def objective_grad(u):
+            # f = sum of lambda_i^2 over the num_zero smallest-|lambda| eigenvalues
+            # (== smallest singular values, G symmetric).  d(lambda_i)/du_e =
+            # v_i^T (dG/du_e) v_i = -2 v[i0,i] v[j0,i], so df/du_e =
+            # -4 sum_i lambda_i v[i0,i] v[j0,i].  One eigh replaces ~(k+1) SVDs of
+            # finite differencing; same objective, same thresholds.
+            G = G_base.copy()
+            G[ui, uj] = -u
+            G[uj, ui] = -u
+            w, V = np.linalg.eigh(G)
+            idx = np.argsort(np.abs(w))[:num_zero]
+            lam = w[idx]
+            Vs = V[:, idx]
+            f = float(np.sum(lam ** 2))
+            grad = -4.0 * np.einsum('k,ek,ek->e', lam, Vs[ui, :], Vs[uj, :])
+            return f, grad
+
+    bounds = [(1.001, 1000.0)] * k_d + [(_WILD_C_MIN, 0.999999)] * len(free_wild)
+    starts = []
+    for x0 in (1.5, 1.1, 2.0, 3.0):
+        for m0 in (7, 8, 10, 12, 18, 30):
+            starts.append(np.array([x0] * k_d +
+                                   [float(np.cos(np.pi / m0))] * len(free_wild)))
+            if not free_wild:
+                break
+    # Rejection = probe reject (objective > 0.5 at every probe) or the full
+    # 24-start multistart failing to reach the threshold — the ORIGINAL validated
+    # screen semantics.  (A "cheap single descent lands > 5e-2 -> reject" stage
+    # was tried here and REVERTED: it falsely rejected 4 of the 6 census
+    # realizations of d=5 type 302/tid19, whose weights x~60 need the full
+    # multistart to be reached.  The analytic eigengradient makes the multistart
+    # cheap enough that the early reject bought only ~10%.)
+    # warm start first: one cheap descent from the caller-supplied point usually
+    # settles consecutive integer pins immediately.
+    if warm_start is not None and len(warm_start) == len(unknown_pairs) \
+            and len(warm_start) > 0:
+        try:
+            w0 = np.clip(np.asarray(warm_start, dtype=float),
+                         [b[0] for b in bounds], [b[1] for b in bounds])
+            fv, xv = _lbfgsb_direct(objective_grad, w0,
+                                    [b[0] for b in bounds], [b[1] for b in bounds],
+                                    maxiter=60, ftol=1e-20, gtol=1e-12)
+            if fv < residual_threshold:
+                return fv, xv
+        except Exception:
+            pass
+    probe_vals = [objective(s0) for s0 in starts]
+    probe_best = min(probe_vals)
+    if probe_best > 0.5:
+        return probe_best, None
+    # seed with the best probe so an optimizer failure (e.g. empty unknown
+    # vector when everything is pinned) still returns the true probe residual
+    best_val = probe_best
+    best_u = starts[probe_vals.index(probe_best)]
+    if len(best_u) == 0:
+        return best_val, best_u
+    if best_val >= residual_threshold:
+        for s0 in starts:
+            try:
+                fv, xv = _lbfgsb_direct(objective_grad, s0,
+                                        [b[0] for b in bounds],
+                                        [b[1] for b in bounds],
+                                        maxiter=200, ftol=1e-20, gtol=1e-12)
+                if fv < best_val:
+                    best_val, best_u = fv, xv
+            except Exception:
+                pass
+            if best_val < residual_threshold:
+                break
+    return best_val, best_u
+
+
+def _float_kernel_jacobian_deficient(base_float, dotted_pairs, x_dotted, n, d,
+                                     ratio=1e-7):
+    """Cheap float pre-gate for the mpmath isolation test: numerical rank of the
+    (d+2)-minor kernel Jacobian wrt the dotted weights, at the float point.
+    Returns True only when the Jacobian is CLEARLY rank-deficient
+    (sigma_k < ratio * sigma_1) — the point sits on a positive-dimensional
+    component and the mpmath isolation gate would reject it after minutes of
+    work.  Genuine isolated polytopes have a well-conditioned Jacobian and pass
+    untouched; the d=5 wildcard census re-validation gates this empirically."""
+    from itertools import combinations as _c
+    k = len(dotted_pairs)
+    if k == 0:
+        return False
+    dot_idx = {i for p in dotted_pairs for i in p}
+    rows = [list(c) for c in _c(range(n), d + 2) if dot_idx & set(c)]
+    di = np.array([p[0] for p in dotted_pairs], dtype=int)
+    dj = np.array([p[1] for p in dotted_pairs], dtype=int)
+
+    def fvals(xl):
+        G = np.eye(n)
+        for (i, j), v in base_float.items():
+            G[i, j] = G[j, i] = v
+        G[di, dj] = -np.asarray(xl)
+        G[dj, di] = -np.asarray(xl)
+        return np.array([np.linalg.det(G[np.ix_(r, r)]) for r in rows])
+
+    eps = 1e-6
+    J = np.empty((len(rows), k))
+    x0 = np.asarray(x_dotted, dtype=float)
+    for c in range(k):
+        xp = x0.copy(); xp[c] += eps
+        xm = x0.copy(); xm[c] -= eps
+        J[:, c] = (fvals(xp) - fvals(xm)) / (2 * eps)
+    s = np.linalg.svd(J, compute_uv=False)
+    if s.size == 0 or s[0] == 0:
+        return True
+    return bool(s[min(k, len(s)) - 1] < ratio * s[0])
+
+
+def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, d,
+                           numerical_threshold=1e-6, m_scan_max=100, dps=100,
+                           deadline_s=1200.0, flags=None):
+    """Resolve one wildcard-bearing label assignment (wild edges enumerated as 7,
+    meaning ANY m >= 7).  Returns a list of (labels_int, sol) with the wildcard
+    labels instantiated to concrete integers, each certified by the standard exact
+    path (_refine_mpmath + _recognize_minpoly_and_verify).
+
+    Method (Ma-Zheng "range analysis"): (1) joint feasibility of rank(G)=d+1 with
+    the wild entries as continuous unknowns c in [cos(pi/7), 1); (2) per-edge
+    integer window scan — for each wild edge, which integers m in [7, m_scan_max]
+    keep the system feasible with c_e = cos(pi/m) pinned; (3) every integer tuple
+    in the window product is pinned fully and, if still feasible, exactly
+    certified with those labels.  If feasibility persists at m_scan_max the type
+    CANNOT be closed by this scan: flags["wild_unbounded"] = True (loud, never a
+    silent truncation).
+    """
+    if flags is None:
+        flags = {}
+    t_dead = time.time() + deadline_s
+    ordinary_float = {p: _GRAM_FLOAT[m] for p, m in label_assign.items()
+                      if p not in wild_pairs}
+
+    # (1) joint feasibility — all wilds free.
+    res0, u_joint = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, {}, n, d)
+    if res0 > numerical_threshold:
+        WILD_STATS["joint_infeasible"] += 1
+        return []
+
+    # (2) per-edge integer windows.  Warm-start each pin from the previous
+    # feasible solution (layout: dotted + free wilds minus the scanned edge).
+    k_d = len(dotted_pairs)
+    windows = []
+    for ei, e in enumerate(wild_pairs):
+        win = []
+        # joint solution without the scanned edge's own entry
+        warm = None
+        if u_joint is not None and len(u_joint) == k_d + len(wild_pairs):
+            warm = np.delete(u_joint, k_d + ei)
+        for m in range(7, m_scan_max + 1):
+            if time.time() > t_dead:
+                flags["wild_deadline"] = True
+                return []
+            r, u = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                  {e: float(np.cos(np.pi / m))}, n, d,
+                                  warm_start=warm)
+            if r < numerical_threshold:
+                win.append(m)
+                warm = u
+        if m_scan_max in win:
+            flags["wild_unbounded"] = True
+        windows.append(win)
+    if any(not w for w in windows):
+        WILD_STATS["empty_window"] += 1
+        return []
+
+    # (3) full pin + exact certification per integer tuple.
+    from itertools import product as _prod
+    out, seen = [], set()
+    warm_tuple = None if u_joint is None else np.asarray(u_joint[:k_d])
+    for m_tuple in _prod(*windows):
+        if time.time() > t_dead:
+            flags["wild_deadline"] = True
+            return out
+        pinned = {e: float(np.cos(np.pi / m)) for e, m in zip(wild_pairs, m_tuple)}
+        # thread the previous feasible tuple's solution: lexicographic order makes
+        # consecutive tuples adjacent (one integer step), so one descent settles it
+        r, u_pin = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs,
+                                  pinned, n, d, warm_start=warm_tuple)
+        x_dotted = None if u_pin is None else u_pin[:k_d]
+        if r > numerical_threshold:
+            WILD_STATS["pinned_infeasible"] += 1
+            continue
+        warm_tuple = x_dotted
+        labels_int = dict(label_assign)
+        for e, m in zip(wild_pairs, m_tuple):
+            labels_int[e] = int(m)
+        if dotted_pairs:
+            if x_dotted is None:
+                WILD_STATS["no_dotted_solution"] += 1
+                continue
+            # Float pre-gates: signature (d,1) and no parabolic subdiagram at the
+            # pinned point — the same conditions the mpmath certification enforces
+            # later at ~1000x the cost.  A tuple failing here (generous float
+            # tolerances) fails there; this is what keeps positive-dimensional
+            # near-solutions from grinding hours of mpmath per assignment.
+            base_f = dict(ordinary_float)
+            for e, c in pinned.items():
+                base_f[e] = -c
+            G_np = _build_gram_numpy(base_f, list(dotted_pairs),
+                                     np.asarray(x_dotted), n)
+            if not _check_signature_float(G_np, d, tol=1e-3):
+                WILD_STATS["signature_pregate"] += 1
+                continue
+            if _has_parabolic_subdiagram(G_np, n, d):
+                WILD_STATS["parabolic_pregate"] += 1
+                continue
+            # float isolation pre-gate: a clearly rank-deficient kernel Jacobian
+            # means a positive-dimensional component — the mpmath isolation gate
+            # would reject it after ~minutes; skip it in ~10ms.
+            if _float_kernel_jacobian_deficient(base_f, dotted_pairs, x_dotted,
+                                                n, d):
+                WILD_STATS["jacobian_pregate"] += 1
+                continue
+            x_hp = _refine_mpmath(x_dotted, labels_int, dotted_pairs, n, d, dps=dps)
+            if x_hp is None:
+                WILD_STATS["refine_none"] += 1
+                continue
+            for sol in _recognize_minpoly_and_verify(
+                    x_hp, sym_list, labels_int, dotted_pairs, n, d, dps=dps):
+                key = (m_tuple, tuple(sorted((k, v["value"]) for k, v in sol.items())))
+                if key not in seen:
+                    seen.add(key)
+                    out.append((labels_int, sol))
+        else:
+            # no dotted unknowns: G fully determined by the instantiated labels.
+            G_np = _build_gram_numpy(
+                {p: float(-np.cos(np.pi / m)) if (m := labels_int[p]) >= 7
+                 else _GRAM_FLOAT[m] for p in labels_int}, [], np.array([]), n)
+            evals = np.linalg.eigvalsh(G_np)
+            if int(np.sum(np.abs(evals) > 1e-8)) == d + 1 \
+                    and _check_signature_float(G_np, d) \
+                    and not _has_parabolic_subdiagram(G_np, n, d):
+                G_sym = build_gram_matrix(n, labels_int, frozenset(), {})
+                if G_sym.rank() == d + 1:
+                    key = (m_tuple, ())
+                    if key not in seen:
+                        seen.add(key)
+                        out.append((labels_int, {}))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1833,18 +2599,48 @@ def process_type_stage4(t, d,
                          label_indices=None,
                          face_tuples_max_size=4,
                          extended_lanner_max_extra=0,
+                         prefix=None,
+                         stats_out=None,
+                         wildcard=False,
+                         use_burcroff_55b=False,
+                         custom_order=None,
+                         automorphisms=None,
                          verbose=False):
     """Run Stage 4 on one surviving combinatorial type.
+
+    wildcard: rigorous label treatment (Ma-Zheng Prop 3.5) — enumerate over
+    {2,...,6,7} with 7 = "any m >= 7"; wild-bearing assignments are resolved by
+    _solve_wild_assignment (continuous c + integer instantiation), so NO a-priori
+    label cap is assumed.  Forces label_indices = WILDCARD_INDICES.  If a wild
+    window reaches m_scan_max, stats_out["wild_unbounded"] = True and the type's
+    verdict is NOT rigorous.
 
     label_indices: tuple of indices into VALID_LABELS to restrict the ordinary-edge
     label search.  Default None = all labels.  Use (0,1,2,3) to restrict to
     labels {2,3,4,5}, which is appropriate for d≥5 where Burcroff's low-weight
     lemma bounds labels to ≤5 for all ordinary edges.
 
+    prefix: optional tuple of label indices fixing the first len(prefix) pairs of
+    the deterministic enumeration order (see enumerate_labels_backtrack) — running
+    all prefixes of a given depth across workers partitions the search exactly.
+
+    stats_out: optional dict; on return contains screened/passed_screen/
+    exact_attempts counts plus "exhausted": True iff the verdict is rigorous
+    (the label search was fully explored — no enum timeout, no max_assignments
+    cut, no solve-budget break).  A distinct==0 with exhausted=False is a
+    TIMEOUT, not a result.
+
     Returns list of valid Gram configurations (dicts).
     """
+    if stats_out is not None:
+        stats_out["exhausted"] = False
     if not SYMPY_AVAILABLE or not NUMPY_AVAILABLE:
         return []
+    if wildcard:
+        if label_indices is not None and any(i > 5 for i in label_indices):
+            raise ValueError("wildcard mode: label_indices must be within {2..7}")
+        if label_indices is None:
+            label_indices = WILDCARD_INDICES
 
     n = d + 4
     mf_list = [frozenset(m) for m in t["missing_faces"]]
@@ -1923,6 +2719,8 @@ def process_type_stage4(t, d,
             if face_set <= v:
                 if verbose:
                     print(f"    Lannér face {face_sorted} inside vertex {sorted(v)} → infeasible")
+                if stats_out is not None:
+                    stats_out["exhausted"] = True   # provably infeasible: rigorous 0
                 return []
 
     dot_syms = {
@@ -1937,18 +2735,62 @@ def process_type_stage4(t, d,
     results = []
     t_start = time.time()
     stats = {"screened": 0, "passed_screen": 0, "exact_attempts": 0}
+    # Diagnostic branch counters (see _structured_screen).  These record which
+    # screen branch decided each candidate, so a run can report how often the
+    # bounded-box numerical fallback was actually reached.  Zero cost when
+    # stats_out is None.
+    screen_stats = {} if stats_out is not None else None
+    enum_state = {}
+    budget_break = False
+
+    edge_caps = (burcroff_55b_low_weight_edges(mf_list, ordinary_pairs)
+                 if use_burcroff_55b else None)
+    if verbose and edge_caps:
+        print(f"    Burcroff 5.5(b) low-weight caps on {len(edge_caps)} edges")
+    if stats_out is not None and edge_caps:
+        stats_out["burcroff_55b_edges"] = len(edge_caps)
 
     for label_assign in enumerate_labels_backtrack(
         ordinary_pairs, vertex_groups, lanner_groups,
         max_count=max_assignments,
         timeout=enum_timeout,
         label_indices=label_indices,
+        prefix=prefix,
+        state_out=enum_state,
+        edge_max_label=edge_caps,
+        dotted_pairs=dotted_pairs,
+        n_facets=n,
+        custom_order=custom_order,
+        automorphisms=automorphisms,
     ):
         elapsed = time.time() - t_start
         if elapsed > enum_timeout + solve_timeout:
+            budget_break = True
             break
 
         stats["screened"] += 1
+
+        if wildcard:
+            wild_pairs = tuple(sorted(
+                p for p, m in label_assign.items() if m == WILDCARD_LABEL))
+            if wild_pairs:
+                stats["wild_assignments"] = stats.get("wild_assignments", 0) + 1
+                wflags = {}
+                for labels_int, sol in _solve_wild_assignment(
+                        label_assign, wild_pairs, dotted_pairs, sym_list, n, d,
+                        numerical_threshold=numerical_threshold, flags=wflags):
+                    results.append({
+                        "type_id":          t["type_id"],
+                        "label_assignment": {str(p): v
+                                             for p, v in labels_int.items()},
+                        "dot_values":       sol,
+                    })
+                if wflags.get("wild_unbounded"):
+                    stats["wild_unbounded"] = True
+                if wflags.get("wild_deadline"):
+                    stats["wild_deadline"] = True
+                continue
+
         ordinary_float = {p: _GRAM_FLOAT[m]
                           for p, m in label_assign.items()}
 
@@ -1959,10 +2801,14 @@ def process_type_stage4(t, d,
             # numerical (Gauss-Newton/L-BFGS) screen.
             dec, x_sols = _structured_screen(
                 ordinary_float, dotted_pairs, minor_index, n, d,
+                stats=screen_stats,
             )
             if dec is False:
                 continue                          # provably infeasible
             if dec is None:
+                if screen_stats is not None:
+                    screen_stats["numerical_fallback"] = \
+                        screen_stats.get("numerical_fallback", 0) + 1
                 x_approx, residual = _numerical_screen(
                     ordinary_float, dotted_pairs, n, d,
                     residual_threshold=numerical_threshold,
@@ -1996,8 +2842,16 @@ def process_type_stage4(t, d,
                     continue
                 for sol in _recognize_minpoly_and_verify(
                         x_hp, sym_list, label_assign, dotted_pairs, n, d, dps=100):
-                    key = tuple(sorted((kk, tuple(v["minpoly"]))
-                                       for kk, v in sol.items()))
+                    # Dedup key: prefer the exact minimal polynomial; fall back to the
+                    # high-precision numeric value when PSLQ could not recover a minpoly
+                    # (a None minpoly must not crash the key — it did for high-degree
+                    # weights in d=5 types 302/319/322, dropping those realizations).
+                    def _kpart(v):
+                        mp_ = v.get("minpoly")
+                        if mp_ is not None:
+                            return ("mp", tuple(mp_))
+                        return ("val", str(v.get("value"))[:40])
+                    key = tuple(sorted((kk, _kpart(v)) for kk, v in sol.items()))
                     if key in seen_local:
                         continue
                     seen_local.add(key)
@@ -2029,6 +2883,18 @@ def process_type_stage4(t, d,
         print(f"    screened={stats['screened']} "
               f"passed_screen={stats['passed_screen']} "
               f"exact_attempts={stats['exact_attempts']}")
+
+    if stats_out is not None:
+        stats_out.update(stats)
+        if screen_stats:
+            stats_out["screen_branches"] = dict(screen_stats)
+        stats_out["enum_count"] = enum_state.get("count", 0)
+        # Rigorous only if the generator itself finished every branch (no enum
+        # timeout, no max_count cut), we never broke out on the solve budget,
+        # and no wild assignment was cut short by its per-assignment deadline.
+        stats_out["exhausted"] = (bool(enum_state.get("exhausted"))
+                                  and not budget_break
+                                  and not stats.get("wild_deadline"))
 
     return results
 
