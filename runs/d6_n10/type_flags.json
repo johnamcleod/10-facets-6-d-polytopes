@@ -1,0 +1,2112 @@
+{
+"d6_n10": {
+"0": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"1": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"2": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"3": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"4": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"5": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"6": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"7": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"8": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"9": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"10": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"11": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"12": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"13": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"14": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"15": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"16": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"17": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"18": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"19": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"20": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"21": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"22": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"23": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"24": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"25": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"26": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"27": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"28": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"29": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"30": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"31": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"32": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"33": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"34": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"35": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"36": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"37": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"38": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"39": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"40": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"41": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"42": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"43": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"44": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"45": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"46": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"47": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"48": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"49": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"50": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"51": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"52": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"53": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"54": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"55": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"56": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"57": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"58": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"59": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"60": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"61": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"62": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"63": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"64": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"65": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"66": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"67": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"68": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"69": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"70": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"71": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"72": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"73": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"74": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"75": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"76": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"77": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"78": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"79": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"80": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"81": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"82": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"83": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"84": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"85": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"86": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"87": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"88": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"89": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"90": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"91": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"92": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"93": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"94": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"95": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"96": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"97": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"98": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"99": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"100": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"101": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"102": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"103": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"104": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"105": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"106": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"107": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"108": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"109": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"110": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"111": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"112": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"113": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"114": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"115": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"116": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"117": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"118": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"119": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"120": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"121": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"122": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"123": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"124": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"125": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"126": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"127": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"128": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"129": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"130": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"131": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"132": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"133": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"134": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"135": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"136": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"137": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"138": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"139": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"140": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"141": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"142": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"143": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"144": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"145": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"146": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"147": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"148": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"149": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"150": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"151": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"152": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"153": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"154": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"155": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"156": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"157": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"158": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"159": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"160": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"161": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"162": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"163": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"164": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"165": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"166": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"167": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"168": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"169": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"170": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"171": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"172": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"173": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"174": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"175": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"176": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"177": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"178": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"179": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"180": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"181": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"182": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"183": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"184": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"185": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"186": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"187": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"188": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"189": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"190": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"191": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"192": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"193": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"194": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"195": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"196": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"197": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"198": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"199": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"200": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"201": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"202": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"203": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"204": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"205": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"206": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"207": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"208": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"209": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"210": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"211": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"212": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"213": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"214": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"215": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"216": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"217": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"218": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"219": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"220": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"221": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"222": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"223": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"224": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"225": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"226": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"227": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"228": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"229": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"230": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"231": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"232": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"233": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"234": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"235": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"236": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"237": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"238": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"239": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"240": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"241": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"242": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"243": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"244": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"245": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"246": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"247": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"248": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"249": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"250": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"251": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"252": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"253": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"254": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"255": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"256": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"257": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"258": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"259": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"260": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"261": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"262": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"263": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"264": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"265": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"266": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"267": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"268": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"269": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"270": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"271": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"272": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"273": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"274": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"275": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"276": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"277": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"278": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"279": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"280": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"281": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"282": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"283": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"284": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"285": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"286": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"287": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"288": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"289": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"290": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"291": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"292": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"293": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"294": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"295": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"296": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"297": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"298": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"299": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"300": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"301": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"302": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"303": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"304": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"305": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"306": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"307": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"308": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"309": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"310": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"311": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"312": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"313": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"314": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"315": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"316": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"317": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"318": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"319": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"320": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"321": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"322": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"323": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"324": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"325": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"326": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"327": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"328": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"329": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"330": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"331": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"332": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"333": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"334": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"335": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"336": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"337": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"338": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"339": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"340": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"341": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"342": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"343": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"344": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"345": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"346": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"347": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"348": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"349": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"350": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"351": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"352": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"353": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"354": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"355": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"356": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"357": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"358": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"359": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"360": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"361": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"362": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"363": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"364": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"365": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"366": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"367": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"368": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"369": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"370": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"371": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"372": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"373": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"374": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"375": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"376": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"377": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"378": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": true
+},
+"379": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"380": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": true
+},
+"381": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"382": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"383": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"384": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"385": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"386": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+}
+},
+"d5_n9": {
+"0": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"1": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"2": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"3": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"4": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"5": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"6": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"7": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"8": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"9": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"10": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"11": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"12": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"13": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"14": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"15": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"16": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"17": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"18": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"19": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"20": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"21": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"22": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"23": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"24": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"25": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"26": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"27": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"28": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"29": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"30": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"31": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"32": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"33": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"34": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"35": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"36": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"37": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"38": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"39": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"40": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"41": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"42": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"43": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"44": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"45": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"46": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"47": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"48": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"49": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"50": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"51": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"52": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"53": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"54": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"55": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"56": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"57": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"58": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"59": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"60": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"61": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"62": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"63": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"64": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"65": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"66": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"67": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"68": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"69": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"70": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"71": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"72": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"73": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"74": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"75": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"76": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"77": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"78": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"79": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"80": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"81": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"82": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"83": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"84": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"85": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"86": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"87": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"88": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"89": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"90": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"91": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"92": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"93": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"94": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"95": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"96": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"97": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"98": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"99": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"100": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"101": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"102": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"103": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"104": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"105": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"106": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"107": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"108": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+}
+},
+"d4_n8": {
+"0": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"1": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"2": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"3": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"4": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"5": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"6": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"7": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"8": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"9": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"10": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"11": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"12": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"13": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"14": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"15": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"16": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"17": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"18": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"19": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"20": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"21": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+},
+"22": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"23": {
+"max_dashed_degree": 3,
+"has_missing_face_of_size_d": false
+},
+"24": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"25": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"26": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"27": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"28": {
+"max_dashed_degree": 2,
+"has_missing_face_of_size_d": false
+},
+"29": {
+"max_dashed_degree": 1,
+"has_missing_face_of_size_d": false
+}
+}
+}

@@ -43,6 +43,14 @@ D4 = _load_state.__wrapped__ if False else None
 
 NLAB, MAXD = 6, 14
 
+# Two purely combinatorial exclusions, each a theorem (Section 4).  The flags are
+# precomputed into runs/d6_n10/type_flags.json so that this script needs no import
+# from the pipeline; regenerate them with paper/checks/type_consistency.py --emit.
+FLAGS = json.load(open(ROOT / "runs/d6_n10/type_flags.json"))["d6_n10"]
+DEG_KILLED = {int(k) for k, v in FLAGS.items() if v["max_dashed_degree"] >= 3}
+BIGMF_KILLED = {int(k) for k, v in FLAGS.items() if v["has_missing_face_of_size_d"]}
+COMB_KILLED = DEG_KILLED | BIGMF_KILLED
+
 
 def _closed(tid, pfx=()):
     """Coverage recursion: a type is decided iff its root is exhausted, or every
@@ -127,6 +135,14 @@ def main():
                               if any(len(m) in (3, 4) for m in t["missing_faces"]))),
         "NumSurvivors": str(len(SURV)),
         "NumSearched": str(len(SURV) - len(THREE_FREE)),
+        "NumSearchedLess": str(len(SURV) - len(THREE_FREE) - 1),
+        "NumDegKilled": str(len(DEG_KILLED)),
+        "NumBigMF": str(len(BIGMF_KILLED - DEG_KILLED)),
+        "NumAfterComb": str(len(TYPES) - len(COMB_KILLED)),
+        "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
+        "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
+                            len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
+        "NumRequiredLess": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE)) - 1),
         "NumThreeFree": str(len(THREE_FREE)),
         "ThreeFreeList": ", ".join(map(str, THREE_FREE)),
         "NumSubtrees": f"{tot_sub:,}".replace(",", "{,}"),
@@ -171,6 +187,11 @@ def main():
     dln = [k for k, v in STATE.items() if (v.get("diag") or {}).get("wild_deadline")]
     assert not dln, f"wild_deadline subtrees: {dln}"
     assert [t for t in searched if _keys(t)] == [379]
+    # the two combinatorial theorems must not touch the realizing type, and must
+    # agree with the search wherever both speak
+    assert 379 not in COMB_KILLED
+    assert not [t for t in searched if t in COMB_KILLED and _keys(t)], \
+        "a theorem-excluded type realized a polytope"
     assert len(_keys(379)) == 1
     assert d5_total == 51 and all(x["exhausted"] and not x["unbounded"]
                                   for x in D5.values())
