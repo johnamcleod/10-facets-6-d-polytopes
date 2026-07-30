@@ -117,12 +117,13 @@ def main():
         else:
             method = "exhaustive search"
             verdict = "0"
-        rows.append((tid, TYPES[tid]["p_count"], profile_str(tid), verdict,
+        req = ("" if tid in COMB_KILLED else r"$\bullet$")
+        rows.append((tid, TYPES[tid]["p_count"], profile_str(tid), req, verdict,
                      method, nsub, enum, sec / 3600.0))
 
     lines = []
-    for tid, p, prof, verdict, method, nsub, enum, hrs in rows:
-        lines.append(f"{tid} & {p} & ${prof}$ & {verdict} & {method} & "
+    for tid, p, prof, req, verdict, method, nsub, enum, hrs in rows:
+        lines.append(f"{tid} & {p} & ${prof}$ & {req} & {verdict} & {method} & "
                      f"{nsub} & {enum:,} & {hrs:.2f} \\\\")
     (OUT / "pertype.tex").write_text("\n".join(lines) + "\n")
 
@@ -142,6 +143,9 @@ def main():
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
         "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
                             len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
+        "DFiveWild": "19{,}886",
+        "DFiveWildKilled": "19{,}877",
+        "DFiveWildSurvived": "9",
         "NumWild": f"{sum((v.get('diag') or {}).get('wild_assignments', 0) for v in STATE.values()):,}".replace(",", "{,}"),
         "NumRequiredLess": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE)) - 1),
         "NumThreeFree": str(len(THREE_FREE)),

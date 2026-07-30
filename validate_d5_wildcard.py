@@ -26,6 +26,7 @@ EXPECT = {0: 22, 5: 1, 6: 18, 19: 6, 29: 3, 63: 1}
 # Pass "55b" as the second argument to additionally enable Burcroff Lemma 5.5(b)
 # low-weight caps -- the one solver flag the d=6 run sets that the baseline d=5
 # validation did not exercise.  Separate output file so the two runs coexist.
+_SMOKE = "smoke" in sys.argv[1:]
 USE_55B = "55b" in sys.argv[1:]
 # out=NAME writes to runs/d5_n9/NAME.json instead of the default.  This matters:
 # main() RESUMES from OUT, so re-running after a code change against the committed
@@ -41,6 +42,7 @@ def work(t):
     tid = t['type_id']
     try:
         for _k in _sg.REFINE_STATS: _sg.REFINE_STATS[_k] = 0
+        for _k in _sg.WILD_STATS: _sg.WILD_STATS[_k] = 0
         t = dict(t); V, *_ = _setup(t); t['vertex_sets'] = [sorted(v) for v in V]
         n = 1 + max(max(v) for v in V)
         automorphisms = compute_aut_group(V, n)
@@ -56,15 +58,17 @@ def work(t):
                           for m in r['label_assignment'].values() if int(m) >= 7))
         return (tid, len(keys), bool(so.get('exhausted')),
                 bool(so.get('wild_unbounded')), so.get('wild_assignments', 0),
-                high, round(time.time() - t0, 1), None, dict(_sg.REFINE_STATS))
+                high, round(time.time() - t0, 1), None, dict(_sg.REFINE_STATS),
+                so.get('wild_assignments', 0), dict(_sg.WILD_STATS))
     except Exception as e:
-        return (tid, -1, False, False, 0, [], 0.0, f"{type(e).__name__}: {e}", {})
+        return (tid, -1, False, False, 0, [], 0.0, f"{type(e).__name__}: {e}", {}, 0, {})
 
 
 def main():
     nproc = next((int(a) for a in sys.argv[1:] if a.isdigit()),
                  max(1, mp.cpu_count() - 1))
-    types = json.load(open('runs/d5_n9/stage2/types.json'))
+    types = json.load(open("runs/d5_n9/stage2/types.json"))
+    if _SMOKE: types = [t for t in types if t["type_id"] in (29, 63)]
     done = json.loads(OUT.read_text()) if OUT.exists() else {}
     if done:
         print(f"!! RESUMING from {OUT}: {len(done)} types are CACHED and will NOT "
@@ -79,7 +83,8 @@ def main():
           flush=True)
     with mp.get_context("fork").Pool(processes=nproc) as pool:
         agg = {}
-        for tid, dist, exh, unb, wilds, high, sec, err, rst in pool.imap_unordered(work, todo):
+        for (tid, dist, exh, unb, wilds, high, sec, err, rst, wassign,
+             wstats) in pool.imap_unordered(work, todo):
             for _k, _v in rst.items(): agg[_k] = agg.get(_k, 0) + _v
             exp = EXPECT.get(tid, 0)
             ok = (dist == exp) and exh and not unb and not err
@@ -88,7 +93,8 @@ def main():
                   f"[{tag}] in {sec}s", flush=True)
             done[str(tid)] = {"distinct": dist, "exhausted": exh, "unbounded": unb,
                               "high_labels": high, "sec": sec, "err": err,
-                              "refine": rst}
+                              "refine": rst, "wild_assignments": wassign,
+                              "wild": {k: v for k, v in wstats.items() if v}}
             OUT.write_text(json.dumps(done, indent=1))
     total = sum(v["distinct"] for v in done.values() if v["distinct"] > 0)
     bad = {k: v for k, v in done.items()
