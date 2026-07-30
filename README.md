@@ -118,6 +118,12 @@ for f in paper/checks/*.py; do echo "== $f"; python3 "$f" | tail -2; done
 | `screen_margins.py` | margins at the cascade's decision thresholds |
 | `mz_p8_17_crosscheck.py` | our d=4 solutions all appear in Ma–Zheng's own published candidate list |
 
+Two notes on running them. `mz_p8_17_crosscheck.py` compares against Ma–Zheng's
+published intermediate data, which is third-party material and is not redistributed
+here; it prints `SKIPPED` with cloning instructions unless
+`scratchpad/HCPdm` is present. `screen_margins.py` is a measurement rather than a
+test and takes several minutes.
+
 ### 1.4 The certificates themselves
 
 | path | contents |

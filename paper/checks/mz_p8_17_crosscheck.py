@@ -66,7 +66,24 @@ def find_alignment(ours, theirs, n=N):
     return out
 
 
+MZ_HINT = """
+This check compares our d=4 results against Ma-Zheng's own published intermediate
+data, which is third-party material and is not redistributed here.  To run it,
+clone their repository into scratchpad/:
+
+    mkdir -p scratchpad && cd scratchpad
+    git clone https://github.com/GeoTopChristy/HCPdm
+
+Everything else in paper/checks/ is self-contained.
+"""
+
+
 def main():
+    if not (MZ / "polytopeDATA/4d8m.txt").exists():
+        print(f"SKIPPED: Ma-Zheng data not found at {MZ}")
+        print(MZ_HINT)
+        return 0
+
     types = {t["type_id"]: t for t in
              json.load(open(ROOT / "runs/d4_n8/stage2/types.json"))}
     ours_v = [tuple(sorted(v)) for v in types[OUR_TID]["vertex_sets"]]
