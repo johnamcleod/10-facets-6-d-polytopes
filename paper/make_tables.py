@@ -47,6 +47,16 @@ NLAB, MAXD = 6, 14
 # precomputed into runs/d6_n10/type_flags.json so that this script needs no import
 # from the pipeline; regenerate them with paper/checks/type_consistency.py --emit.
 FLAGS = json.load(open(ROOT / "runs/d6_n10/type_flags.json"))["d6_n10"]
+
+# Wildcard traffic in the d=5 census, which calibrates the joint-feasibility test
+# against ground truth (Section 5.4).  Read from the artifact, never transcribed.
+_D5W = json.load(open(ROOT / "runs/d5_n9/d5_wildcounts.json"))
+D5W_TOTAL = sum(v.get("wild_assignments", 0) for v in _D5W.values())
+D5W_REJECTED = sum(sum((v.get("wild") or {}).values()) for v in _D5W.values())
+
+
+def _c(n):
+    return f"{n:,}".replace(",", "{,}")
 DEG_KILLED = {int(k) for k, v in FLAGS.items() if v["max_dashed_degree"] >= 3}
 BIGMF_KILLED = {int(k) for k, v in FLAGS.items() if v["has_missing_face_of_size_d"]}
 COMB_KILLED = DEG_KILLED | BIGMF_KILLED
@@ -143,9 +153,9 @@ def main():
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
         "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
                             len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
-        "DFiveWild": "19{,}886",
-        "DFiveWildKilled": "19{,}877",
-        "DFiveWildSurvived": "9",
+        "DFiveWild": _c(D5W_TOTAL),
+        "DFiveWildKilled": _c(D5W_REJECTED),
+        "DFiveWildSurvived": str(D5W_TOTAL - D5W_REJECTED),
         "NumWild": f"{sum((v.get('diag') or {}).get('wild_assignments', 0) for v in STATE.values()):,}".replace(",", "{,}"),
         "NumRequiredLess": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE)) - 1),
         "NumThreeFree": str(len(THREE_FREE)),
@@ -195,6 +205,10 @@ def main():
     # the two combinatorial theorems must not touch the realizing type, and must
     # agree with the search wherever both speak
     assert 379 not in COMB_KILLED
+    # the d=5 calibration quoted in Section 5.4
+    assert D5W_TOTAL - D5W_REJECTED == 9, "d=5 wildcard survivors changed"
+    assert sum(v["distinct"] for v in _D5W.values()) == 51
+    assert all(v["exhausted"] and not v["unbounded"] for v in _D5W.values())
     assert not [t for t in searched if t in COMB_KILLED and _keys(t)], \
         "a theorem-excluded type realized a polytope"
     assert len(_keys(379)) == 1

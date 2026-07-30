@@ -2017,5 +2017,45 @@
    "joint_infeasible": 13754,
    "empty_window": 2
   }
+ },
+ "16": {
+  "distinct": 0,
+  "exhausted": true,
+  "unbounded": false,
+  "high_labels": [],
+  "sec": 902.1,
+  "err": null,
+  "refine": {
+   "ok": 0,
+   "rescued_exception": 0,
+   "rescued_overshoot": 0,
+   "fail_exception": 0,
+   "fail_threshold": 0,
+   "fail_badstart": 0
+  },
+  "wild_assignments": 66854,
+  "wild": {
+   "joint_infeasible": 66854
+  }
+ },
+ "15": {
+  "distinct": 0,
+  "exhausted": true,
+  "unbounded": false,
+  "high_labels": [],
+  "sec": 1320.7,
+  "err": null,
+  "refine": {
+   "ok": 0,
+   "rescued_exception": 0,
+   "rescued_overshoot": 0,
+   "fail_exception": 0,
+   "fail_threshold": 0,
+   "fail_badstart": 0
+  },
+  "wild_assignments": 49170,
+  "wild": {
+   "joint_infeasible": 49170
+  }
  }
 }
