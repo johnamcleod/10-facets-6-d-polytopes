@@ -1934,6 +1934,9 @@ def _build_minor_index(dotted_pairs, n, d):
 # is several orders above the noise floor while far below any genuine separation.
 _DISC_RTOL = 1e-10
 
+# Upper bound of the bounded box searched by the wildcard joint-feasibility step.
+_WILD_BOX_HI = 1000.0
+
 # How often the tangency case actually fires.  Every increment is a decision that
 # the pre-2026-07-28 code could have resolved either way depending on the facet
 # numbering, so this counter measures the blast radius of that bug in any run.
@@ -2361,7 +2364,12 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
             grad = -4.0 * np.einsum('k,ek,ek->e', lam, Vs[ui, :], Vs[uj, :])
             return f, grad
 
-    bounds = [(1.001, 1000.0)] * k_d + [(_WILD_C_MIN, 0.999999)] * len(free_wild)
+    # Upper bound on a dashed weight during the wildcard feasibility search.  It is
+    # a run parameter, not a theorem, so it is exposed here in order to be varied:
+    # paper/checks/wild_box_sensitivity.py re-runs types with it raised by three
+    # orders of magnitude and checks that no verdict changes.
+    bounds = ([(1.001, _WILD_BOX_HI)] * k_d
+              + [(_WILD_C_MIN, 0.999999)] * len(free_wild))
     starts = []
     for x0 in (1.5, 1.1, 2.0, 3.0):
         for m0 in (7, 8, 10, 12, 18, 30):

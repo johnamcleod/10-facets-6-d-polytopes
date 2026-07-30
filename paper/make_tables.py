@@ -142,6 +142,7 @@ def main():
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
         "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
                             len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
+        "NumWild": f"{sum((v.get('diag') or {}).get('wild_assignments', 0) for v in STATE.values()):,}".replace(",", "{,}"),
         "NumRequiredLess": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE)) - 1),
         "NumThreeFree": str(len(THREE_FREE)),
         "ThreeFreeList": ", ".join(map(str, THREE_FREE)),
