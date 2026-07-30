@@ -77,7 +77,10 @@ def _is_finite_component(nodes, lab):
     n = len(nodes)
     if n == 1:
         return True
-    edges = {(a, b): m for (a, b), m in lab.items() if a in nodes and b in nodes}
+    # only pairs with m >= 3 are EDGES; m == 2 means the nodes are not joined, and
+    # including those was a bug: it made every tree fail the edge-count test.
+    edges = {(a, b): m for (a, b), m in lab.items()
+             if a in nodes and b in nodes and m >= 3}
     if n == 2:
         # I_2(m) is finite for every finite m (A_2 = I_2(3), B_2 = I_2(4))
         return len(edges) == 1
@@ -193,9 +196,80 @@ def is_elliptic(k, lab):
     return True
 
 
+def _exact_inertia(k, lab):
+    """Inertia of the Gram matrix by exact symmetric congruence elimination.
+
+    Entries are -cos(pi/m).  For m in {2,3,4,5,6} these lie in Q(sqrt2, sqrt3,
+    sqrt5) and sympy decides pivot signs exactly, so the inertia is exact with no
+    tolerance.  For m >= 7 the entries are algebraic of higher degree and sympy
+    cannot in general decide the sign symbolically; those cases raise
+    NotImplementedError rather than fall back to floating point, so a caller can
+    never mistake a numerical decision for an exact one.
+
+    This is needed only for the Lanner test: separating hyperbolic from PARABOLIC is
+    a statement about a determinant, not about graph shape.  The affine diagram
+    G~_2 -- a path with labels 3 and 6 -- is connected, not elliptic, and has all
+    proper subdiagrams elliptic, yet its Gram determinant is exactly zero, so it is
+    parabolic and not Lanner.
+    """
+    import sympy as sp
+    if any(m >= 7 for m in lab.values()):
+        raise NotImplementedError("exact inertia not available for labels >= 7")
+    M = sp.eye(k)
+    for (a, b), m in lab.items():
+        if m >= 3:
+            v = -sp.cos(sp.pi / sp.Integer(m))
+            M[a, b] = v
+            M[b, a] = v
+    M = sp.Matrix(sp.nsimplify(M, rational=False))
+    pos = neg = zero = 0
+    idx = list(range(k))
+    while idx:
+        # find a nonzero diagonal pivot; if none, the block is hyperbolic-degenerate
+        piv = None
+        for t in idx:
+            if sp.simplify(M[t, t]) != 0:
+                piv = t
+                break
+        if piv is None:
+            # all diagonal entries zero: each nonzero off-diagonal contributes one
+            # positive and one negative to the inertia
+            rest = len(idx)
+            offs = any(sp.simplify(M[a, b]) != 0
+                       for a in idx for b in idx if a < b)
+            if offs:
+                pos += 1
+                neg += 1
+                zero += rest - 2
+            else:
+                zero += rest
+            break
+        d = sp.simplify(M[piv, piv])
+        if d > 0:
+            pos += 1
+        elif d < 0:
+            neg += 1
+        else:
+            zero += 1
+        for a in idx:
+            if a == piv:
+                continue
+            f = sp.simplify(M[a, piv] / d)
+            for b in idx:
+                if b == piv:
+                    continue
+                M[a, b] = sp.simplify(M[a, b] - f * M[piv, b])
+        idx = [t for t in idx if t != piv]
+    return pos, neg, zero
+
+
 def is_lanner(k, lab):
-    """Exact: is the diagram connected, non-elliptic, with every proper subdiagram
-    elliptic?  This is the definition of a Lanner diagram."""
+    """Exact: is the diagram a Lanner diagram?
+
+    Connected, every proper subdiagram elliptic, and signature (k-1, 1).  The last
+    condition is what separates Lanner from parabolic and is decided exactly by
+    _exact_inertia.
+    """
     edges = {(a, b) for (a, b), m in lab.items() if m >= 3}
     if len(_components(k, edges)) != 1:
         return False
@@ -208,4 +282,5 @@ def is_lanner(k, lab):
                for (a, b), m in lab.items() if a in idx and b in idx}
         if not is_elliptic(k - 1, sub):
             return False
-    return True
+    pos, neg, zero = _exact_inertia(k, lab)
+    return neg == 1 and zero == 0

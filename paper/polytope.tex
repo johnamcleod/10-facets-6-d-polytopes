@@ -202,9 +202,18 @@ that class; and in any case the algorithm of \cite{FeliksonTumarkin2014} was
 executed only for $d=4$. It is worth saying how our enumeration covers $p\ge3$. The answer is that it never uses the class at all: the only
 place $p$ enters is the paper's $p\ge2$ lemma, a lower bound $p\ge2$, imposed to
 discard types that cannot occur. Types with any $p\ge2$ are generated and
-searched; among our $\NumTypes$ types, $p$ ranges over $2,\dots,6$, and among
-the $\NumSurvivors$ types reaching the search it ranges over $3,\dots,6$
-(24 with $p=3$, 20 with $p=4$, 8 with $p=5$, 2 with $p=6$).
+searched; among our $\NumTypes$ types, $p$ ranges over $2,\dots,6$, among the
+$\NumSurvivors$ passing the facet filter it ranges over $3,\dots,6$ ($24$ with
+$p=3$, $20$ with $p=4$, $8$ with $p=5$, $2$ with $p=6$), and among the
+$\NumRequired$ that survive all the restrictions and require the search it is
+$p=3$ in every case.
+
+The last of those is worth drawing out, since it makes the comparison with the
+class $\mathcal{P}$ sharper than it first appears. Every type with $p\ge4$ is
+excluded by the paper's bounded-dashed-degree lemma or its size-$6$ missing-face
+lemma---which is what one would expect, since more disjoint pairs force a facet of
+higher dashed degree---so the search is confined to $p=3$, exactly the value
+realized by $\PP$.
 
 That no $p=2$ type survives is a consequence of the facet filter rather than an
 assumption. A facet is tested by the paper's facet-admissibility lemma exactly when it meets all

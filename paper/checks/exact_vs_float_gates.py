@@ -91,18 +91,34 @@ def main():
     rng = random.Random(20260730)
     bad = []
 
-    print("exhaustive where the domain permits:")
+    print("elliptic gate, exhaustive where the domain permits:")
     for k in (3, 4):
         bad += compare(k, tuples_exhaustive(k), "exhaustive", "elliptic")
-    for k in (3, 4):
-        bad += compare(k, tuples_exhaustive(k), "exhaustive", "lanner")
 
     print("\nrandom sampling where it does not (5- and 6-node groups):")
     for k in (5, 6):
         bad += compare(k, tuples_random(k, samples, rng), f"{samples:,} random",
                        "elliptic")
-    bad += compare(5, tuples_random(5, samples, rng), f"{samples:,} random",
-                   "lanner")
+
+    # The Lanner gate is NOT the same predicate as Lanner membership.  The search
+    # prunes on "exactly one negative eigenvalue", which is a NECESSARY condition
+    # for being Lanner and is deliberately weaker; exact Lanner membership is
+    # strictly stronger.  Comparing them for equality is a category error.  What
+    # must hold is the implication, and that is what is checked here.
+    print("\nLanner: exact membership must imply the (weaker) gate the search uses:")
+    for k in (3, 4):
+        pairs = [(a, b) for a in range(k) for b in range(a + 1, k)]
+        n = viol = n_lan = 0
+        for combo in itertools.product(ALPHABET, repeat=len(pairs)):
+            lab = dict(zip(pairs, combo))
+            n += 1
+            if is_lanner(k, lab):
+                n_lan += 1
+                if not float_lanner(k, lab):
+                    viol += 1
+        print(f"  k={k}  {n:>8,} tuples   {n_lan:>6,} exactly Lanner   "
+              f"{'implication holds' if not viol else str(viol) + ' VIOLATIONS'}")
+        bad += [1] * viol
 
     print("\nLanner's classification, recovered from the definition:")
     for k in (4, 5):
