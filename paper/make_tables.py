@@ -37,7 +37,14 @@ def _load_state(*dirs):
                 st[r.pop("key")] = r
     return st
 
-STATE = _load_state("d6_tangency", "d6_rest")
+# The classification of record is the run produced by the final pipeline, i.e. with
+# every restriction of Section 4 imposed before the search.  Fall back to the
+# earlier two-part run only if that directory is absent, so the script still works
+# before the final run completes.
+if (ROOT / "runs/d6_n10/d6_final/state.jsonl").exists():
+    STATE = _load_state("d6_final")
+else:
+    STATE = _load_state("d6_tangency", "d6_rest")
 D5 = json.load(open(ROOT / "runs/d5_n9/d5_discfix.json"))
 D4 = _load_state.__wrapped__ if False else None
 
@@ -192,7 +199,7 @@ def main():
         print(f"  {k:18s} {v}")
     # invariants the paper asserts
     assert len(SURV) == 54 and len(TYPES) == 387
-    searched = [t for t in SURV if t not in THREE_FREE]
+    searched = sorted({int(k.split("|")[0]) for k in STATE})
     notclosed = [t for t in searched if not _closed(t)]
     assert not notclosed, f"types not rigorously closed: {notclosed}"
     # no verdict may rest on a truncation at the depth cap, a wildcard window that
