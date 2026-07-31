@@ -82,6 +82,11 @@ P6 = json.load(open(ROOT / "runs/d6_n10/plain_certificates.json"))["summary"]
 # the census.
 W5P = json.load(open(ROOT / "runs/d5_n9/wild_certificates_passers.json"))["summary"]
 
+# The data behind "exactly one polytope up to isometry"
+# (paper/checks/uniqueness_witness.py): the weight tree of the accepted labelling,
+# and the automorphism orbit that makes several label assignments one polytope.
+UW = json.load(open(ROOT / "runs/d6_n10/uniqueness_witness.json"))
+
 # Cascade branch counters of the d=4 census of record (runs/d4_n8/survivors_discfix),
 # read here so that the figures quoted for dimension 4 come from the same run as its
 # 348 polytopes.  An earlier directory, d4_final, has different totals; quoting one
@@ -184,10 +189,7 @@ def main():
         # can satisfy more than one exclusion; the first that applies is the one
         # reported, in the order the reductions are presented in Section 4.
         fl = FLAGS.get(str(tid), {})
-        if tid in THREE_FREE:
-            method = r"Lem.\,\ref{lem:esselmann}"
-            verdict = "0"
-        elif fl.get("max_dashed_degree", 0) >= 3:
+        if fl.get("max_dashed_degree", 0) >= 3:
             method = r"Lem.\,\ref{lem:degree}"
             verdict = "0"
         elif fl.get("has_missing_face_of_size_d", False):
@@ -195,6 +197,12 @@ def main():
             verdict = "0"
         elif not fl.get("degree2_facet_is_prism", True):
             method = r"Lem.\,\ref{lem:prism}"
+            verdict = "0"
+        elif tid in THREE_FREE:
+            # unreachable on the current data: both 3-free types have dashed degree
+            # 3 and so are already excluded by Lemma "degree".  Kept so that the
+            # table would still name a deciding theorem if that ever changed.
+            method = r"Lem.\,\ref{lem:esselmann}"
             verdict = "0"
         elif ndist:
             method = "search"
@@ -229,8 +237,13 @@ def main():
         # after the two Lanner-derived exclusions alone, before the prism lemma
         "NumAfterDegMF": str(len(TYPES) - len(DEG_KILLED | BIGMF_KILLED)),
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
-        "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
+        "NumRedundant": str(len(set(SURV)) -
                             len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
+        # of those, the number also re-searched directly: the two 3-free types are
+        # excluded by Lemma "degree" but their label trees do not terminate, so they
+        # are the ones the corroborating search cannot cover
+        "NumRedundantSearched": str(len(COMB_KILLED & set(SURV)) -
+                                    len(COMB_KILLED & set(THREE_FREE))),
         "DFiveWild": _c(D5W_TOTAL),
         "DFiveWildKilled": _c(D5W_REJECTED),
         "DFiveWildSurvived": str(D5W_TOTAL - D5W_REJECTED),
@@ -282,7 +295,10 @@ def main():
         "RealizingProfile": profile_str(379),
         "ThreeFreeP": ", ".join(str(TYPES[t]["p_count"]) for t in THREE_FREE),
         "ThreeFreeProfile": " and ".join(sorted({profile_str(t) for t in THREE_FREE})),
-        "NumGramConfigs": "12",
+        "NumGramConfigs": str(UW["orbit_of_the_labelling"]),
+        "AutTypeOrder": str(UW["aut_type_order"]),
+        "AutStabOrder": str(UW["labelling_stabiliser_order"]),
+        "WeightLeaves": str(UW["weight_tree_leaves"]),
         "DFiveTotal": str(d5_total),
         "DFiveTypes": str(len(D5)),
         "DFiveCPUHours": f"{sum(x['sec'] for x in D5.values())/3600:.1f}",
@@ -317,6 +333,14 @@ def main():
     # the two combinatorial theorems must not touch the realizing type, and must
     # agree with the search wherever both speak
     assert 379 not in COMB_KILLED
+    # "exactly one up to isometry": the accepted labelling must determine its
+    # weights (one leaf of the weight tree, one passing), and the label assignments
+    # describing the polytope must be a single Aut(T)-orbit.
+    assert UW["weight_tree_leaves"] == UW["weight_tree_leaves_passing"] == 1, (
+        f"the accepted labelling has {UW['weight_tree_leaves']} weight-tree leaves, "
+        f"{UW['weight_tree_leaves_passing']} passing")
+    assert (UW["orbit_of_the_labelling"] * UW["labelling_stabiliser_order"]
+            == UW["aut_type_order"]), "orbit-stabiliser does not hold as recorded"
     # the d=5 calibration quoted in Section 5.4
     assert D5W_TOTAL - D5W_REJECTED == 9, "d=5 wildcard survivors changed"
     # Proposition "wildexact": EVERY wildcard-bearing labelling of the run of

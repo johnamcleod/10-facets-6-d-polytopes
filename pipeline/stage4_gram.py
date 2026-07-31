@@ -2263,6 +2263,13 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
         for x in roots:
             p2 = dict(pins); p2[e] = x
             stack.append((p2, unknown - {e}))
+    # Record the size of the weight tree, not just its surviving leaves: a single
+    # labelling can present several candidate weight vectors (each pinning step
+    # admits up to two roots > 1), and the paper reports how many the accepted
+    # labelling had.
+    if stats is not None:
+        stats["leaves"] = stats.get("leaves", 0) + leaves
+        stats["leaf_solutions"] = stats.get("leaf_solutions", 0) + len(solutions)
     if solutions:
         _bump("cascade_true")
         return True, solutions

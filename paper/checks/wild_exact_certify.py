@@ -61,11 +61,12 @@ MAX_MINORS = 12
 MAX_BOXES = 50_000
 
 # Above this many instances the artifact stores one compact digest per instance
-# instead of the full certificate: the d=5 validation census is 149,666
-# instances, and full witnesses for all of them would be a ~150 MB file.  The
-# d=6 case, which is the one the theorem depends on, is far below the cap and is
-# therefore stored in full.
-FULL_DETAIL_CAP = 2000
+# instead of the full certificate, because full witnesses for a whole d=5 census
+# (~150,000 instances) would be a ~150 MB file.  The cap is set well above every
+# set actually certified here so that each committed artifact stays independently
+# re-checkable, instance by instance, which is what tests/test_exact_certify.py
+# exercises; only a census-wide run would trip it.
+FULL_DETAIL_CAP = 20_000
 
 
 def _complete(src):
