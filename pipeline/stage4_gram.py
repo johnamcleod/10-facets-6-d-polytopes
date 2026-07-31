@@ -877,6 +877,21 @@ _LG_VALID_CACHE: dict = {}
 # operations scale linearly — above ~4096 combos it becomes noticeably slower.
 _BITMASK_COMBO_LIMIT = 4096
 
+# Forward-checking gates: exact (tolerance-free) or floating point.
+#
+# With EXACT_GATES on, both predicates the enumerator prunes with are decided by
+# pipeline/utils/exact_gates.py -- ellipticity as a combinatorial condition on the
+# labelled graph, Lanner membership by connectivity plus an exact determinant sign
+# over Q(sqrt2,sqrt3,sqrt5) -- so no emptiness verdict rests on an eigenvalue
+# tolerance.  The Lanner gate then tests MEMBERSHIP rather than the weaker
+# necessary condition "exactly one negative eigenvalue"; that is sound, because the
+# subdiagram of a missing face is Lanner, and it prunes at least as much, so the
+# search can only shrink.  Set EXACT_GATES=0 in the environment to recover the
+# floating-point gates.
+EXACT_GATES = os.environ.get("EXACT_GATES", "1") not in ("0", "false", "no")
+if EXACT_GATES:
+    from pipeline.utils import exact_gates as _xg
+
 
 def _canonical_pd_valid(d, max_combos=1 << 22, label_indices=None):
     """Compute valid label-index combos for a d-node all-ordinary vertex (PD condition).
@@ -895,6 +910,20 @@ def _canonical_pd_valid(d, max_combos=1 << 22, label_indices=None):
     if nl ** k >= max_combos:
         _VG_VALID_CACHE[cache_key] = None
         return None
+
+    if EXACT_GATES:
+        # Exact table: the predicate is a combinatorial condition on the labelled
+        # graph, so the whole table is built without arithmetic.  Sizes here are
+        # 6^3 and 6^6 tuples, so this costs seconds once per process.
+        arr = np.array([c for c in itertools.product(labels, repeat=k)
+                        if _xg.elliptic_core(d, c)], dtype=np.int8)
+        if len(arr):
+            idx = {m: i for i, m in enumerate(labels)}
+            arr = np.vectorize(idx.get)(arr).astype(np.int8)
+        else:
+            arr = np.zeros((0, k), dtype=np.int8)
+        _VG_VALID_CACHE[cache_key] = arr
+        return arr
 
     label_f = np.array([_GRAM_FLOAT[m] for m in labels], dtype=float)
     # Pair positions: (a,b) for each of the k pairs in lex order
@@ -946,6 +975,17 @@ def _canonical_lanner_valid(k, max_combos=1 << 22, label_indices=None):
     if nl ** num_pairs >= max_combos:
         _LG_VALID_CACHE[cache_key] = None
         return None
+
+    if EXACT_GATES:
+        arr = np.array([c for c in itertools.product(labels, repeat=num_pairs)
+                        if _xg.lanner_core(k, c)], dtype=np.int8)
+        if len(arr):
+            idx = {m: i for i, m in enumerate(labels)}
+            arr = np.vectorize(idx.get)(arr).astype(np.int8)
+        else:
+            arr = np.zeros((0, num_pairs), dtype=np.int8)
+        _LG_VALID_CACHE[cache_key] = arr
+        return arr
 
     label_f = np.array([_GRAM_FLOAT[m] for m in labels], dtype=float)
     pairs_ab = [(a, b) for a in range(k) for b in range(a + 1, k)]
@@ -1322,17 +1362,25 @@ def enumerate_labels_backtrack(ordinary_pairs, vertex_groups, lanner_groups=None
             if ok and (pair_to_vg_bt[pi] or pair_to_lg_bt[pi]):
                 assign_dict = {pairs_list[i]: actual_labels[assignment[i]]
                                for i in range(depth + 1)}
+                # The 5- and 6-node groups are too large to tabulate, so they are
+                # decided here, per node of the search tree.  With EXACT_GATES the
+                # decision is the tolerance-free one, memoized on the label tuple:
+                # the enumerator asks the same question about the same small
+                # diagram many millions of times, so the cache does the work the
+                # table would have done.
+                _pd = _xg.vertex_pd_exact if EXACT_GATES else _is_vertex_pd_float
                 for g_idx in pair_to_vg_bt[pi]:
                     v_sorted, vp_set = vertex_groups[g_idx]
                     if all(p in assign_dict for p in vp_set):
-                        if not _is_vertex_pd_float(v_sorted, assign_dict):
+                        if not _pd(v_sorted, assign_dict):
                             ok = False
                             break
                 if ok:
+                    _ln = _xg.lanner_exact if EXACT_GATES else _is_lanner_float
                     for g_idx in pair_to_lg_bt[pi]:
                         face_sorted, lp, k = lanner_groups[g_idx]
                         if all(p in assign_dict for p in lp):
-                            if not _is_lanner_float(face_sorted, assign_dict, k):
+                            if not _ln(face_sorted, assign_dict, k):
                                 ok = False
                                 break
 

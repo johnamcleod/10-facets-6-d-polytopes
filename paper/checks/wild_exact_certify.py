@@ -90,8 +90,13 @@ def cases():
     # instances a false refutation would damage; the census adds refutation-power
     # coverage over the rejections, which is a much larger and much slower set.
     d5_full = ROOT / "runs/d5_n9/wild_instances_full.jsonl"
-    use_full = _complete(d5_full) and "--full-d5" in sys.argv[1:]
-    d5_src = d5_full if use_full else ROOT / "runs/d5_n9/wild_instances.jsonl"
+    d5_calib = ROOT / "runs/d5_n9/wild_instances_calib.jsonl"
+    if _complete(d5_full) and "--full-d5" in sys.argv[1:]:
+        d5_src = d5_full
+    elif _complete(d5_calib):
+        d5_src = d5_calib
+    else:
+        d5_src = ROOT / "runs/d5_n9/wild_instances.jsonl"
     return [
         ("d=6, n=10", ROOT / "runs/d6_n10/wild_instances.jsonl",
          ROOT / "runs/d6_n10/wild_certificates.json"),
@@ -149,7 +154,7 @@ def _digest(r):
             "margin": r["margin"]}
 
 
-def run_case(name, src, dst, workers=1, shard=None):
+def run_case(name, src, dst, workers=1, shard=None, sample=None, seed=0):
     """Certify every instance in `src`.
 
     Parallelism is by SHARDING into independent processes, not by a worker pool:
@@ -160,6 +165,17 @@ def run_case(name, src, dst, workers=1, shard=None):
     printed as it goes, because this case takes hours.
     """
     recs = [json.loads(l) for l in src.read_text().splitlines() if l.strip()]
+    if sample is not None and sample < len(recs):
+        # A reproducible uniform sample of the REJECTIONS, for measuring refuting
+        # power on a set too large to certify whole.  Instances that survived the
+        # screen are always kept: those are the ones a false refutation would
+        # damage, and they are few.
+        import random
+        keep = [r for r in recs if r["numerical_verdict"] == "feasible"]
+        rej = [r for r in recs if r["numerical_verdict"] == "infeasible"]
+        random.Random(seed).shuffle(rej)
+        recs = keep + rej[:sample]
+        dst = dst.with_name(dst.name.replace(".json", f"_sample{sample}.json"))
     if shard is not None:
         i, n = shard
         recs = [r for k, r in enumerate(recs) if k % n == i]
@@ -292,27 +308,46 @@ def main():
         pas = [r for r in recs if r["numerical_verdict"] == "feasible"]
         out = [_one(r) for r in pas]
         wrong = [r for r in out if r["certified_infeasible"]]
+        # The claim is about every instance in the CENSUS that survived the screen,
+        # so the set certified here must contain all of them even when it covers
+        # only the types they occur in.  Counted from the census artifact.
+        census = json.loads((ROOT / "runs/d5_n9/d5_exact.json").read_text())
+        census_total = sum(v.get("wild_assignments", 0) for v in census.values())
+        census_pass = sum(v.get("wild_assignments", 0)
+                          - (v.get("wild") or {}).get("joint_infeasible", 0)
+                          for v in census.values())
+        if len(pas) != census_pass:
+            print(f"COVERAGE GAP: {len(pas)} screen-passers in this set, "
+                  f"{census_pass} in the census", file=sys.stderr)
+            return 2
         dst = dst.with_name(dst.name.replace(".json", "_passers.json"))
         dst.write_text(json.dumps({"summary": {
             "case": name + ", instances surviving the joint screen",
             "source": str(src.relative_to(ROOT)),
-            "census_instances": len(recs),
+            "instances_in_source": len(recs),
+            "census_instances": census_total,
             "passed_joint_screen": len(pas),
             "wrongly_certified_among_screen_passers": len(wrong),
         }, "instances": out}, indent=1) + "\n")
-        print(f"{len(pas)} of {len(recs)} instances survived the joint screen; "
-              f"{len(wrong)} of them were refuted by the exact certifier")
+        print(f"{len(pas)} of the census's {census_total} wildcard instances "
+              f"survived the joint screen, all of them in this {len(recs)}-instance "
+              f"set; {len(wrong)} were refuted by the exact certifier")
         print(f"artifact -> {dst.relative_to(ROOT)}")
         print("RESULT:", "no surviving instance is refuted" if not wrong
               else "UNSOUND: a surviving instance was refuted")
         return 0 if not wrong else 1
+    sample = next((int(a.split("=")[1]) for a in sys.argv[1:]
+                   if a.startswith("--sample=")), None)
     shard = next((a.split("=")[1] for a in sys.argv[1:]
                   if a.startswith("--shard=")), None)
-    if shard is not None:
-        i, n = (int(x) for x in shard.split("/"))
-        # A shard run does the d=5 case only: the d=6 case is seconds.
+    if sample is not None or shard is not None:
+        # Both restrict the d=5 case only; the d=6 case takes seconds and is always
+        # done whole.  They compose: the sample is drawn first, deterministically
+        # from the seed, so every shard draws the same sample and then takes its own
+        # residue class of it.
         name, src, dst = cases()[1]
-        run_case(name, src, dst, shard=(i, n))
+        sh = None if shard is None else tuple(int(x) for x in shard.split("/"))
+        run_case(name, src, dst, shard=sh, sample=sample)
         return 0
     if "--merge" in sys.argv[1:]:
         n = next(int(a.split("=")[1]) for a in sys.argv[1:]

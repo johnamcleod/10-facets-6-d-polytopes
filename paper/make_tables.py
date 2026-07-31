@@ -19,13 +19,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 TYPES = {t["type_id"]: t for t in json.load(open(ROOT / "runs/d6_n10/stage2/types.json"))}
 SURV = json.load(open(ROOT / "runs/d6_n10/facet_profile_survivors.json"))["survivors"]
-# The d=6 classification of record is the 2026-07-30 re-run on the code with the
-# tangency correction of Section 5.3 (a bare `disc < 0` test on a quadratic with a
-# DOUBLE root, decided by rounding and therefore by the facet numbering).  It was
-# executed in two concurrent parts -- the five types the tangency probe implicated
-# plus the anchor, and the remaining 46 -- so both checkpoints are merged here.
-# The superseded pre-correction run is retained in the repository but is NOT used
-# for any number in the paper.
+# The d=6 classification of record.  Earlier checkpoint directories are retained in
+# the repository for provenance but are NOT used for any number in the paper.
 def _load_state(*dirs):
     st = {}
     for d in dirs:
@@ -37,16 +32,31 @@ def _load_state(*dirs):
                 st[r.pop("key")] = r
     return st
 
-# The classification of record is the run produced by the final pipeline, i.e. with
-# every restriction of Section 4 imposed before the search.  Fall back to the
-# earlier two-part run only if that directory is absent, so the script still works
-# before the final run completes.
-if (ROOT / "runs/d6_n10/d6_final/state.jsonl").exists():
-    STATE = _load_state("d6_final")
+# The classification of record is the run with every restriction of Section 4
+# imposed before the search AND the exact forward-checking gates of Section 5.1, so
+# that no verdict in it rests on a tolerance.  Earlier runs are read only if it is
+# absent, so the script still works before the final run completes.
+for _cand in ("d6_exact", "d6_final"):
+    if (ROOT / f"runs/d6_n10/{_cand}/state.jsonl").exists():
+        STATE = _load_state(_cand)
+        RUN_OF_RECORD = _cand
+        break
 else:
     STATE = _load_state("d6_tangency", "d6_rest")
-D5 = json.load(open(ROOT / "runs/d5_n9/d5_discfix.json"))
+    RUN_OF_RECORD = "d6_tangency+d6_rest"
+# The d=5 census of record: the run through the same code path as the d=6
+# classification, i.e. with the exact forward-checking gates.  Falls back to the
+# earlier floating-point-gate run if that is absent.
+_d5x = ROOT / "runs/d5_n9/d5_exact.json"
+D5 = json.load(open(_d5x if _d5x.exists()
+                    else ROOT / "runs/d5_n9/d5_discfix.json"))
 D4 = _load_state.__wrapped__ if False else None
+
+# Wildcard traffic in the d=5 census of record, which calibrates the
+# joint-feasibility test against ground truth (Section 5.4).  Read from the same
+# artifact the census totals come from, so the two cannot describe different runs.
+_D5W = D5 if any("wild_assignments" in v for v in D5.values()) else \
+    json.load(open(ROOT / "runs/d5_n9/d5_wildcounts.json"))
 
 NLAB, MAXD = 6, 14
 
@@ -57,7 +67,6 @@ FLAGS = json.load(open(ROOT / "runs/d6_n10/type_flags.json"))["d6_n10"]
 
 # Wildcard traffic in the d=5 census, which calibrates the joint-feasibility test
 # against ground truth (Section 5.4).  Read from the artifact, never transcribed.
-_D5W = json.load(open(ROOT / "runs/d5_n9/d5_wildcounts.json"))
 
 # Exact wildcard infeasibility certificates, written by
 # paper/checks/wild_exact_certify.py from the instance dumps of run_wild_dump.py.
@@ -72,6 +81,23 @@ P6 = json.load(open(ROOT / "runs/d6_n10/plain_certificates.json"))["summary"]
 # W5 above and may cover the census or the two-type subset; this one always covers
 # the census.
 W5P = json.load(open(ROOT / "runs/d5_n9/wild_certificates_passers.json"))["summary"]
+
+# Cascade branch counters of the d=4 census of record (runs/d4_n8/survivors_discfix),
+# read here so that the figures quoted for dimension 4 come from the same run as its
+# 348 polytopes.  An earlier directory, d4_final, has different totals; quoting one
+# run's pair count beside another's decision count is exactly the confusion this
+# avoids.
+def _d4_branches():
+    br = Counter()
+    p = ROOT / "runs/d4_n8/survivors_discfix/state.jsonl"
+    for line in p.read_text().splitlines():
+        if line.strip():
+            r = json.loads(line)
+            for k, v in ((r.get("diag") or {}).get("screen_branches") or {}).items():
+                br[k] += v
+    return br
+
+D4B = _d4_branches()
 
 
 def _sci(x, digits=1, up=False):
@@ -153,14 +179,28 @@ def main():
         tot_sub += nsub
         tot_enum += enum
         tot_sec += sec
+        # The method column must name the deciding lemma for every row a theorem
+        # decides, and say "search" only for the types actually searched.  A type
+        # can satisfy more than one exclusion; the first that applies is the one
+        # reported, in the order the reductions are presented in Section 4.
+        fl = FLAGS.get(str(tid), {})
         if tid in THREE_FREE:
-            method = r"Esselmann\,\ref{lem:esselmann}"
+            method = r"Lem.\,\ref{lem:esselmann}"
+            verdict = "0"
+        elif fl.get("max_dashed_degree", 0) >= 3:
+            method = r"Lem.\,\ref{lem:degree}"
+            verdict = "0"
+        elif fl.get("has_missing_face_of_size_d", False):
+            method = r"Lem.\,\ref{lem:mfsix}"
+            verdict = "0"
+        elif not fl.get("degree2_facet_is_prism", True):
+            method = r"Lem.\,\ref{lem:prism}"
             verdict = "0"
         elif ndist:
-            method = "exhaustive search"
+            method = "search"
             verdict = r"\textbf{1}"
         else:
-            method = "exhaustive search"
+            method = "search"
             verdict = "0"
         req = ("" if tid in COMB_KILLED else r"$\bullet$")
         rows.append((tid, TYPES[tid]["p_count"], profile_str(tid), req, verdict,
@@ -186,6 +226,8 @@ def main():
         "NumBigMF": str(len(BIGMF_KILLED - DEG_KILLED)),
         "NumPrism": str(len(PRISM_KILLED - DEG_KILLED - BIGMF_KILLED)),
         "NumAfterComb": str(len(TYPES) - len(COMB_KILLED)),
+        # after the two Lanner-derived exclusions alone, before the prism lemma
+        "NumAfterDegMF": str(len(TYPES) - len(DEG_KILLED | BIGMF_KILLED)),
         "NumRequired": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
         "NumRedundant": str(len(set(SURV) - set(THREE_FREE)) -
                             len(set(SURV) - COMB_KILLED - set(THREE_FREE))),
@@ -202,6 +244,9 @@ def main():
         "WildMinMargin": _sci(W6["min_margin"]),
         "WildResidMin": _sci(W6["numerical_residual_min"]),
         "WildResidMax": _sci(W6["numerical_residual_max"], up=True),
+        "DFourCascade": _c(sum(D4B.values())),
+        "DFourPair": _c(D4B["cascade_pair"]),
+        "DFourFallback": _c(D4B["numerical_fallback"]),
         "PlainRejected": _c(P6["cascade_rejected"]),
         "PlainCertified": _c(P6["exactly_certified_unrealizable"]),
         "DFiveWildCertSet": _c(W5["instances"]),
@@ -227,7 +272,9 @@ def main():
         "ThreeFreeList": ", ".join(map(str, THREE_FREE)),
         "NumSubtrees": f"{tot_sub:,}".replace(",", "{,}"),
         "NumAssignments": f"{tot_enum:,}".replace(",", "{,}"),
-        "CPUHours": f"{tot_sec/3600:,.0f}".replace(",", "{,}"),
+        # sub-hour totals need a decimal, or "in 1 CPU-hours" gets printed
+        "CPUHours": (f"{tot_sec/3600:.2f}" if tot_sec < 36000
+                     else f"{tot_sec/3600:,.0f}".replace(",", "{,}")),
         "RealizingType": "379",
         # profiles, so the paper can name a type by its invariants (Section 3.5)
         # rather than by our arbitrary discovery-order number
@@ -288,9 +335,18 @@ def main():
         assert W["wrongly_certified_among_screen_passers"] == 0, (
             f"{tag}: the exact certifier refuted a labelling that SURVIVED the "
             f"screen")
+    # The one-sidedness check need not certify the whole census, but it must cover
+    # every instance in it that survived the screen -- those are the only ones a
+    # false refutation could damage.  Both counts come from the census artifact.
+    _d5pass_census = sum(v.get("wild_assignments", 0)
+                         - (v.get("wild") or {}).get("joint_infeasible", 0)
+                         for v in _D5W.values())
     assert W5P["census_instances"] == D5W_TOTAL, (
-        f"the one-sidedness check covers {W5P['census_instances']} instances but "
-        f"the d=5 census has {D5W_TOTAL}")
+        f"the one-sidedness check reports a census of {W5P['census_instances']} "
+        f"instances, but the census of record has {D5W_TOTAL}")
+    assert W5P["passed_joint_screen"] == _d5pass_census, (
+        f"the one-sidedness check covers {W5P['passed_joint_screen']} screen-passers "
+        f"but the census has {_d5pass_census}")
     # The d=5 calibration set must contain every instance that survived the joint
     # screen -- that is where a false refutation would show up.  Nine of them are
     # the pi/10 polytopes; the rest survive the continuous relaxation and are

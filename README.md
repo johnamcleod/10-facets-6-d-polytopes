@@ -1,9 +1,9 @@
-# Compact hyperbolic Coxeter 6-polytopes with 10 facets
+# Compact hyperbolic Coxeter six-dimensional polytopes with ten facets
 
 Code, data and machine-checked certificates for the paper
 
-> **Compact hyperbolic Coxeter 6-polytopes with 10 facets, and the completion of
-> the d+4 classification** (`paper/paper.tex`)
+> **Compact hyperbolic Coxeter six-dimensional polytopes with ten facets**
+> (`paper/paper.tex`)
 
 **Result.** Up to isometry there is exactly one compact hyperbolic Coxeter
 6-polytope with 10 facets — the polytope drawn in [Burcroff 2024, Fig. 5], which
@@ -36,7 +36,7 @@ are resumed and nothing is recomputed).
 
 | command | what it produces | cost |
 |---|---|---|
-| `run_survivors_rigorous.py all <nproc> wildcard` | the **d=6** classification of record → `runs/d6_n10/<out>/` | 12 CPU-h |
+| `run_survivors_rigorous.py all <nproc> wildcard out=…` | the **d=6** classification of record → `runs/d6_n10/<out>/` | 1 CPU-h |
 | `run_survivors_rigorous.py all <nproc> wildcard d=4 out=…` | the **d=4** census, 348 polytopes over 30 types | hours |
 | `validate_d5_wildcard.py <nproc> out=…` | the **d=5** census, 51 polytopes over 109 types | 1.4 CPU-h |
 | `run_full_pipeline_d6.py` | Stages 2–4 end to end, starting from the order-type database (needs `otypes10.b16`) | hours |
@@ -144,8 +144,8 @@ tail:
 ```
   NumTypes           387        NumSurvivors       54
   NumRequired        11         NumThreeFree       2      (types 159, 329)
-  NumSubtrees        71         CPUHours           12
-  NumAssignments     952        MaxDepth           2
+  NumSubtrees        11         CPUHours           0.96
+  NumAssignments     952        MaxDepth           0
   WildCertified      406        PlainCertified     545
   DFiveTotal         51         DFourFound         348
   RealizingType      379
@@ -194,9 +194,10 @@ test and takes several minutes.
 |---|---|
 | `runs/d6_n10/stage2/types.json` | the 387 combinatorial types, with missing faces and vertex sets |
 | `runs/d6_n10/facet_profile_survivors.json` | the 54 survivors of the facet filter |
-| `runs/d6_n10/d6_final/` | the d=6 classification of record: 71 subtree certificates over the 11 required types |
-| `runs/d6_n10/d6_final/realizers/` | the realizer records for the unique polytope |
-| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the superseded two-part run over 52 types (1,156 subtrees, 173 CPU-h), retained for provenance; `make_tables.py` falls back to it only if `d6_final/` is absent |
+| `runs/d6_n10/d6_exact/` | the d=6 classification of record: one exhaustion certificate per required type, with the exact forward-checking gates |
+| `runs/d6_n10/d6_exact/realizers/` | the realizer records for the unique polytope |
+| `runs/d6_n10/d6_final/` | the same 11 types with the floating-point gates: identical verdicts, and the source of the searched-and-empty data for the 41 lemma-excluded types |
+| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the earlier run over 52 types, retained for provenance |
 | `runs/d6_n10/wild_instances.jsonl`, `plain_instances.jsonl` | every labelling that reached a screen, 406 + 546, with the verdict each was rejected on |
 | `runs/d6_n10/wild_certificates.json`, `plain_certificates.json` | the exact refutation certificate for each of them |
 | `runs/d5_n9/wild_certificates.json` | the d=5 calibration: the certifier refutes the rejections and none of the 9 realizable instances |
@@ -450,6 +451,7 @@ them. Section numbers refer to the paper in the companion repository
 | §5.2 | orbit symmetry breaking | `pipeline/utils/automorphisms.py` |
 | §5.3 | the cascade screen; the tangency tolerance | `_structured_screen`, `_quad_roots_gt1`, `_DISC_RTOL` in `pipeline/stage4_gram.py` |
 | §5.3, Lem. 5.4 / Prop. 5.5 | the bounded-box fallback is structurally unreachable at d=6; the pair path is never entered | `paper/checks/cascade_reachability.py` |
+| §5.1, Prop. 5.1 | exact (tolerance-free) forward-checking gates: ellipticity combinatorially, Lannér membership by an integer criterion on 3 nodes and an exact determinant over Q(√2,√3,√5) on 4–5 | `pipeline/utils/exact_gates.py`, `pipeline/utils/coxeter_exact.py`; toggle with `EXACT_GATES=0`; agreement with the float gates is `paper/checks/exact_vs_float_gates.py` |
 | §5.4 | wildcard range analysis and integer window scan | `_solve_wild_assignment` in `pipeline/stage4_gram.py` |
 | §5.3, Prop. 5.3 | exact certificates for all 545 rejected non-wildcard labellings | driver `paper/checks/plain_exact_certify.py` |
 | §5.4, Prop. 5.4 | exact infeasibility certificates for all 406 wildcard labellings, and the d=5 calibration | `pipeline/utils/exact_field.py`, `pipeline/utils/exact_certify.py`, driver `paper/checks/wild_exact_certify.py`, instances from `run_wild_dump.py`, tests `tests/test_exact_certify.py` |

@@ -55,7 +55,7 @@ DEFAULT_SUBTREES = {
 
 def subtrees_from_state(d):
     """Every subtree of the run of record with a nonzero labelling count."""
-    for name in ("d6_final", "survivors_wildcard", "survivors_rigorous"):
+    for name in ("d6_exact", "d6_final", "survivors_wildcard", "survivors_rigorous"):
         p = ROOT / f"runs/d{d}_n{d + 4}/{name}/state.jsonl"
         if not p.exists():
             continue
@@ -72,6 +72,22 @@ def subtrees_from_state(d):
             print(f"subtree list from runs/d{d}_n{d + 4}/{name}/state.jsonl")
             return out
     return []
+
+
+def _reset(path):
+    """Clear a sink AND its completion marker before writing.
+
+    The marker must go first: leaving a previous run's marker beside a
+    freshly-truncated dump would advertise a complete artifact that is being
+    rewritten, and a consumer checking only for the marker's presence would read a
+    prefix.  (Consumers also compare the record count, which is what actually
+    catches this, but there is no reason to leave the trap lying around.)
+    """
+    meta = path.with_suffix(path.suffix + ".meta.json")
+    if meta.exists():
+        meta.unlink()
+    if path.exists():
+        path.unlink()
 
 
 def parse_subtree(arg):
@@ -97,8 +113,7 @@ def main():
             subtrees = [(t, ()) for t in tids]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    if out_path.exists():
-        out_path.unlink()          # append-only sink; never mix two runs
+    _reset(out_path)
     _sg.WILD_DUMP_PATH = str(out_path)
 
     # The labellings without a wildcard go to a companion sink in the same run:
@@ -109,8 +124,7 @@ def main():
     plain_path = out_path.with_name(out_path.name.replace("wild_", "plain_")
                                     if "wild_" in out_path.name
                                     else "plain_" + out_path.name)
-    if plain_path.exists():
-        plain_path.unlink()
+    _reset(plain_path)
     _sg.PLAIN_DUMP_PATH = str(plain_path)
 
     print(f"d={D}, {len(subtrees)} subtree(s) -> {out_path}")

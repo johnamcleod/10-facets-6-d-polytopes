@@ -1,8 +1,9 @@
 {
  "summary": {
   "case": "d=5, n=9 (validation), instances surviving the joint screen",
-  "source": "runs/d5_n9/wild_instances_full.jsonl",
-  "census_instances": 149666,
+  "source": "runs/d5_n9/wild_instances_calib.jsonl",
+  "instances_in_source": 11582,
+  "census_instances": 141033,
   "passed_joint_screen": 11,
   "wrongly_certified_among_screen_passers": 0
  },
