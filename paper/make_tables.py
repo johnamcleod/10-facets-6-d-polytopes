@@ -166,6 +166,12 @@ def main():
         "DFiveWild": _c(D5W_TOTAL),
         "DFiveWildKilled": _c(D5W_REJECTED),
         "DFiveWildSurvived": str(D5W_TOTAL - D5W_REJECTED),
+        # branch counters of the run of record, so no figure is transcribed
+        "NumCascade": _c(sum(sum((v.get("diag") or {}).get("screen_branches", {}).values())
+                             for v in STATE.values())),
+        "NumPlain": _c(sum(v.get("enum_count", 0) for v in STATE.values())
+                       - sum((v.get("diag") or {}).get("wild_assignments", 0)
+                             for v in STATE.values())),
         "NumWild": f"{sum((v.get('diag') or {}).get('wild_assignments', 0) for v in STATE.values()):,}".replace(",", "{,}"),
         "NumRequiredLess": str(len(set(SURV) - COMB_KILLED - set(THREE_FREE)) - 1),
         "NumThreeFree": str(len(THREE_FREE)),

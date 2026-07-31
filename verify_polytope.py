@@ -15,7 +15,7 @@ Checks performed
  5. CoxIter: cocompact, dimension 6, f-vector, covolume  (skipped with a notice
     if the CoxIter binary is not built).
  6. The diagram agrees with the realizer emitted by the classification run
-    (runs/d6_n10/d6_tangency/realizers/), up to relabelling.
+    (runs/d6_n10/d6_final/realizers/), up to relabelling.
 
 Exit code 0 iff every non-skipped check passes.
 """
@@ -141,7 +141,7 @@ def coxiter():
 
 # ---------------------------- 6. agreement with the classification realizers
 def matches_run_output(G):
-    d = ROOT / "runs/d6_n10/d6_tangency/realizers"
+    d = ROOT / "runs/d6_n10/d6_final/realizers"
     files = sorted(d.glob("tid379_*.json")) if d.exists() else []
     if not files:
         return None
@@ -237,7 +237,7 @@ def main():
     print("\n[6] Agreement with the classification run's realizer records")
     m = matches_run_output(G)
     if m is None:
-        print("    SKIPPED (runs/d6_n10/d6_tangency/realizers not present)")
+        print("    SKIPPED (runs/d6_n10/d6_final/realizers not present)")
     else:
         ok &= True
         print(f"    isomorphic; paper node i -> run node: "
