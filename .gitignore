@@ -31,7 +31,7 @@ paper/paper.bbl
 # the run certificates and the table generator -- lives here, because this is the
 # repository that will be public.
 REVIEW_NOTES.md
-REVIEWER_RESPONSES.md
+AUDIT_RESPONSES.md
 
 # compiled artifacts of pipeline/c (sources are tracked, binaries are not)
 pipeline/c/aak_parse

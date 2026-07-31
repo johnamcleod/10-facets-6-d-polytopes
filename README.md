@@ -17,10 +17,65 @@ every place where the text's claims outrun what the data strictly establish.
 
 ---
 
+## 0. Script menu — which entrypoint does what
+
+The repository accumulated one driver per phase of the work, and several are
+superseded. This is the map; everything below is elaborated in §1 and §3.
+
+**Verify the published results (no re-run, no pipeline import).**
+
+| script | what it does | runtime |
+|---|---|---|
+| `verify_polytope.py` | the whole result in one command: exact signature of P^B6 over Q(√2,√5), no parabolic subdiagram, weights > 1, CoxIter cross-check | ≈ 3 min |
+| `paper/make_tables.py` | re-derives **every** number the paper quotes from the run certificates, recomputes the exhaustion coverage recursion, and fails if any verdict rests on a truncation | seconds |
+| `verify_diagram.py` | same checks for an *arbitrary* Coxeter diagram you supply | seconds |
+
+**Re-run a census.** All three dimensions use the same driver; `d=` selects the
+dimension and `out=` names a fresh state directory (without it, cached subtrees
+are resumed and nothing is recomputed).
+
+| command | what it produces | cost |
+|---|---|---|
+| `run_survivors_rigorous.py all <nproc> wildcard` | the **d=6** classification of record → `runs/d6_n10/<out>/` | 12 CPU-h |
+| `run_survivors_rigorous.py all <nproc> wildcard d=4 out=…` | the **d=4** census, 348 polytopes over 30 types | hours |
+| `validate_d5_wildcard.py <nproc> out=…` | the **d=5** census, 51 polytopes over 109 types | 1.4 CPU-h |
+| `run_full_pipeline_d6.py` | Stages 2–4 end to end, starting from the order-type database (needs `otypes10.b16`) | hours |
+| `apply_facet_profile_filter.py` | the facet filter, 387 types → 54 survivors | minutes |
+| `python -m pipeline.validate_coverage --d 4 / --d 5` | the type generator reproduces the published 30 / 109 types exactly | minutes |
+| `run_d4.py`, `run_d4_parallel.py`, `run_blockpaste_parallel.py` | earlier d=4 drivers (single-process, pooled, and Ma–Zheng block-pasting) | hours |
+| `run_regression.py` | d=4 → 348 and d=5 → 51 as a regression gate | hours |
+
+**Exact refutations (the screen replaced by certificates).**
+
+| command | what it does | cost |
+|---|---|---|
+| `run_wild_dump.py` | re-runs the d=6 subtree with the instance sinks on, writing every labelling that reached a screen: 406 wildcard-bearing and 546 without | ≈ 18 min |
+| `run_wild_dump.py d=5 out=…` | the same for the d=5 census, as the calibration set | ≈ 80 min |
+| `paper/checks/wild_exact_certify.py` | exact infeasibility certificate for each **wildcard** labelling, plus the d=5 refutation-power measurement | seconds |
+| `paper/checks/wild_exact_certify.py --passers-only` | census-wide one-sidedness: the 11 d=5 instances that survive the screen must **not** be refuted | ≈ 6 min |
+| `paper/checks/plain_exact_certify.py` | exact certificate for each **non-wildcard** labelling | seconds |
+| `pytest tests/test_exact_certify.py` | the certifiers' own tests, including that they do **not** refute P^B6 | seconds |
+
+**Claim-by-claim checks.** `paper/checks/*.py`, one verdict line each — see §1.3
+for the table of which claim each substantiates.
+
+**Superseded, retained for provenance.** These produced intermediate results and
+are not the route to any number in the paper: `run_survivors_fulllabel.py` (its
+"complete" tag was a wall-clock heuristic), `run_stage4_d6.py`,
+`run_stage4_d6_full.py`, `run_stage4_d6_noext.py`, `run_d6_ext0.py`,
+`run_uncertain_final.py` with `analyze_final_results.py`, `run_targeted_stage4.py`,
+`run_incomplete_backtrack.py`, `run_lowk_parallel.py`, `check_exhaustion.py`,
+`apply_f5_filter.py`, `run_d5_stage4.py`, `run_d5_campaign.py`,
+`validate_d5_fulllabel.py`, `run_truth_stage4.py` (fed published types in while the
+generator was broken), `harvest_rejects.py`, `bench_stage1.py`, `probe_cost.py`,
+`mz_solve_p8_17.py` (now driven by `paper/checks/mz_p8_17_crosscheck.py`).
+
+---
+
 ## 1. How to verify the results
 
 Everything needed to check the paper is in this repository: the verification
-scripts, all nine claim-by-claim checks, and the run certificates the numbers are
+scripts, the claim-by-claim checks, and the run certificates the numbers are
 derived from. None of it requires re-running the classification, and the two
 commands in §1.1 and §1.2 do not import the pipeline at all.
 
@@ -80,19 +135,28 @@ python3 paper/make_tables.py
 
 This reads the run certificates and re-derives every number the paper quotes. It
 does not trust the stored verdicts: it recomputes the coverage recursion from the
-subtree certificates and **fails** if any of the 52 searched types is not closed, or
-if any verdict rests on a truncation at the refinement depth cap, on a wildcard
-window that reached its scan edge, or on a per-assignment deadline. Expected tail:
+subtree certificates and **fails** if any of the searched types is not closed, if
+any verdict rests on a truncation at the refinement depth cap, on a wildcard
+window that reached its scan edge, or on a per-assignment deadline, or if any
+labelling that reached a screen lacks an exact refutation certificate. Expected
+tail:
 
 ```
   NumTypes           387        NumSurvivors       54
-  NumSearched        52         NumThreeFree       2      (types 159, 329)
-  NumSubtrees        1,156      CPUHours           173
-  MaxDepth           11         RealizingType      379
+  NumRequired        11         NumThreeFree       2      (types 159, 329)
+  NumSubtrees        71         CPUHours           12
+  NumAssignments     952        MaxDepth           2
+  WildCertified      406        PlainCertified     545
   DFiveTotal         51         DFourFound         348
+  RealizingType      379
 
 all paper invariants re-checked OK
 ```
+
+(`NumRequired` is 11 because Lemmas 4.2–4.4 removed types the earlier runs
+searched; the 54 facet-filter survivors and the 387 generated types are unchanged.
+`WildCertified` + `PlainCertified` + 1 accepted = the 952 labellings that reached a
+screen.)
 
 It also regenerates `paper/tables/pertype.tex` (Table 1) and
 `paper/tables/summary_nums.tex`; those two files are the only route by which run
@@ -130,8 +194,12 @@ test and takes several minutes.
 |---|---|
 | `runs/d6_n10/stage2/types.json` | the 387 combinatorial types, with missing faces and vertex sets |
 | `runs/d6_n10/facet_profile_survivors.json` | the 54 survivors of the facet filter |
-| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the d=6 classification of record: 1,156 subtree certificates, merged by `make_tables.py` |
-| `runs/d6_n10/d6_tangency/realizers/` | the realizer records for the unique polytope |
+| `runs/d6_n10/d6_final/` | the d=6 classification of record: 71 subtree certificates over the 11 required types |
+| `runs/d6_n10/d6_final/realizers/` | the realizer records for the unique polytope |
+| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the superseded two-part run over 52 types (1,156 subtrees, 173 CPU-h), retained for provenance; `make_tables.py` falls back to it only if `d6_final/` is absent |
+| `runs/d6_n10/wild_instances.jsonl`, `plain_instances.jsonl` | every labelling that reached a screen, 406 + 546, with the verdict each was rejected on |
+| `runs/d6_n10/wild_certificates.json`, `plain_certificates.json` | the exact refutation certificate for each of them |
+| `runs/d5_n9/wild_certificates.json` | the d=5 calibration: the certifier refutes the rejections and none of the 9 realizable instances |
 | `runs/d5_n9/d5_discfix.json` | the d=5 census, 51 polytopes over 109 types |
 | `runs/d4_n8/survivors_discfix/` | the d=4 census, 348 polytopes over 30 types |
 
@@ -290,8 +358,27 @@ python3 paper/checks/forward_check_margins.py     # forward-check tolerances, ex
 python3 paper/checks/screen_margins.py            # cascade tolerances, per-type sample
 python3 paper/checks/burcroff_appendixA.py        # the three Appendix A corrections
 python3 paper/checks/burcroff_fig5_isomorphism.py # our diagram ≅ Burcroff Fig. 5
+python3 paper/checks/wild_exact_certify.py        # exact refutation of every wildcard labelling
+python3 paper/checks/plain_exact_certify.py       # exact refutation of every non-wildcard labelling
 python3 paper/make_tables.py                      # regenerates the paper's tables
 ```
+
+The two `*_exact_certify.py` scripts read instance dumps; regenerate those first
+with
+
+```bash
+python3 run_wild_dump.py            # d=6: re-runs subtree 379|0,0 (~18 min), 406 + 546 instances
+python3 run_wild_dump.py d=5 out=runs/d5_n9/wild_instances_full.jsonl   # the d=5 calibration census
+```
+
+One run writes both sinks: `runs/d6_n10/wild_instances.jsonl` (the 406
+wildcard-bearing labellings) and `runs/d6_n10/plain_instances.jsonl` (the 546
+without), each with a `.meta.json` completion marker that the certifiers require —
+so a dump still being written cannot be certified and reported as complete. The
+re-run must reproduce the run of record exactly (952 labellings, 406
+wildcard-bearing, 1 realizer, exhausted); the dump is instrumentation only.
+The unit tests of the certifiers, including the check that they do **not** refute
+P^B6, are `tests/test_exact_certify.py`.
 
 All except `screen_margins.py` run in seconds to a few minutes.
 `screen_margins.py` re-runs whole types under instrumentation, so pass it a
@@ -364,6 +451,8 @@ them. Section numbers refer to the paper in the companion repository
 | §5.3 | the cascade screen; the tangency tolerance | `_structured_screen`, `_quad_roots_gt1`, `_DISC_RTOL` in `pipeline/stage4_gram.py` |
 | §5.3, Lem. 5.4 / Prop. 5.5 | the bounded-box fallback is structurally unreachable at d=6; the pair path is never entered | `paper/checks/cascade_reachability.py` |
 | §5.4 | wildcard range analysis and integer window scan | `_solve_wild_assignment` in `pipeline/stage4_gram.py` |
+| §5.3, Prop. 5.3 | exact certificates for all 545 rejected non-wildcard labellings | driver `paper/checks/plain_exact_certify.py` |
+| §5.4, Prop. 5.4 | exact infeasibility certificates for all 406 wildcard labellings, and the d=5 calibration | `pipeline/utils/exact_field.py`, `pipeline/utils/exact_certify.py`, driver `paper/checks/wild_exact_certify.py`, instances from `run_wild_dump.py`, tests `tests/test_exact_certify.py` |
 | §5.5 | exact certification of an accepted labelling | `_refine_mpmath`, `_recognize_minpoly_and_verify`, `_inertia_mpmath` in `pipeline/stage4_gram.py` |
 | §5.6 | exhaustion certificates and the coverage recursion | `process_type_stage4` (`exhausted`, `wild_unbounded`) and the driver `run_survivors_rigorous.py`; the recursion is recomputed by `paper/make_tables.py` in the paper repository |
 | §6.1, eq. (1) | the Gram matrix, its exact signature and the absence of parabolic subdiagrams | `verify_polytope.py` (paper repository) |
@@ -379,8 +468,8 @@ repository: `paper/checks/cascade_reachability.py`,
 six are standalone and ship with the paper.
 
 Material deliberately kept out of the paper — provenance arguments, the history of
-the three defects corrected during development, and pre-emptive answers to likely
-referee questions — is in `REVIEWER_RESPONSES.md` in the paper repository.
+the three defects corrected during development, and answers to questions a reader
+may reasonably ask — is in `AUDIT_RESPONSES.md` in the paper repository.
 
 ---
 

@@ -58,6 +58,32 @@ FLAGS = json.load(open(ROOT / "runs/d6_n10/type_flags.json"))["d6_n10"]
 # Wildcard traffic in the d=5 census, which calibrates the joint-feasibility test
 # against ground truth (Section 5.4).  Read from the artifact, never transcribed.
 _D5W = json.load(open(ROOT / "runs/d5_n9/d5_wildcounts.json"))
+
+# Exact wildcard infeasibility certificates, written by
+# paper/checks/wild_exact_certify.py from the instance dumps of run_wild_dump.py.
+W6 = json.load(open(ROOT / "runs/d6_n10/wild_certificates.json"))["summary"]
+W5 = json.load(open(ROOT / "runs/d5_n9/wild_certificates.json"))["summary"]
+# ... and the same for the labellings without a wildcard
+# (paper/checks/plain_exact_certify.py).
+P6 = json.load(open(ROOT / "runs/d6_n10/plain_certificates.json"))["summary"]
+# One-sidedness is measured over the WHOLE d=5 census: every instance that survived
+# the joint screen there, which is the only set a false refutation could damage.
+# The refutation-power figures (how many rejections carry a certificate) come from
+# W5 above and may cover the census or the two-type subset; this one always covers
+# the census.
+W5P = json.load(open(ROOT / "runs/d5_n9/wild_certificates_passers.json"))["summary"]
+
+
+def _sci(x, digits=1, up=False):
+    """LaTeX scientific notation, rounded so that the quoted figure is TRUE as a
+    bound: down for a quantity the paper calls a lower bound (a margin, a
+    minimum), up for one it calls an upper bound (a maximum).  Rounding a
+    maximum down would state a bound the data violate."""
+    from math import ceil, floor, log10
+    e = floor(log10(x))
+    scaled = x / 10 ** e * 10 ** digits
+    m = (ceil(scaled) if up else floor(scaled)) / 10 ** digits
+    return f"{m}\\times10^{{{e}}}"
 D5W_TOTAL = sum(v.get("wild_assignments", 0) for v in _D5W.values())
 D5W_REJECTED = sum(sum((v.get("wild") or {}).values()) for v in _D5W.values())
 
@@ -166,6 +192,29 @@ def main():
         "DFiveWild": _c(D5W_TOTAL),
         "DFiveWildKilled": _c(D5W_REJECTED),
         "DFiveWildSurvived": str(D5W_TOTAL - D5W_REJECTED),
+        # Exact wildcard certificates (Proposition "wildexact", Section 5.4), read
+        # from the certifier's artifacts.  WildCertified must equal NumWild or the
+        # proposition is false as stated; the assertions below enforce that.
+        "WildCertified": _c(W6["exactly_certified_infeasible"]),
+        "WildLabelOnly": _c(W6["certificate_kinds"].get("label_only_minor", 0)),
+        "WildRootBox": _c(W6["certificate_kinds"].get("root_box_range", 0)),
+        "WildBnB": _c(W6["certificate_kinds"].get("interval_branch_and_bound", 0)),
+        "WildMinMargin": _sci(W6["min_margin"]),
+        "WildResidMin": _sci(W6["numerical_residual_min"]),
+        "WildResidMax": _sci(W6["numerical_residual_max"], up=True),
+        "PlainRejected": _c(P6["cascade_rejected"]),
+        "PlainCertified": _c(P6["exactly_certified_unrealizable"]),
+        "DFiveWildCertSet": _c(W5["instances"]),
+        "DFiveWildCert": _c(W5["exactly_certified_infeasible"]),
+        "DFiveWildUndecided": _c(W5["instances"]
+                                 - W5["exactly_certified_infeasible"]),
+        # census-wide: every instance surviving the joint screen, and how many of
+        # them the certifier refuted (which must be zero)
+        "DFiveWildScreenPass": _c(W5P["passed_joint_screen"]),
+        "DFiveWildPassRefuted": _c(W5P["wrongly_certified_among_screen_passers"]),
+        "DFiveWildCensus": _c(W5P["census_instances"]),
+        # refutation power, over whichever rejection set was certified
+        "DFiveWildJointKilled": _c(W5["rejected_at_joint_screen"]),
         # branch counters of the run of record, so no figure is transcribed
         "NumCascade": _c(sum(sum((v.get("diag") or {}).get("screen_branches", {}).values())
                              for v in STATE.values())),
@@ -223,6 +272,54 @@ def main():
     assert 379 not in COMB_KILLED
     # the d=5 calibration quoted in Section 5.4
     assert D5W_TOTAL - D5W_REJECTED == 9, "d=5 wildcard survivors changed"
+    # Proposition "wildexact": EVERY wildcard-bearing labelling of the run of
+    # record must carry an exact certificate, and the certifier must refute no
+    # realizable instance.  Either failure falsifies the proposition as stated, so
+    # these are assertions and not reported numbers.
+    n_wild_run = sum((v.get("diag") or {}).get("wild_assignments", 0)
+                     for v in STATE.values())
+    assert W6["instances"] == n_wild_run, (
+        f"certified {W6['instances']} wildcard instances but the run of record "
+        f"screened {n_wild_run}")
+    assert W6["undecided_among_rejected"] == 0, (
+        f"{W6['undecided_among_rejected']} wildcard rejections lack an exact "
+        f"certificate")
+    for tag, W in (("d=6", W6), ("d=5", W5), ("d=5 census passers", W5P)):
+        assert W["wrongly_certified_among_screen_passers"] == 0, (
+            f"{tag}: the exact certifier refuted a labelling that SURVIVED the "
+            f"screen")
+    assert W5P["census_instances"] == D5W_TOTAL, (
+        f"the one-sidedness check covers {W5P['census_instances']} instances but "
+        f"the d=5 census has {D5W_TOTAL}")
+    # The d=5 calibration set must contain every instance that survived the joint
+    # screen -- that is where a false refutation would show up.  Nine of them are
+    # the pi/10 polytopes; the rest survive the continuous relaxation and are
+    # killed later by the integer window scan, so the certifier cannot and must not
+    # refute them either.
+    _d5pass = sum(v.get("wild_assignments", 0)
+                  - (v.get("wild") or {}).get("joint_infeasible", 0)
+                  for v in _D5W.values())
+    assert W5["passed_joint_screen"] == _d5pass or W5["instances"] < D5W_TOTAL, (
+        f"d=5 set has {W5['passed_joint_screen']} screen-passers, census artifact "
+        f"says {_d5pass}")
+    # Proposition "plainexact": the same for the labellings without a wildcard.
+    # Together with the line above, every labelling that reached the screen in the
+    # run of record is decided exactly, and the one that was accepted is not
+    # refuted -- which is the claim, so it is asserted rather than reported.
+    n_plain_run = (sum(v.get("enum_count", 0) for v in STATE.values())
+                   - sum((v.get("diag") or {}).get("wild_assignments", 0)
+                         for v in STATE.values()))
+    assert P6["instances"] == n_plain_run, (
+        f"certified {P6['instances']} non-wildcard labellings but the run of "
+        f"record screened {n_plain_run}")
+    assert P6["undecided_among_rejected"] == 0, (
+        f"{P6['undecided_among_rejected']} cascade rejections lack an exact "
+        f"certificate")
+    assert P6["wrongly_certified_among_candidates"] == 0, (
+        "the exact certifier refuted the labelling the search accepted")
+    assert P6["realizable_candidates"] == 1, (
+        f"{P6['realizable_candidates']} labellings passed the cascade, expected "
+        f"exactly one (P^B6)")
     assert sum(v["distinct"] for v in _D5W.values()) == 51
     assert all(v["exhausted"] and not v["unbounded"] for v in _D5W.values())
     assert not [t for t in searched if t in COMB_KILLED and _keys(t)], \

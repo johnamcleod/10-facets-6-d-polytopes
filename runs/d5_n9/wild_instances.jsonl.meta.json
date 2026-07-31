@@ -1,0 +1,12 @@
+{
+ "complete": true,
+ "d": 5,
+ "records": 128,
+ "wild_assignments_from_counters": 128,
+ "joint_screen_passes": 9,
+ "subtrees": [
+  "19|",
+  "29|"
+ ],
+ "marker_provenance": "written after the run by paper-side verification (the dump predates run_wild_dump.py completion markers): the record count and the joint-screen pass count both match runs/d5_n9/d5_wildcounts.json for types 19, 29, the two types that contain every d=5 wildcard polytope"
+}

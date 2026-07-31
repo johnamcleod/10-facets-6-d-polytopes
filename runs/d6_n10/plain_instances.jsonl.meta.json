@@ -1,0 +1,11 @@
+{
+ "complete": true,
+ "d": 6,
+ "records": 546,
+ "wild_assignments_from_counters": 406,
+ "plain_records": 546,
+ "subtrees": [
+  "379|0,0"
+ ],
+ "seconds": 1052.7
+}

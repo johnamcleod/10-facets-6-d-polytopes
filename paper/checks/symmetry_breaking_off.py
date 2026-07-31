@@ -37,8 +37,14 @@ TYPES = {t["type_id"]: t for t in
 
 
 def committed():
+    # Prefer the run of record; fall back to the superseded two-part run only if it
+    # is absent, exactly as paper/make_tables.py does, so the reference verdicts
+    # this check compares against are the ones the paper reports.
+    dirs = (("d6_final",) if (ROOT / "runs/d6_n10/d6_final/state.jsonl").exists()
+            else ("d6_tangency", "d6_rest"))
+    print(f"reference verdicts from: {', '.join(dirs)}")
     st = {}
-    for d in ("d6_tangency", "d6_rest"):
+    for d in dirs:
         for line in (ROOT / f"runs/d6_n10/{d}/state.jsonl").read_text().splitlines():
             line = line.strip()
             if line:
@@ -70,6 +76,70 @@ def work(task):
             round(time.time() - t0, 1))
 
 
+def realizer_check(budget=7200.0):
+    """The one test of this kind that can fail in the dangerous direction.
+
+    Every type above returns an EMPTY verdict, and a symmetry breaker that
+    wrongly discarded orbits would reproduce empty verdicts perfectly -- so
+    agreement there is evidence against spurious acceptance, not against loss.
+    What actually matters is whether the pruning can lose a polytope that exists,
+    and in dimension 6 there is exactly one place to test that: the subtree of the
+    realizing type in which P^B6 is found.  It is too expensive to run the whole
+    type without pruning, but the subtree of record is not, because its first two
+    labels are fixed.
+
+    Runs 379 with prefix (0,0), pruning OFF, and requires the same verdict: one
+    polytope, exhausted.
+    """
+    tid, prefix = 379, (0, 0)
+    ref = None
+    for line in (ROOT / "runs/d6_n10/d6_final/state.jsonl").read_text().splitlines():
+        if line.strip() and json.loads(line)["key"] == "379|0,0":
+            ref = json.loads(line)
+    t = dict(TYPES[tid])
+    V, *_ = _setup(t)
+    t["vertex_sets"] = [sorted(v) for v in V]
+    so = {}
+    t0 = time.time()
+    res = process_type_stage4(t, D, max_assignments=50_000_000,
+                              enum_timeout=budget, solve_timeout=budget / 2,
+                              wildcard=True, use_burcroff_55b=True,
+                              prefix=prefix, automorphisms=None,
+                              stats_out=so, verbose=False) or []
+    n = len({str(canonical_key(r, NF)) for r in res})
+    exh = bool(so.get("exhausted"))
+    sec = round(time.time() - t0, 1)
+    ok = exh and n == 1
+    print(f"\nrealizing subtree {tid}|{','.join(map(str, prefix))} with pruning OFF: "
+          f"{n} polytopes, exhausted={exh}, "
+          f"labellings={so.get('enum_count', 0):,}, {sec}s")
+    if ref:
+        print(f"  with pruning ON (classification run):  "
+              f"{len(ref.get('keys', []))} polytopes, "
+              f"exhausted={ref.get('exhausted')}, "
+              f"labellings={ref.get('enum_count', 0):,}, {ref.get('sec')}s")
+    print("  " + ("P^B6 is still found and the subtree still exhausts -- the "
+                  "pruning loses nothing where a polytope exists" if ok else
+                  "MISMATCH: expected 1 polytope and exhaustion"))
+    # Artifact, so the paper's figures for this check are read rather than
+    # transcribed (paper/make_tables.py).
+    out = ROOT / "runs/d6_n10/symmetry_breaking_off.json"
+    body = json.loads(out.read_text()) if out.exists() else {}
+    body["realizing_subtree"] = {
+        "subtree": f"{tid}|{','.join(map(str, prefix))}",
+        "pruning_off": {"polytopes": n, "exhausted": exh,
+                        "labellings": so.get("enum_count", 0), "seconds": sec},
+        "pruning_on": ({"polytopes": len(ref.get("keys", [])),
+                        "exhausted": ref.get("exhausted"),
+                        "labellings": ref.get("enum_count", 0),
+                        "seconds": ref.get("sec")} if ref else None),
+        "verdict_reproduced": ok,
+    }
+    out.write_text(json.dumps(body, indent=1) + "\n")
+    print(f"  artifact -> {out.relative_to(ROOT)}")
+    return ok
+
+
 def main():
     per, keys = committed()
     cheap = sorted(t for t, s in per.items() if s < 3600)
@@ -89,6 +159,16 @@ def main():
                    "inconclusive (hit budget)" if not exh else "DISAGREES")
             print(f"  tid {tid:>4}  pruning OFF: {dist} polytopes, exhausted={exh}, "
                   f"enum={enum:,}, {sec}s   committed={ref}   {tag}", flush=True)
+    art = ROOT / "runs/d6_n10/symmetry_breaking_off.json"
+    body = json.loads(art.read_text()) if art.exists() else {}
+    body["cheap_types"] = {
+        "types": sorted(out),
+        "per_type": {str(t): {"polytopes": v[0], "exhausted": v[1],
+                              "labellings": v[2], "seconds": v[3],
+                              "polytopes_with_pruning": len(keys[t])}
+                     for t, v in out.items()},
+    }
+    art.write_text(json.dumps(body, indent=1) + "\n")
     agree = [t for t, (d, e, _, _) in out.items() if e and d == len(keys[t])]
     incon = [t for t, (d, e, _, _) in out.items() if not e]
     bad = [t for t, (d, e, _, _) in out.items() if e and d != len(keys[t])]
@@ -96,13 +176,18 @@ def main():
     print(f"  exhausted and verdict reproduced    : {len(agree)}")
     print(f"  hit the budget, inconclusive         : {len(incon)}  {sorted(incon)}")
     print(f"  genuine disagreements                : {len(bad)}  {sorted(bad)}")
-    if 379 in incon:
-        print("  NOTE: the realizing type 379 is inconclusive here; it is checked")
-        print("        separately with a larger budget, since it is the case that")
-        print("        matters most and 900 s does not reach a complete labelling.")
-    print("RESULT:", "no verdict changed without the pruning"
-          if not bad else f"DISAGREEMENT on {bad}")
-    return 0 if not bad else 1
+    print("  NOTE: every verdict above is EMPTY, and a symmetry breaker that")
+    print("        wrongly discarded orbits would reproduce empty verdicts too.")
+    print("        The test that can fail in the dangerous direction is the")
+    print("        realizing subtree, which is run next.")
+    real_ok = realizer_check()
+    print()
+    print("RESULT:", "no verdict changed without the pruning, and the realizing "
+          "subtree still finds P^B6"
+          if not bad and real_ok else
+          f"DISAGREEMENT on {bad}" if bad else
+          "the realizing subtree did not reproduce its verdict without pruning")
+    return 0 if (not bad and real_ok) else 1
 
 
 if __name__ == "__main__":

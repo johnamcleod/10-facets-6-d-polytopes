@@ -21,6 +21,7 @@ Pipeline per surviving combinatorial type:
 
 import json
 import itertools
+import os
 import signal
 import time
 from contextlib import contextmanager
@@ -1756,6 +1757,62 @@ def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
     return rank, k
 
 
+# Wildcard-instance dump.  Set WILD_DUMP=<path.jsonl> in the environment (and
+# optionally WILD_DUMP_TAG=<label>) to append one record per wildcard-bearing
+# labelling that reaches _solve_wild_assignment, recording the full instance
+# (ordinary labels, dashed pairs, wild pairs) together with the numerical
+# verdict.  Pure instrumentation: it never changes a verdict.  The artifact is
+# what the exact wildcard certifier (paper/checks/wild_exact_certify.py) reads,
+# so that the numerical screen and the exact refutation are provably run on the
+# same instances rather than on a re-derivation of them.
+WILD_DUMP_PATH = os.environ.get("WILD_DUMP") or None
+WILD_DUMP_TAG = os.environ.get("WILD_DUMP_TAG", "")
+
+
+# Companion sink for the labellings WITHOUT a wildcard, i.e. the ones the
+# double-precision cascade of _structured_screen decides.  Same contract as
+# WILD_DUMP: set PLAIN_DUMP=<path.jsonl>, instrumentation only.
+PLAIN_DUMP_PATH = os.environ.get("PLAIN_DUMP") or None
+
+
+def _plain_dump(label_assign, dotted_pairs, n, d, decision):
+    if not PLAIN_DUMP_PATH:
+        return
+    rec = {
+        "tag": WILD_DUMP_TAG,
+        "n": n, "d": d,
+        "ordinary": sorted([int(i), int(j), int(m)]
+                           for (i, j), m in label_assign.items()),
+        "wild": [],
+        "dashed": sorted([int(i), int(j)] for (i, j) in dotted_pairs),
+        # the cascade's verdict: False = refuted, True = candidate weights found,
+        # None = cascade stalled and the numerical screen was consulted
+        "cascade_decision": ("reject" if decision is False else
+                             "candidate" if decision is True else "stalled"),
+    }
+    with open(PLAIN_DUMP_PATH, "a") as fh:
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
+
+
+def _wild_dump(label_assign, wild_pairs, dotted_pairs, n, d, res0, threshold):
+    if not WILD_DUMP_PATH:
+        return
+    rec = {
+        "tag": WILD_DUMP_TAG,
+        "n": n, "d": d,
+        "ordinary": sorted([int(i), int(j), int(m)]
+                           for (i, j), m in label_assign.items()
+                           if (i, j) not in wild_pairs),
+        "wild": sorted([int(i), int(j)] for (i, j) in wild_pairs),
+        "dashed": sorted([int(i), int(j)] for (i, j) in dotted_pairs),
+        "joint_residual": float(res0),
+        "threshold": float(threshold),
+        "numerical_verdict": ("infeasible" if res0 > threshold else "feasible"),
+    }
+    with open(WILD_DUMP_PATH, "a") as fh:
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
+
+
 # Certification-path outcome counters (diagnostics; see also REFINE_STATS).
 WILD_STATS = {
     "joint_infeasible": 0, "empty_window": 0, "pinned_infeasible": 0,
@@ -2488,6 +2545,8 @@ def _solve_wild_assignment(label_assign, wild_pairs, dotted_pairs, sym_list, n, 
 
     # (1) joint feasibility — all wilds free.
     res0, u_joint = _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, {}, n, d)
+    _wild_dump(label_assign, wild_pairs, dotted_pairs, n, d, res0,
+               numerical_threshold)
     if res0 > numerical_threshold:
         WILD_STATS["joint_infeasible"] += 1
         return []
@@ -2811,6 +2870,7 @@ def process_type_stage4(t, d,
                 ordinary_float, dotted_pairs, minor_index, n, d,
                 stats=screen_stats,
             )
+            _plain_dump(label_assign, dotted_pairs, n, d, dec)
             if dec is False:
                 continue                          # provably infeasible
             if dec is None:
