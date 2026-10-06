@@ -62,8 +62,8 @@ The two environments give identical results for type 379: exhausted at the root,
 
 ## Data
 
-The data archive is on Zenodo: **DOI 10.5281/zenodo.XXXXXXX** *(to be filled in
-on upload)*. Unpack it at the repository root; it creates `runs/`:
+The data archive is on Zenodo:
+[doi:10.5281/zenodo.23187167](https://doi.org/10.5281/zenodo.23187167). Unpack it at the repository root; it creates `runs/`:
 
 ```bash
 tar xzf coxeter-6-10-data.tar.gz && shasum -a 256 -c SHA256SUMS
