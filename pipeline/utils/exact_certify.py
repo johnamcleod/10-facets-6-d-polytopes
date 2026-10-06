@@ -34,7 +34,7 @@ operation rounds outward, so a discarded box provably contains no common zero.
 If every box is discarded the certificate is complete.  If the box budget is
 exhausted the answer is "not certified" -- never a silent success.
 
-This module is the machinery; paper/checks/wild_exact_certify.py is the driver
+This module is the machinery; checks/wild_exact_certify.py is the driver
 that runs it over the dumped instances.
 """
 from __future__ import annotations

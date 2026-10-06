@@ -1,29 +1,31 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "coxeter-6polytopes"
 version = "0.1.0"
 description = "Classification of compact hyperbolic Coxeter 6-polytopes with 10 facets"
 requires-python = ">=3.10"
+license = {text = "MIT"}
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
     "sympy>=1.12",
+    "mpmath>=1.3",
     "networkx>=3.0",
-    "tqdm>=4.65",
+    "pandas>=2.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "pytest-xdist"]
+sat = ["python-sat>=1.8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Default run is fast: skip the heavy full-census / end-to-end gates.
-# Run them explicitly with:  pytest -m slow   (or  -m regression)
-addopts = "-m 'not slow and not regression'"
+# Run them explicitly with:  pytest -m slow
+addopts = "-m 'not slow'"
 markers = [
     "slow: full-census coverage / end-to-end gates (minutes)",
-    "regression: legacy end-to-end regression fixtures",
 ]

@@ -1,526 +1,407 @@
-# Compact hyperbolic Coxeter six-dimensional polytopes with ten facets
+# Compact hyperbolic Coxeter 6-polytopes with 10 facets — code
 
-Code, data and machine-checked certificates for the paper
+This repository contains the code behind the classification of compact hyperbolic
+Coxeter 6-polytopes with 10 facets: up to isometry there is exactly one, the
+polytope P₆,₁₀ drawn in Burcroff (2024), Fig. 5, which is the double of a 9-facet
+polytope of Bugaenko (1984). With Felikson–Tumarkin (d ≥ 7) and Burcroff and
+Ma–Zheng (d = 4, 5), this completes the classification of compact hyperbolic
+Coxeter d-polytopes with d+4 facets.
 
-> **Compact hyperbolic Coxeter six-dimensional polytopes with ten facets**
-> (`paper/paper.tex`)
+The repository holds **code only**. The run outputs, certificates and census
+outputs that the paper's numbers are derived from are in the data archive (see
+[Data](#data)). Every command below runs from the repository root.
 
-**Result.** Up to isometry there is exactly one compact hyperbolic Coxeter
-6-polytope with 10 facets — the polytope drawn in [Burcroff 2024, Fig. 5], which
-our pipeline recovers independently from raw combinatorics. Combined with Felikson–Tumarkin (none for `d ≥ 8`,
-unique for `d = 7`) and Burcroff / Ma–Zheng (`d = 4`: 348, `d = 5`: 51), this
-completes the classification of compact hyperbolic Coxeter `d`-polytopes with
-`d+4` facets in every dimension.
+## Contents
 
-Please read [`REVIEW_NOTES.md`](REVIEW_NOTES.md) alongside the paper: it lists
-every place where the text's claims outrun what the data strictly establish.
+| path | what it is |
+|---|---|
+| `pipeline/` | the library: type generation (`stage1_order_types.py`, `stage2_gale.py`, `utils/gale_exact.py`), the search and screen (`stage4_gram.py`), exact arithmetic and certificates (`utils/exact_*.py`, `utils/coxeter_exact.py`), automorphisms, the CoxIter adapter; C sources in `pipeline/c/` |
+| `generate_types.py` | generates the combinatorial types from the order-type database, sharded and resumable |
+| `run_survivors_rigorous.py` | the search driver: all types of one dimension, subtree certificates, verdicts |
+| `run_wild_dump.py` | re-runs subtrees with the instance sinks on, writing every labelling that reaches a screen |
+| `validate_d5_wildcard.py` | the d=5 census through the same code path |
+| `verify_polytope.py` | standalone exact verification of P₆,₁₀ (no pipeline import) |
+| `verify_diagram.py` | the same checks for any Coxeter diagram you supply |
+| `make_tables.py` | re-derives every number in the paper from the data and writes the LaTeX tables to `tables/` |
+| `checks/` | one script per claim; each prints a `RESULT:` line |
+| `run_d4.py` | helpers imported by the drivers (`canonical_key`), and the original d=4 driver |
+| `tests/` | unit tests (`pytest`); the full-census generator gates are marked `slow` |
 
----
-
-## 0. Script menu — which entrypoint does what
-
-The repository accumulated one driver per phase of the work, and several are
-superseded. This is the map; everything below is elaborated in §1 and §3.
-
-**Verify the published results (no re-run, no pipeline import).**
-
-| script | what it does | runtime |
-|---|---|---|
-| `verify_polytope.py` | the whole result in one command: exact signature of P^B6 over Q(√2,√5), no parabolic subdiagram, weights > 1, CoxIter cross-check | ≈ 3 min |
-| `paper/make_tables.py` | re-derives **every** number the paper quotes from the run certificates, recomputes the exhaustion coverage recursion, and fails if any verdict rests on a truncation | seconds |
-| `verify_diagram.py` | same checks for an *arbitrary* Coxeter diagram you supply | seconds |
-
-**Re-run a census.** All three dimensions use the same driver; `d=` selects the
-dimension and `out=` names a fresh state directory (without it, cached subtrees
-are resumed and nothing is recomputed).
-
-| command | what it produces | cost |
-|---|---|---|
-| `run_survivors_rigorous.py all <nproc> wildcard out=…` | the **d=6** classification of record → `runs/d6_n10/<out>/` | 1 CPU-h |
-| `run_survivors_rigorous.py all <nproc> wildcard d=4 out=…` | the **d=4** census, 348 polytopes over 30 types | hours |
-| `validate_d5_wildcard.py <nproc> out=…` | the **d=5** census, 51 polytopes over 109 types | 1.4 CPU-h |
-| `run_full_pipeline_d6.py` | Stages 2–4 end to end, starting from the order-type database (needs `otypes10.b16`) | hours |
-| `apply_facet_profile_filter.py` | the facet filter, 387 types → 54 survivors | minutes |
-| `python -m pipeline.validate_coverage --d 4 / --d 5` | the type generator reproduces the published 30 / 109 types exactly | minutes |
-| `run_d4.py`, `run_d4_parallel.py`, `run_blockpaste_parallel.py` | earlier d=4 drivers (single-process, pooled, and Ma–Zheng block-pasting) | hours |
-| `run_regression.py` | d=4 → 348 and d=5 → 51 as a regression gate | hours |
-
-**Exact refutations (the screen replaced by certificates).**
-
-| command | what it does | cost |
-|---|---|---|
-| `run_wild_dump.py` | re-runs the d=6 subtree with the instance sinks on, writing every labelling that reached a screen: 406 wildcard-bearing and 546 without | ≈ 18 min |
-| `run_wild_dump.py d=5 out=…` | the same for the d=5 census, as the calibration set | ≈ 80 min |
-| `paper/checks/wild_exact_certify.py` | exact infeasibility certificate for each **wildcard** labelling, plus the d=5 refutation-power measurement | seconds |
-| `paper/checks/wild_exact_certify.py --passers-only` | census-wide one-sidedness: the 11 d=5 instances that survive the screen must **not** be refuted | ≈ 6 min |
-| `paper/checks/plain_exact_certify.py` | exact certificate for each **non-wildcard** labelling | seconds |
-| `pytest tests/test_exact_certify.py` | the certifiers' own tests, including that they do **not** refute P^B6 | seconds |
-
-**Claim-by-claim checks.** `paper/checks/*.py`, one verdict line each — see §1.3
-for the table of which claim each substantiates.
-
-**Superseded, retained for provenance.** These produced intermediate results and
-are not the route to any number in the paper: `run_survivors_fulllabel.py` (its
-"complete" tag was a wall-clock heuristic), `run_stage4_d6.py`,
-`run_stage4_d6_full.py`, `run_stage4_d6_noext.py`, `run_d6_ext0.py`,
-`run_uncertain_final.py` with `analyze_final_results.py`, `run_targeted_stage4.py`,
-`run_incomplete_backtrack.py`, `run_lowk_parallel.py`, `check_exhaustion.py`,
-`apply_f5_filter.py`, `run_d5_stage4.py`, `run_d5_campaign.py`,
-`validate_d5_fulllabel.py`, `run_truth_stage4.py` (fed published types in while the
-generator was broken), `harvest_rejects.py`, `bench_stage1.py`, `probe_cost.py`,
-`mz_solve_p8_17.py` (now driven by `paper/checks/mz_p8_17_crosscheck.py`).
-
----
-
-## 1. How to verify the results
-
-Everything needed to check the paper is in this repository: the verification
-scripts, the claim-by-claim checks, and the run certificates the numbers are
-derived from. None of it requires re-running the classification, and the two
-commands in §1.1 and §1.2 do not import the pipeline at all.
-
-### 1.1 The polytope (≈ 3 minutes)
+## Setup
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install numpy scipy sympy mpmath      # pandas additionally for §3.4-3.5
-
-python3 verify_polytope.py
+pip install numpy scipy sympy mpmath networkx pandas pytest python-sat
+make -C pipeline/c                  # aak_parse (database reader) and the wildcard kernel
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
 ```
 
-Expected output ends with:
+**Pin BLAS to one thread.** The determinants in the screen are at most 8×8, and
+several worker processes each running a threaded BLAS oversubscribe the machine
+badly. Pinning leaves the arithmetic unchanged. We checked this by hashing the
+recovered weights of all 24 orbit representatives of the d=4 type G11 at one and
+at eight threads: the hashes agree. Pinning cut one representative d=4 type from
+963 s to 22 s.
 
-```
-[1] EXACT inertia over Q(sqrt2, sqrt5) (congruence elimination)
-    positive=6  negative=1  zero=3   -> signature (6,1), rank 7, nullity 3   OK
-[2] EXACT rank and algebraic relation
-    rank = 7 (expected 7);  w(7,8) - (w(6,7)^2 - 1) = 0   OK
-[3] Ultraparallel weights > 1                                                OK
-[4] Parabolic subdiagram scan (all 2^10-1 subsets)          none found       OK
-[5] CoxIter    Cocompact: yes   Dimension: 6
-               f-vector: (31, 93, 125, 95, 42, 10, 1)
-               Euler characteristic: -67/288000
-               Covolume: pi^3 * 67/540000                                    OK
-[6] Agreement with the classification run's realizer records                 OK
+**Third-party tools.** Clone these into `scratchpad/`, which is gitignored:
 
-  RESULT: ALL CHECKS PASSED
-```
+| tool | used by | how |
+|---|---|---|
+| [CoxIter](https://github.com/rgugliel/CoxIter) | `verify_polytope.py`, `checks/doubling.py`, acceptance | `cd scratchpad && git clone https://github.com/rgugliel/CoxIter && cd CoxIter && mkdir build && cd build && cmake .. && make` |
+| [drat-trim](https://github.com/marijnheule/drat-trim) | `checks/tree_sat.py` | `cd scratchpad && git clone https://github.com/marijnheule/drat-trim && make -C drat-trim` |
+| [HCPdm](https://github.com/GeoTopChristy/HCPdm) (Ma–Zheng) | `checks/mz_p8_17_crosscheck.py` only | `cd scratchpad && git clone https://github.com/GeoTopChristy/HCPdm` |
 
-Step 5 is skipped unless CoxIter is built:
+Without CoxIter, `verify_polytope.py` skips its CoxIter step and says so.
+
+**Environment of record.** Everything ran on one Apple M1 (8 cores, 16 GB). The
+304-type search and everything after it used Python 3.12.11, numpy 2.5.3,
+scipy 1.18.1, sympy 1.14.0, mpmath 1.3.0, networkx 3.4.2 and PySAT with
+Glucose 4. Earlier runs, including the d=4 and d=5 censuses, used Python 3.10.0.
+The two environments give identical results for type 379: exhausted at the root,
+952 labellings (406 with a wildcard) and one polytope with the same canonical key.
+
+## Data
+
+The data archive is on Zenodo: **DOI 10.5281/zenodo.XXXXXXX** *(to be filled in
+on upload)*. Unpack it at the repository root; it creates `runs/`:
 
 ```bash
-cd scratchpad/CoxIter && mkdir -p build && cd build && cmake .. && make
+tar xzf coxeter-6-10-data.tar.gz && shasum -a 256 -c SHA256SUMS
 ```
 
-The polytope itself: facets `1..10`, ordinary edges `(i, j, m)` meaning dihedral
-angle `π/m` (all unlisted intersecting pairs orthogonal)
-
-```
-(1,2,5) (2,3,3) (3,4,3) (4,5,3) (5,6,3) (9,10,5) (2,7,4) (2,8,4) (5,9,3) (6,10,5)
-```
-
-and ultraparallel ("dotted") pairs `(6,7)`, `(7,8)`, `(8,9)` with weights
-
-```
-w(6,7) = w(8,9) = 2√2 + √10 = √2(2+√5) ≈ 5.990705     minpoly x⁴ − 36x² + 4
-w(7,8)          = 17 + 8√5           ≈ 34.888544      minpoly x² − 34x − 31
-w(7,8) = w(6,7)² − 1        field of definition Q(√2, √5)
-```
-
-### 1.2 The classification: totals, coverage and the absence of truncations
-
-```bash
-python3 paper/make_tables.py
-```
-
-This reads the run certificates and re-derives every number the paper quotes. It
-does not trust the stored verdicts: it recomputes the coverage recursion from the
-subtree certificates and **fails** if any of the searched types is not closed, if
-any verdict rests on a truncation at the refinement depth cap, on a wildcard
-window that reached its scan edge, or on a per-assignment deadline, or if any
-labelling that reached a screen lacks an exact refutation certificate. Expected
-tail:
-
-```
-  NumTypes           387        NumSurvivors       54
-  NumRequired        11         NumThreeFree       2      (types 159, 329)
-  NumSubtrees        11         CPUHours           0.96
-  NumAssignments     952        MaxDepth           0
-  WildCertified      406        PlainCertified     545
-  DFiveTotal         51         DFourFound         348
-  RealizingType      379
-
-all paper invariants re-checked OK
-```
-
-(`NumRequired` is 11 because Lemmas 4.2–4.4 removed types the earlier runs
-searched; the 54 facet-filter survivors and the 387 generated types are unchanged.
-`WildCertified` + `PlainCertified` + 1 accepted = the 952 labellings that reached a
-screen.)
-
-It also regenerates `paper/tables/pertype.tex` (Table 1) and
-`paper/tables/summary_nums.tex`; those two files are the only route by which run
-data reaches the paper, so no number in it is transcribed by hand.
-
-### 1.3 Claim-by-claim checks
-
-Each script substantiates one claim of the paper and prints a verdict line.
-
-```bash
-for f in paper/checks/*.py; do echo "== $f"; python3 "$f" | tail -2; done
-```
-
-| script | claim |
-|---|---|
-| `d4_census_reconciliation.py` | the d=4 census agrees with Burcroff Appendix A type by type (348) |
-| `burcroff_appendixA.py` | three corrections to Burcroff's 111-entry d=5 candidate list |
-| `burcroff_fig5_isomorphism.py` | our polytope is isomorphic to Burcroff Fig. 5, edge for edge and label for label |
-| `lanner_label_bound.py` | re-derives Lannér's order-4 and order-5 diagrams (9 and 5) from the definition |
-| `wildcard_soundness.py` | the m ≥ 7 wildcard predicate is insensitive to the value of m |
-| `forward_check_margins.py` | forward-checking eigenvalue tolerances carry 10³–10⁶ margin |
-| `cascade_reachability.py` | the bounded-box fallback is structurally unreachable at d=6; the pair-resultant path is never entered |
-| `screen_margins.py` | margins at the cascade's decision thresholds |
-| `mz_p8_17_crosscheck.py` | our d=4 solutions all appear in Ma–Zheng's own published candidate list |
-
-Two notes on running them. `mz_p8_17_crosscheck.py` compares against Ma–Zheng's
-published intermediate data, which is third-party material and is not redistributed
-here; it prints `SKIPPED` with cloning instructions unless
-`scratchpad/HCPdm` is present. `screen_margins.py` is a measurement rather than a
-test and takes several minutes.
-
-### 1.4 The certificates themselves
+`python3 pack_data.py` builds the archive from a local tree; its `MANIFEST` lists
+every file. What it contains:
 
 | path | contents |
 |---|---|
-| `runs/d6_n10/stage2/types.json` | the 387 combinatorial types, with missing faces and vertex sets |
-| `runs/d6_n10/facet_profile_survivors.json` | the 54 survivors of the facet filter |
-| `runs/d6_n10/d6_exact/` | the d=6 classification of record: one exhaustion certificate per required type, with the exact forward-checking gates |
-| `runs/d6_n10/d6_exact/realizers/` | the realizer records for the unique polytope |
-| `runs/d6_n10/d6_final/` | the same 11 types with the floating-point gates: identical verdicts, and the source of the searched-and-empty data for the 41 lemma-excluded types |
-| `runs/d6_n10/d6_tangency/`, `d6_rest/` | the earlier run over 52 types, retained for provenance |
-| `runs/d6_n10/wild_instances.jsonl`, `plain_instances.jsonl` | every labelling that reached a screen, 406 + 546, with the verdict each was rejected on |
-| `runs/d6_n10/wild_certificates.json`, `plain_certificates.json` | the exact refutation certificate for each of them |
-| `runs/d5_n9/wild_certificates.json` | the d=5 calibration: the certifier refutes the rejections and none of the 9 realizable instances |
-| `runs/d5_n9/d5_discfix.json` | the d=5 census, 51 polytopes over 109 types |
-| `runs/d4_n8/survivors_discfix/` | the d=4 census, 348 polytopes over 30 types |
+| `runs/d6_n10/stage2/types.json` | the 387 combinatorial types (missing faces, an integer realization of the order type, the positive pair); type ids are those used throughout |
+| `runs/d6_n10/stage2_exact/` | the same list regenerated by `generate_types.py`, with the comparison |
+| `runs/d6_n10/type_flags.json` | per-type combinatorial flags, including the size-6 minimal non-face |
+| `runs/d6_n10/d6_valid/` | the search of record over all 304 types: subtree certificates, verdicts, the realizer, the screened labellings and their exact refutation certificates |
+| `runs/d6_n10/*.json` | artifacts of the checks: `tree_sat`, `hypergraph_independent`, `dedup_truncation`, `uniqueness_witness`, `symmetry_*` |
+| `runs/d5_n9/` | d=5: the 109 types, the census (51), the certifier calibration |
+| `runs/d4_n8/` | d=4: the 30 types and the census (348) |
 
-A subtree certificate records its prefix, whether the subtree was exhausted, how
-many labellings it enumerated, the polytopes found, and per-gate diagnostics. A
-type is decided when its root is exhausted, or when all six children are
-recursively decided — the recursion `make_tables.py` recomputes.
-
-### 1.5 The companion note on the polytope
-
-`paper/polytope.tex` compiles standalone (`pdflatex polytope.tex`) and gives the
-Coxeter diagram, the exact Gram matrix over Q(√2, √5), the automorphism computation
-behind "exactly one up to isometry", the identification with Burcroff Fig. 5, and
-the polytope's position relative to the Felikson–Tumarkin class.
-
----
-
-## 2. Environment
-
-Everything in the paper was produced on a single **Apple M1, 8 cores, 16 GB RAM,
-macOS 26.5.2**, with **Python 3.10.0** and `numpy`, `scipy`, `sympy`, `mpmath`,
-`pandas`, plus **CoxIter** built from source
-(`scratchpad/CoxIter`, github.com/rgugliel/CoxIter).
-
----
-
-## 3. Re-running the classification
-
-### 3.1 Combinatorial types (Stage 1–2) — 387 types
-
-Already committed as `runs/d6_n10/stage2/types.json` (387 entries). Regenerating
-them requires the AAK order-type database file `otypes10.b16`
-(14,309,547 records, ~570 MB) from
-
-<http://www.ist.tugraz.at/aichholzer/research/rp/triangulations/ordertypes/>
-
-converted once to the chirotope cache with the C parser in `pipeline/c/`. This
-step takes several hours; the committed output makes it optional.
-
-### 3.2 Generator validation — d=4 (30/30) and d=5 (109/109)
+**Ma–Zheng's censuses are not redistributed.** `pipeline.validate_coverage`, the
+d=4/d=5 coverage tests and `checks/burcroff_appendixA.py` read their published d=4
+and d=5 combinatorial censuses from `data/ground_truth/`. Fetch them from
+[HCPdm](https://github.com/GeoTopChristy/HCPdm) at the commit used here:
 
 ```bash
-python3 -m pipeline.validate_coverage --d 4
-python3 -m pipeline.validate_coverage --d 5
+git clone https://github.com/GeoTopChristy/HCPdm /tmp/HCPdm
+git -C /tmp/HCPdm checkout 7b2c3427a594468377b11f3d7fce1359b7442948
+mkdir -p data/ground_truth && cp /tmp/HCPdm/polytopeDATA/{4d8m,5d9m}.txt data/ground_truth/
+shasum -a 256 data/ground_truth/*.txt
+# 9778640803909db7ad06a83a857a8cddab766e2eb9fd67d0285d89184a006747  data/ground_truth/4d8m.txt
+# 7dba585ee5820ce20ae00fc6978f76d4874d89247085f3b0dfab8782d5efc752  data/ground_truth/5d9m.txt
 ```
 
-(These default to `runs/d{d}_n{n}/stage2`, the authoritative type lists. Older
-`.../stage3` directories in the tree are stale pre-2026-06 artifacts; passing
-`--stage3 runs/d4_n8/stage3` will report a spurious 27/30.)
-
-Expected:
-
-```
-d=4:  Ground-truth 30 distinct;  ours 30 distinct
-      COVERED 30/30   MISSING 0   SPURIOUS 0
-
-d=5:  ours all: [(2,50),(3,34),(4,15),(5,7),(6,3)]   (= 109, all p ≥ 2)
-      SPURIOUS 0;  the only MISSING truth types are the p = 0 and p = 1 ones,
-      which Felikson–Tumarkin exclude for n = d+4.
-```
-
-### 3.3 Facet filter — 387 → 54 (≈ 20 minutes)
+**The order-type database is not redistributed.** Its files are needed only to
+regenerate the types (and for `checks/dedup_truncation.py --all`). Download
+`otypes08.b08`, `otypes09.b16` and `otypes10.b16` from the
+[Order Type Data Base](http://www.ist.tugraz.at/aichholzer/research/rp/triangulations/ordertypes/)
+into `data/aak/`, then build the chirotope caches:
 
 ```bash
-python3 apply_facet_profile_filter.py
+for n in 08 09 10; do f=$(ls data/aak/otypes$n.b*); pipeline/c/aak_parse $f ${n#0} data/aak/otypes$n.chi; done
 ```
 
-Expected tail:
-
-```
-survivors (54): [8, 12, 17, 34, ..., 378, 379, 382]
-killed: 333
-matches hardcoded 54-list: True
-```
-
-Rewrites `runs/d6_n10/facet_profile_survivors.json`.
-
-### 3.4 The exhaustive d=6 search — 54 → 1 (≈ 2,300 CPU-hours)
+## Checking the results (minutes, no search)
 
 ```bash
-caffeinate -i python3 run_survivors_rigorous.py all 7 wildcard
+python3 verify_polytope.py            # P6,10: exact signature (6,1) over Q(√2,√5), rank 7,
+                                      # weights > 1, no parabolic subdiagram, CoxIter   (~3 min)
+python3 make_tables.py                # every number in the paper, re-derived and asserted
+for f in hypergraph_independent type_consistency uniqueness_witness exact_weight_uniqueness \
+         doubling burcroff_fig5_isomorphism burcroff_appendixA d4_census_reconciliation \
+         cascade_reachability lanner_label_bound wildcard_soundness exact_vs_float_gates; do
+  python3 checks/$f.py | tail -1; done
+python3 checks/tree_sat.py --link     # every blocked labelling has an exact certificate, or is P6,10
+python3 -m pipeline.validate_coverage --d 4   # the stored d=4 types are the published 30
+python3 -m pipeline.validate_coverage --d 5   # the stored d=5 types are the 109 with p >= 2
+pytest                                # unit tests, including that the certifiers do not refute P6,10
 ```
 
-Resumable: completed subtrees are checkpointed to
-`runs/d6_n10/survivors_wildcard/state.json` and skipped on restart. Running it
-against the committed state file reproduces the verdicts immediately without
-recomputation. Expected final line:
+`make_tables.py` does not trust stored verdicts. It recomputes the coverage
+recursion from the subtree certificates. It fails if any of the following holds:
+a searched type is not closed, a verdict rests on a truncation or a deadline, or
+a screened labelling lacks an exact certificate. When the SAT artifact covers all
+304 types, it also fails unless every CNF is UNSAT with a verified DRAT proof and
+every blocked labelling is linked to a certificate or to P₆,₁₀; it prints the
+number of types covered. It ends with `all paper invariants re-checked OK`, and it
+writes `tables/summary_nums.tex` and `tables/rootbox.tex`, the only route by
+which run data reach the paper.
+
+`verify_polytope.py`, `checks/hypergraph_independent.py` and
+`checks/exact_weight_uniqueness.py` do not import the pipeline.
+
+## Reproducing the results from scratch
+
+Costs are for the M1 above.
+
+**1. Combinatorial types — 387 (paper §3; ≈ 90 CPU-hours).**
+
+```bash
+python3 generate_types.py run --d 6 --max-workers 6     # 287 shards of 50,000 order types
+python3 generate_types.py merge --d 6 --compare runs/d6_n10/stage2/types.json
+python3 checks/hypergraph_independent.py                # recompute every hypergraph, no pipeline code
+python3 checks/type_consistency.py --emit               # -> runs/d6_n10/type_flags.json (83 size-6 types)
+python3 checks/dedup_truncation.py --all                # truncated deduplication loses no type (needs data/aak)
+```
+
+`run` starts shards at nice 19 only while cores are idle, and resumes after an
+interruption. The same driver reproduces d=4 in seconds and d=5 in 1.1 CPU-hours
+(`--d 4`, `--d 5`); `merge --compare` against `runs/d{4,5}_n*/stage2/types.json`
+matches 30/30 and 109/109. `pytest -m slow` runs the same comparison against Ma–Zheng's
+censuses through `pipeline.stage2_gale.run_stage2_from_chi`.
+
+**2. The search — 304 types (paper §§4–5; ≈ 13 CPU-hours).**
+
+```bash
+caffeinate -i python3 run_survivors_rigorous.py all 7 wildcard lemmas=valid out=d6_valid
+```
+
+`lemmas=valid` searches every type without a minimal non-face of size 6
+(387 − 83 = 304) and applies no other exclusion. It checkpoints each subtree to
+`runs/d6_n10/d6_valid/state.jsonl` and resumes after an interruption. It ends with:
 
 ```
 RIGOROUS-DONE. realizing=[379] not-rigorous=[]
 ```
 
-Types 159 and 329 are excluded by theorem (Esselmann's bound for 3-free
-polytopes; see `REVIEW_NOTES.md` §2) and are not searched.
-
-### 3.4a Other dimensions through the same driver
-
-The driver takes an optional `d=D` argument (default 6, so every command above is
-unaffected). For `D != 6` it reads `runs/dD_n{D+4}/stage2/types.json`, keeps its
-own state directory, and takes the candidate list from that dimension's
-`facet_profile_survivors.json` if present, else all generated types:
+**3. Exact refutation certificates (paper Props. 5.2, 5.3).** Re-run the 44
+subtrees with labellings under the instance sinks, then certify:
 
 ```bash
-python3 run_survivors_rigorous.py all 7 wildcard d=4
+python3 run_wild_dump.py d=6 out=runs/d6_n10/d6_valid/dump/wild_shardI.jsonl <subtrees...>
+python3 checks/merge_dump_shards.py
+python3 checks/plain_exact_certify.py src=runs/d6_n10/d6_valid/plain_instances.jsonl \
+    dst=runs/d6_n10/d6_valid/plain_certificates.json
+for i in 0 1 2 3 4 5; do python3 checks/wild_exact_certify.py --d6-only --shard=$i/6 \
+    d6src=runs/d6_n10/d6_valid/wild_instances.jsonl \
+    d6dst=runs/d6_n10/d6_valid/wild_certificates.json & done; wait
+python3 checks/wild_exact_certify.py --d6-only --merge --shards=6 \
+    d6src=runs/d6_n10/d6_valid/wild_instances.jsonl d6dst=runs/d6_n10/d6_valid/wild_certificates.json
 ```
 
-Two dimension-aware details:
+The subtree lists of the dump shards are in `runs/d6_n10/d6_valid/dump/shard*.txt`.
+A dump carries a `.meta.json` completion marker, and the certifiers refuse a
+dump that lacks one.
 
-* **The Esselmann 3-free elimination applies only when `n < 2d`.** A 3-free
-  compact Coxeter `d`-polytope needs at least `2d` facets, with equality only for
-  the `d`-cube. For d=6, `10 < 12`, so 3-free types are killed. For d=4,
-  `8 = 2·4`, so a 3-free type could be the 4-cube — which does admit compact
-  Coxeter structures — and those types are **searched, not killed**.
-* The known-realizer-first ordering (type 379) is a d=6 anchor and is skipped
-  elsewhere.
-
-**d=4 has not been run this way yet** — the published 338 came from the fixed
-`{2,…,10,12}` alphabet, not the wildcard path. See `REVIEW_NOTES.md` §4.
-
-### 3.5 The d=5 census through the identical code path — 51/51 (≈ 7 CPU-hours)
-
-This is the paper's main soundness anchor.
+**4. SAT/DRAT certificate of the search tree (paper §7.3).**
 
 ```bash
-python3 validate_d5_wildcard.py 7
+python3 checks/tree_sat.py tids=all sb=57,81 drat=scratchpad/drat-trim/drat-trim out=<dir>
+python3 checks/tree_sat.py --link
 ```
 
-Expected final line:
+The first command builds one CNF per type from the missing faces alone. Its
+clauses say that each face has no minimal non-elliptic labelling, that each
+missing face is Lannér, and that the diagram is connected. They also impose the
+low-weight caps and block every screened labelling together with its
+Aut(T)-images; for types 57 and 81 the blocking is replaced by a lex-leader
+predicate. Glucose 4 solves each CNF, and drat-trim checks each proof. The CNF
+and proof files are large, so they are regenerated rather than archived.
 
-```
-D5-WILDCARD-DONE. total=51 (expect 51)  problem-types=NONE
-```
-
-Output: `runs/d5_n9/wildcard_validation.json` — 109 types, every one
-`exhausted: true` and `unbounded: false`, realizing counts
-`{0: 22, 6: 18, 19: 6, 29: 3, 5: 1, 63: 1}`.
-
-Repeat it with Burcroff's Lemma 5.5(b) low-weight caps enabled — the one solver
-flag the d=6 run sets that the baseline above does not — so that the anchor
-exercises the exact d=6 flag combination (≈ 2.9 CPU-hours):
+**5. The polytope (paper §6 and §7.4).**
 
 ```bash
-python3 validate_d5_wildcard.py 7 55b
+python3 verify_polytope.py
+python3 checks/exact_weight_uniqueness.py   # the labels determine the weights (Prop. 6.2)
+python3 checks/uniqueness_witness.py        # the Aut(T)-orbit is one polytope, presented 12 ways
+python3 checks/doubling.py                  # P6,10 is the double of Bugaenko's 9-facet polytope
+python3 checks/burcroff_fig5_isomorphism.py # P6,10 is Burcroff's Fig. 5
 ```
 
-Same expected final line; output goes to
-`runs/d5_n9/wildcard_validation_55b.json`.
-
-### 3.6 Supporting checks
+**6. Validation (paper §7.1–7.2).**
 
 ```bash
-python3 paper/checks/wildcard_soundness.py        # m=7 proxy lossless; 0 discrepancies
-python3 paper/checks/lanner_label_bound.py        # re-derives Lannér's 9 and 5 diagrams
-python3 paper/checks/cascade_reachability.py      # bounded-box fallback unreachable
-python3 paper/checks/forward_check_margins.py     # forward-check tolerances, exhaustive
-python3 paper/checks/screen_margins.py            # cascade tolerances, per-type sample
-python3 paper/checks/burcroff_appendixA.py        # the three Appendix A corrections
-python3 paper/checks/burcroff_fig5_isomorphism.py # our diagram ≅ Burcroff Fig. 5
-python3 paper/checks/wild_exact_certify.py        # exact refutation of every wildcard labelling
-python3 paper/checks/plain_exact_certify.py       # exact refutation of every non-wildcard labelling
-python3 paper/make_tables.py                      # regenerates the paper's tables
+python3 validate_d5_wildcard.py 7 55b out=<file>                   # d=5: 51 polytopes, 109 types (≈ 3 CPU-h)
+python3 run_survivors_rigorous.py all 7 wildcard d=4 out=<dir>     # d=4: 348 polytopes, 30 types (≈ 17 CPU-h)
+python3 checks/d4_census_reconciliation.py                         # agrees with Burcroff App. A type by type
+python3 run_wild_dump.py d=5 out=runs/d5_n9/wild_instances_full.jsonl
+python3 checks/wild_exact_certify.py                               # d=5 calibration of the certifier
+python3 checks/wild_exact_certify.py --passers-only                # it refutes none of the 11 survivors
+python3 checks/symmetry_breaking_off.py ref=d6_valid               # verdicts without symmetry breaking
+python3 checks/symmetry_relabel.py                                 # verdicts under random facet relabellings
+python3 checks/mz_p8_17_crosscheck.py                              # d=4 against Ma–Zheng's candidate list (needs HCPdm)
+python3 checks/forward_check_margins.py; python3 checks/screen_margins.py   # tolerance margins
 ```
 
-The two `*_exact_certify.py` scripts read instance dumps; regenerate those first
-with
+**7. Tables.** `python3 make_tables.py`.
 
-```bash
-python3 run_wild_dump.py            # d=6: re-runs subtree 379|0,0 (~18 min), 406 + 546 instances
-python3 run_wild_dump.py d=5 out=runs/d5_n9/wild_instances_full.jsonl   # the d=5 calibration census
-```
+## Where each part of the paper is implemented
 
-One run writes both sinks: `runs/d6_n10/wild_instances.jsonl` (the 406
-wildcard-bearing labellings) and `runs/d6_n10/plain_instances.jsonl` (the 546
-without), each with a `.meta.json` completion marker that the certifiers require —
-so a dump still being written cannot be certified and reported as complete. The
-re-run must reproduce the run of record exactly (952 labellings, 406
-wildcard-bearing, 1 realizer, exhausted); the dump is instrumentation only.
-The unit tests of the certifiers, including the check that they do **not** refute
-P^B6, are `tests/test_exact_certify.py`.
-
-All except `screen_margins.py` run in seconds to a few minutes.
-`screen_margins.py` re-runs whole types under instrumentation, so pass it a
-short list of cheap type ids (it defaults to the sub-CPU-hour survivors).
-
-`make_tables.py` also re-asserts every headline number in the paper and prints
-`all paper invariants re-checked OK`.
-
----
-
-## 4. Building the paper
-
-```bash
-cd paper
-pdflatex paper && bibtex paper && pdflatex paper && pdflatex paper
-```
-
-Compiles clean (no warnings, no undefined references) with TeX Live 2026.
-
----
-
-## 5. Where the data live
-
-| path | contents |
-|---|---|
-| `runs/d6_n10/stage2/types.json` | the 387 combinatorial types (missing faces, `p`, a realizing affine Gale diagram) |
-| `runs/d6_n10/facet_profile_survivors.json` | the 54 survivors of the facet filter, plus the witness that killed each of the 333 others |
-| `runs/d6_n10/survivors_wildcard/state.json` | 20,466 subtree certificates: prefix, `exhausted`, labellings enumerated, seconds |
-| `runs/d6_n10/survivors_wildcard/verdicts.json` | per-type verdict (`distinct`, `rigorous`, `subtrees`) |
-| `runs/d6_n10/survivors_wildcard/realizers/` | the 12 distinct Gram configurations of type 379 with exact minimal polynomials |
-| `runs/d5_n9/wildcard_validation.json` | the d=5 revalidation, 109 types |
-| `runs/d5_n9/stage2/types.json` | the 109 d=5 combinatorial types with `p ≥ 2` |
-| `runs/d4_n8/blockpaste/` | the d=4 per-type counts (338 total — **not** the published 348; see below) |
-| `data/ground_truth/{4d8m,5d9m}.txt` | published combinatorial censuses used by `validate_coverage` |
-| `paper/tables/` | LaTeX tables regenerated from all of the above |
-
-## 6. Key source files
-
-| path | role |
-|---|---|
-| `pipeline/utils/gale_exact.py` | exact-rational affine Gale face criterion |
-| `pipeline/stage2_gale.py` | order types → Gale diagrams → combinatorial types, exact dedup |
-| `pipeline/stage4_gram.py` | the search: enumeration, forward checking, wildcards, cascade screen, exact certification |
-| `pipeline/utils/automorphisms.py` | VF2 automorphism group, orbit symmetry breaking |
-| `pipeline/utils/coxiter.py` | CoxIter adapter |
-| `apply_facet_profile_filter.py` | the 387 → 54 facet filter |
-| `run_survivors_rigorous.py` | driver: prefix partitioning, exhaustion bookkeeping, verdicts |
-| `validate_d5_wildcard.py` | d=5 revalidation through the identical code path |
-| `verify_polytope.py` | standalone one-command verification of the final Gram matrix |
-
-
-### 6.1 Where to find each part of the accompanying paper
-
-The paper deliberately names no source files, so that its argument does not depend
-on this repository. This table is the map from its claims to the code that produced
-them. Section numbers refer to the paper in the companion repository
-(`10-facets-6-d-polytopes-paper`).
-
-| paper | claim | implementation |
+| paper | claim | code |
 |---|---|---|
-| §3.1–3.3, Prop. 3.4 | 387 candidate combinatorial types from the order-type database via affine Gale duality | `pipeline/stage1_order_types.py` (reads `data/aak/otypes10.b16`), `pipeline/stage2_gale.py`; the exact face criterion is `pipeline/utils/gale_exact.py` |
-| §3.4 | the generator reproduces 30 types at d=4 and 109 at d=5 exactly | `python -m pipeline.validate_coverage --d 4` and `--d 5` |
-| §4, Lem. 4.3 | facet-admissibility filter, 387 → 54 survivors | `apply_facet_profile_filter.py` |
-| §4, Lem. 4.6 / Cor. 4.7 | Esselmann's 2d bound kills the two 3-free types | `ESSELMANN_3FREE_KILLED` in `run_survivors_rigorous.py` |
-| §4, Lem. 4.8 | Burcroff 5.5(b) low-weight edge caps | `burcroff_55b_low_weight_edges` in `pipeline/stage4_gram.py` |
-| §4.1, Lem. 4.10 | wildcard predicate is insensitive to m ≥ 7 | `paper/checks/wildcard_soundness.py` |
-| §4.1 | Lannér's order-4 and order-5 diagrams re-derived (9 and 5) | `paper/checks/lanner_label_bound.py` |
-| §5.1 | enumeration with forward checking | `enumerate_labels_backtrack` in `pipeline/stage4_gram.py` |
-| §5.2 | orbit symmetry breaking | `pipeline/utils/automorphisms.py` |
-| §5.3 | the cascade screen; the tangency tolerance | `_structured_screen`, `_quad_roots_gt1`, `_DISC_RTOL` in `pipeline/stage4_gram.py` |
-| §5.3, Lem. 5.4 / Prop. 5.5 | the bounded-box fallback is structurally unreachable at d=6; the pair path is never entered | `paper/checks/cascade_reachability.py` |
-| §5.1, Prop. 5.1 | exact (tolerance-free) forward-checking gates: ellipticity combinatorially, Lannér membership by an integer criterion on 3 nodes and an exact determinant over Q(√2,√3,√5) on 4–5 | `pipeline/utils/exact_gates.py`, `pipeline/utils/coxeter_exact.py`; toggle with `EXACT_GATES=0`; agreement with the float gates is `paper/checks/exact_vs_float_gates.py` |
-| §5.4 | wildcard range analysis and integer window scan | `_solve_wild_assignment` in `pipeline/stage4_gram.py` |
-| §5.3, Prop. 5.3 | exact certificates for all 545 rejected non-wildcard labellings | driver `paper/checks/plain_exact_certify.py` |
-| §5.4, Prop. 5.4 | exact infeasibility certificates for all 406 wildcard labellings, and the d=5 calibration | `pipeline/utils/exact_field.py`, `pipeline/utils/exact_certify.py`, driver `paper/checks/wild_exact_certify.py`, instances from `run_wild_dump.py`, tests `tests/test_exact_certify.py` |
-| §5.5 | exact certification of an accepted labelling | `_refine_mpmath`, `_recognize_minpoly_and_verify`, `_inertia_mpmath` in `pipeline/stage4_gram.py` |
-| §5.6 | exhaustion certificates and the coverage recursion | `process_type_stage4` (`exhausted`, `wild_unbounded`) and the driver `run_survivors_rigorous.py`; the recursion is recomputed by `paper/make_tables.py` in the paper repository |
-| §6.1, eq. (1) | the Gram matrix, its exact signature and the absence of parabolic subdiagrams | `verify_polytope.py` (paper repository) |
-| §7.1 | d=5 census reproduced at 51 | `validate_d5_wildcard.py 7 out=<dir>` |
-| §7.2 | d=4 census reproduced at 348 | `run_survivors_rigorous.py all 7 wildcard d=4 out=<dir>`; the type-by-type comparison against Burcroff Appendix A is `paper/checks/d4_census_reconciliation.py` |
-| §8(iv) | forward-checking tolerance margins | `paper/checks/forward_check_margins.py` |
-| App. B | hardware, timings and the BLAS-pinning measurement | `probe_cost.py`; pin with `OMP_NUM_THREADS=1` and equivalents |
-| App. C | branch counters and stall taxonomy | `probe_cost.py`, `paper/checks/screen_margins.py` |
+| §3, Prop. 3.2 | 387 types from the order-type database by affine Gale duality | `generate_types.py` → `pipeline/stage2_gale.py:process_order_type`, `pipeline/utils/gale_exact.py`, `pipeline/utils/canonical.py` |
+| §3 | truncated deduplication loses no type | `checks/dedup_truncation.py --all` |
+| §3 | the hypergraphs recomputed independently | `checks/hypergraph_independent.py` |
+| §4, Lemma 4.2, Cor. 2.3 | 83 types have a size-6 minimal non-face; the other 304 are searched | `checks/type_consistency.py --emit`; `lemmas=valid` in `run_survivors_rigorous.py` |
+| §4, Lemma 4.4 | Burcroff's low-weight caps | `burcroff_55b_low_weight_edges` in `pipeline/stage4_gram.py` |
+| §4.1, Lemma 4.5 | the wildcard label | `checks/wildcard_soundness.py`, `checks/lanner_label_bound.py` |
+| §5.1, Prop. 5.1 | exact forward-checking gates; enumeration; symmetry breaking | `pipeline/utils/exact_gates.py`, `pipeline/utils/coxeter_exact.py`, `enumerate_labels_backtrack` in `pipeline/stage4_gram.py`, `pipeline/utils/automorphisms.py` |
+| §5.2, Prop. 5.2 | the screen; exact certificates for non-wildcard labellings | `_structured_screen` in `pipeline/stage4_gram.py`; `checks/plain_exact_certify.py`; `checks/cascade_reachability.py` |
+| §5.3, Prop. 5.3 | exact certificates for wildcard labellings | `pipeline/utils/exact_field.py`, `pipeline/utils/exact_certify.py`, `checks/wild_exact_certify.py`, `run_wild_dump.py`, `checks/merge_dump_shards.py` |
+| §5.4 | acceptance and exhaustion | `_refine_mpmath`, `_recognize_minpoly_and_verify` in `pipeline/stage4_gram.py`; `run_survivors_rigorous.py`; coverage recomputed by `make_tables.py` |
+| §6, Thm. 6.1, Table 1 | the classification; the computation in numbers | `make_tables.py` → `tables/summary_nums.tex` |
+| §6, Prop. 6.2 | the labels determine the weights | `checks/exact_weight_uniqueness.py` |
+| §6 | the orbit of the accepted labelling; the doubling | `checks/uniqueness_witness.py`, `checks/doubling.py` |
+| §7.1 | generator validation; the d=5 and d=4 censuses | `generate_types.py --d 4/5`, `pipeline/validate_coverage.py`, `tests/test_generator_coverage.py`; `validate_d5_wildcard.py`; `run_survivors_rigorous.py d=4`; `checks/d4_census_reconciliation.py` |
+| §7.2 | tests and calibration of the certifiers | `tests/test_exact_certify.py`, `checks/wild_exact_certify.py --passers-only` |
+| §7.3 | the SAT/DRAT certificate | `checks/tree_sat.py` |
+| §7.4 | exact checks on the polytope | `verify_polytope.py` |
+| App. A, Table 2 | certificates by type | `make_tables.py` → `tables/rootbox.tex` |
 
-Three checks import this pipeline and therefore live here rather than in the paper
-repository: `paper/checks/cascade_reachability.py`,
-`paper/checks/screen_margins.py`, `paper/checks/mz_p8_17_crosscheck.py`. The other
-six are standalone and ship with the paper.
+## Implementation notes
 
-Material deliberately kept out of the paper — provenance arguments, the history of
-the three defects corrected during development, and answers to questions a reader
-may reasonably ask — is in `AUDIT_RESPONSES.md` in the paper repository.
+The paper leaves out detail that does not bear on correctness and cites this
+repository for it. None of it changes a verdict: every rejection carries an exact
+certificate, and the search tree is certified independently (paper §7.3).
 
----
+**Combinatorial types (§3).**
+* By p, the 387 types split as p=2: 245, p=3: 101, p=4: 28, p=5: 10, p=6: 3.
+  381 of them have a missing face of size 3 or 4.
+* Truncated deduplication. The generator deduplicates on missing faces of size
+  ≤ 5: colour refinement, then exhaustive search over colour-preserving
+  permutations. Two candidates that differ only in a size-6 minimal non-face could
+  therefore be merged. This matters only if the representative has one and a
+  partner does not.
+  * The check: for each of the 83 excluded types, every candidate from its 72,006
+    source order types with the same size multiset was recomputed with all its
+    minimal non-faces.
+  * 91,264 of the 91,395 have one of size 6.
+  * The other 131 are not isomorphic to the representative's truncated hypergraph
+    (exact test), so they were never merged.
+  * For the searched types no check is needed: without size-6 non-faces,
+    isomorphic truncated hypergraphs are isomorphic full hypergraphs.
+* Burcroff 2024, Appendix A. The d=5 candidate table has 111 rows. Against our
+  109 types:
+  * two rows carry identical missing-face lists;
+  * two rows are not missing-face systems of simple polytopes;
+  * one of the 109 types, also in Ma–Zheng, has no row.
 
-## 7. Known limitations
+  This does not affect her classification (`checks/burcroff_appendixA.py`).
+* The committed type list was first produced, on 2026-06-01, by an earlier
+  chirotope-based C filter. It has since been regenerated with the exact criterion
+  (`generate_types.py`; comparison in `runs/d6_n10/stage2_exact/comparison.json`).
+  The original file is kept because its type ids are used throughout.
 
-Stated fully in §8 of the paper and in `REVIEW_NOTES.md`. The two that matter
-most:
+**Restrictions and the alphabet (§4).**
+* Lemma 4.5(c) checked computationally: no connected rank-3 diagram with labels
+  up to 200 and an edge of label ≥ 6 is elliptic (boundary case G̃₂).
+  Enumerating from the definition over labels {2..5} recovers Lannér's lists:
+  9 of order 4 and 5 of order 5.
+* The substitution m = 7 was evaluated at m ∈ {7, 8, 9, 10, 12, 15, 20, 30, 50,
+  100, 300, 1000}. It was tested on every label tuple over {2..6,⋆} with a wild
+  edge: 91 on 3 nodes, 31,031 on 4, and 8,000 random tuples on 5. The verdict
+  never differed from m = 7.
+* Corollary 1.2, d = 2: a hyperbolic hexagon exists with any angles π/mᵢ, since
+  Σπ/mᵢ ≤ 3π < 4π.
 
-1. **The d=4 census is reproduced only to 338 of 348**, and via a different
-   code path (fixed alphabet `{2,…,10,12}`) from the d=6 run. The d=5 census
-   *is* reproduced exactly (51/51) through the identical d=6 code path.
-2. **Emptiness verdicts are not exact certificates.** Acceptances are exact
-   (100-digit certification + CoxIter), but a labelling is *rejected* by a
-   screen evaluated in double precision, whose fallback branch searches
-   ultraparallel weights only in the bounded box `[1.001, 1000]`.
+**Forward checking and symmetry breaking (§5.1).**
+* The Lannér gate tests membership (det G < 0), not merely "one negative
+  eigenvalue". The extra condition det G ≠ 0 is the no-parabolic clause.
+* The exact gates agree with the floating-point tests they replace on all 216
+  label tuples on 3 nodes and all 46,656 on 4 (`checks/exact_vs_float_gates.py`).
+* How symmetry breaking works: it compares the full prefix vector with its images
+  under the automorphisms that stabilise the prefix's domain. A discarded branch is
+  covered by the canonical branch of its orbit.
+* Validation runs. The certificate relies on none of them: it uses no symmetry
+  breaking for 302 types.
+  * With pruning off and 1800 s per type, 280 of 304 types reproduce their
+    verdicts and none disagrees. The other 24 exceed the budget.
+  * Type 379 unpruned enumerates 21,504 labellings in place of 952 and finds the
+    same single polytope.
+  * The over-budget types were each re-run under 3 random facet relabellings with
+    pruning on, 72 runs in all. 71 reproduced, 1 exceeded the budget, and none
+    disagreed.
 
-## 8. Provenance of this code
+**The screen (§5.2).**
+* Single-unknown path. The coefficients of each quadratic come from interpolation
+  at three points. At a tangential solution the discriminant is exactly zero, and
+  in floating point its sign depends on the facet numbering. So discriminants are
+  compared against 1e-10·max(b², |4ac|, 1), and a near-zero value is treated as a
+  double root.
+* Pair-resultant path. It is never entered in d=6, and its refutations are
+  treated as inconclusive.
+* Fallback: multistart L-BFGS-B over x_e ∈ [1.001, 1000]. It ran only on the 8
+  value-dependent stalls in type 81, all of which carry exact certificates.
+* Structural reachability, checked over all 387 types
+  (`checks/cascade_reachability.py`): the dashed edges never form a perfect
+  matching; some dashed edge is isolatable; and once the isolatable edges are
+  pinned, every remaining one is (in at most 2 rounds).
+* Counts over the 304-type run:
 
-Most of the code in this repository — the pipeline, the screening and
-certification routines, the drivers, and the verification scripts — was written
-by **Claude, a large language model developed by Anthropic**, working
-interactively under the repository owner's direction. The owner set the
-objectives, chose the mathematical approach, reviewed the code and output, and is
-responsible for the results.
+  | cascade decisions | rejections | acceptances | stalls (type 81) | pair-resultant entries |
+  |---|---|---|---|---|
+  | 82,840 | 82,831 | 1 | 8 | 0 |
 
-This is disclosed because it should affect how you check the work, not whether
-you believe it. The design goal throughout has been to make the code's
-correctness *checkable without trusting the code*:
+  For comparison, the d=4 census enters the pair-resultant branch 132,571 times.
+  There the 4-cube type forces it, because its dashed edges form a perfect
+  matching.
+* Thresholds:
+  * cascade roots and vanishing: 1e-12 to 1e-7;
+  * leaf tests: 1e-7 (singular value) and 1e-6 (signature);
+  * wildcard joint step floor: 1e-6.
 
-* every reduction of the search space is a theorem, proved in the paper or cited
-  by number — see `paper/paper.tex` §4;
-* every accepted polytope is certified in exact arithmetic and re-checked by
-  **CoxIter**, an independent third-party program;
-* the pipeline reproduces the published d=5 census (51/51) through the identical
-  code path used for d=6 — see §3.5 above;
-* the final answer can be verified in one command that does not use the search at
-  all — `python3 verify_polytope.py`.
+**Wildcards (§5.3).**
+* The joint step is a multistart quasi-Newton minimisation (24 starts) over
+  x_e ∈ [1.001, 1000] and c_e ∈ [cos(π/7), 1).
+* Feasible intervals become integer windows of m_e, scanned to m_e = 100. No
+  window is scanned in d=6, and in d=4 and d=5 none reached the limit.
+* Interval certificates. The smallest margin of an enclosure from 0 is 1.2e-5.
+  The largest subdivision is 140,433 boxes (type 72).
+* d=5 calibration. Of 141,033 wildcard assignments, the joint step passes 11:
+  9 are polytopes, and 2 are feasible only for the continuous relaxation. The
+  certifier refutes none of the 11, and it certifies 2,400 of 2,400 sampled
+  rejections.
 
-A real defect *was* found in this code (see `REVIEW_NOTES.md` §3b-quater): the
-screen's pair-resultant branch could refute realizable candidates depending on
-facet numbering, which cost 11 of the 12 published 4-cubes. It was caught by
-comparison against the independently published d=4 census, and it is confined to
-a branch that dimensions 5 and 6 provably never reach. Treat that as a reason to
-lean on the independent checks, and on `REVIEW_NOTES.md`, rather than on the
-code's authorship.
+**Acceptance and exhaustion (§5.4).**
+* The numerical acceptance test:
+  1. Gauss–Newton refinement of the dashed weights at 100 digits (residual < 1e-50);
+  2. signature (6,1) with three zero eigenvalues;
+  3. local isolation (a full-rank Jacobian);
+  4. no parabolic subdiagram;
+  5. CoxIter.
 
-## 9. Licence and citation
+  Minimal polynomials are then recovered by integer relation detection. The exact
+  certificate of record is Prop. 6.2 and §7.4.
+* "Exhausted" means the run hit no enumeration timeout, assignment cap, solve
+  budget or wildcard deadline. A non-exhausted type is split by the next label,
+  recursively, to depth 14. In d=6 every type is exhausted at the root.
 
-Please cite the paper and this repository. Third-party components retain their
-own licences: CoxIter (`scratchpad/CoxIter`) is by Rafael Guglielmetti; the
-Ma–Zheng data under `scratchpad/HCPdm` is by Jiming Ma and Fangting Zheng; the
-order-type database is by Oswin Aichholzer et al.
+**The d=4 census (§7.1).**
+* 30 types were certified exhausted, over 90 subtree results in 17.4 CPU-hours.
+* It includes the 4-cube type G4, whose twelve polytopes Burcroff attributes to
+  Jacquemet–Tschantz.
+* Every polytope we find in Ma–Zheng's type P8,17 appears in their candidate
+  list, exactly once up to the type's automorphisms
+  (`checks/mz_p8_17_crosscheck.py`).
+* Three screen defects were found and corrected by comparison with this census:
+  * the numbering-dependent pair-resultant refutations;
+  * a converged refinement being discarded;
+  * the tangential discriminant.
+
+  Every d=4, d=5 and d=6 result above was computed after these fixes.
+
+## Provenance
+
+Most of this code was written by Claude, a large language model developed by
+Anthropic, working under the author's direction. The author set the objectives,
+chose the mathematical approach, and reviewed the code and its output. The design
+aims to make correctness checkable without trusting the code: every reduction is a
+theorem, every rejection carries an exact certificate, the search tree has an
+independent SAT/DRAT certificate, and the answer can be checked by
+`verify_polytope.py` without the search.
+
+## Licence and citation
+
+The code is under the MIT licence (`LICENSE`). The data archive is under CC BY 4.0
+(`LICENSE-DATA`, also inside the archive).
+Please cite the paper and the data archive. Third-party components keep their own
+licences:
+* CoxIter is by R. Guglielmetti.
+* HCPdm is by J. Ma and F. Zheng; the ground-truth censuses in the data archive
+  come from it.
+* The Order Type Data Base is by O. Aichholzer et al.

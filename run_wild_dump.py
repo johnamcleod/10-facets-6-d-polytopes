@@ -45,11 +45,15 @@ import pipeline.stage4_gram as _sg          # noqa: E402
 sys.argv = _argv
 
 # The subtrees that produced complete labellings in the run of record.  For d=6
-# that is a single subtree: of the 71 subtrees over the 11 required types, only
-# 379|0,0 reaches a complete labelling at all (the other 70 are emptied by
-# forward checking), and all 406 wildcard-bearing labellings live in it.
+# the run of record (d6_exact, exact forward-checking gates) exhausts every type
+# at the root, and only type 379's root reaches a complete labelling at all: all
+# 952 labellings, 406 of them wildcard-bearing, live in it.  The dump of record
+# was made from that root ("379|" in its .meta.json), so the root is the default
+# here and a re-run reproduces the committed artifact exactly.  (In the earlier
+# float-gate run, d6_final, the same 952 labellings all lay inside its subtree
+# 379|0,0, the other 70 of its 71 subtrees being emptied by forward checking.)
 DEFAULT_SUBTREES = {
-    6: [(379, (0, 0))],
+    6: [(379, ())],
 }
 
 

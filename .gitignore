@@ -3,41 +3,31 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-runs/
 *.egg-info/
 dist/
 build/
+.DS_Store
+.env
 
-# LaTeX build artifacts
-paper/*.aux
-paper/*.log
-paper/*.out
-paper/*.blg
-paper/*.toc
-
-# The paper, its data artifacts and its standalone verification scripts now live
-# in a separate repository (10-facets-6-d-polytopes-paper), so that the paper can
-# be checked without reading or running this pipeline.  The three checks under
-# paper/checks/ that import this pipeline ARE tracked here -- they cannot run
-# standalone, and the paper cites them by that path.
-paper/paper.tex
-paper/references.bib
-paper/make_tables.py
-paper/tables/
-paper/paper.pdf
-paper/paper.bbl
-# The paper sources stay in the private companion repository.  Everything a reader
-# needs in order to CHECK the result -- the verification scripts, all nine checks,
-# the run certificates and the table generator -- lives here, because this is the
-# repository that will be public.
-REVIEW_NOTES.md
-AUDIT_RESPONSES.md
+# Data.  The repository holds code only.  Run outputs, certificates, census
+# outputs and the third-party inputs live in the data archive (see README,
+# "Data"), unpacked into these directories.
+runs/
+data/
+tables/
 
 # compiled artifacts of pipeline/c (sources are tracked, binaries are not)
 pipeline/c/aak_parse
-pipeline/c/stage2_filter
 pipeline/c/libwildkernel.dylib
 
-# Development scratch: exploratory scripts, logs, vendored third-party checkouts
-# (CoxIter, HCPdm) and intermediate data.  Never an input to a published result.
+# Third-party checkouts (CoxIter, HCPdm, drat-trim) and development scratch
 scratchpad/
+
+# Local material that is not part of the published code: superseded drivers,
+# development notes, and working copies of the paper and its review notes.
+attic/
+paper/
+CLAUDE.md
+REVIEW_NOTES.md
+AUDIT_RESPONSES.md
+dist/

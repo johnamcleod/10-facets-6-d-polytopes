@@ -235,7 +235,7 @@ def test_recorded_witnesses_are_corroborated(artifact):
     """
     p = ROOT / artifact
     if not p.exists():
-        pytest.skip(f"{artifact} absent -- run paper/checks/wild_exact_certify.py")
+        pytest.skip(f"{artifact} absent -- run checks/wild_exact_certify.py")
     data = json.loads(p.read_text())
     rng = np.random.default_rng(0)
     n_lab = n_box = 0

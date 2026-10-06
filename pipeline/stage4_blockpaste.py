@@ -83,7 +83,10 @@ def _setup(t):
     else:  # fallback: reconstruct vertices exactly from the affine-Gale diagram
         from pipeline.utils.gale_exact import AffineGale
         pts = [tuple(p) for p in t["example_points"]]
-        n_guess = 1 + max(max(m) for m in t["missing_faces"])
+        # one Gale point per facet; inferring n from the missing faces is wrong
+        # whenever the highest-numbered facet lies in no recorded missing face
+        # (d=6 tid 44), which silently shifts the reconstruction a dimension down
+        n_guess = len(pts)
         # AffineGale's 3rd arg is the polytope dimension (= vertex size). For an
         # m-dimensional affine Gale diagram of a polytope with n facets, k = n - d =
         # m + 2, so d = n - (m + 2).  (Verified: reproduces the stored d=5 vertex_sets

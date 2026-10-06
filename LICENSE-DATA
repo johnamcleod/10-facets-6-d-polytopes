@@ -1,0 +1,16 @@
+Data archive: Classification of compact hyperbolic Coxeter 6-polytopes with
+10 facets -- data and certificates.
+
+Copyright (c) 2026 John Mcleod.
+
+The files of this archive are licensed under the Creative Commons Attribution
+4.0 International licence (CC BY 4.0),
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+The archive contains no third-party files. The published d=4 and d=5 censuses of
+J. Ma and F. Zheng (HCPdm, https://github.com/GeoTopChristy/HCPdm) and the Order
+Type Data Base of O. Aichholzer et al., which some scripts read, are not
+redistributed; the README of the code repository says where to obtain them.
+
+The code that produced and checks these files is MIT-licensed; see the LICENSE
+file of https://github.com/johnamcleod/10-facets-6-d-polytopes.

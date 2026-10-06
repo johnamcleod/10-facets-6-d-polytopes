@@ -5,6 +5,10 @@ Guards the 2026-06-22 generator rewrite that fixed the broken float/C criteria
 lives in test_generator_coverage.py (marked `slow`); these are quick structural
 checks on the criterion itself.
 """
+from pathlib import Path
+
+import pytest
+
 from pipeline.utils.gale_exact import AffineGale, _strictly_inside
 
 D, N = 4, 8
@@ -46,6 +50,8 @@ def test_polytopality_gate_enforces_lbt():
     assert not ag.is_polytope()
 
 
+@pytest.mark.skipif(not Path("data/aak/otypes08.chi").exists(),
+                    reason="order-type database (n=8) not present; see README, Data")
 def test_odd_vertex_counts_reachable():
     """The old criterion could only produce EVEN f0; a correct criterion must
     reach odd vertex counts (the d=4 census has types with 15 and 17 vertices)."""

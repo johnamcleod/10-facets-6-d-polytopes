@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rigorous full-label resolve of the 54 d=6 facet-filter survivors.
+"""Rigorous full-label resolve of the 55 d=6 facet-filter survivors.
 
 Replaces run_survivors_fulllabel.py, whose "empty(COMPLETE)" tag was a wall-clock
 heuristic: 19 types hit the 3600s enum timeout and were mislabeled complete —
@@ -13,7 +13,7 @@ union of subtree results deduped by canonical_key.
 
 Resumable: completed subtrees are persisted to STATE and skipped on restart.
 
-Usage:  python3 run_survivors_rigorous.py [fast|suspect|all|<tid,tid,...>] [nproc] [wildcard] [d=D] [out=DIR]
+Usage:  python3 run_survivors_rigorous.py [fast|suspect|all|<tid,tid,...>] [nproc] [wildcard] [d=D] [out=DIR] [lemmas=valid]
 
 With the "wildcard" flag the solve is the RIGOROUS label treatment (Ma-Zheng
 Prop 3.5): labels enumerate over {2,...,6,7} with 7 = "any m >= 7" resolved by
@@ -42,10 +42,10 @@ WILDCARD = "wildcard" in sys.argv[1:]
 D = next((int(a.split("=")[1]) for a in sys.argv[1:] if a.startswith("d=")), 6)
 NF = D + 4                       # number of facets
 
-SURV = [8, 12, 17, 34, 36, 38, 40, 51, 55, 59, 60, 61, 69, 70, 92, 103, 120, 127, 132,
-        140, 154, 159, 162, 168, 173, 206, 214, 218, 220, 229, 234, 239, 255, 265, 273,
-        284, 286, 287, 295, 297, 308, 315, 317, 320, 329, 332, 344, 352, 354, 356, 360,
-        378, 379, 382]
+SURV = [8, 12, 17, 34, 36, 38, 40, 44, 51, 55, 59, 60, 61, 69, 70, 92, 103, 120, 127,
+        132, 140, 154, 159, 162, 168, 173, 206, 214, 218, 220, 229, 234, 239, 255, 265,
+        273, 284, 286, 287, 295, 297, 308, 315, 317, 320, 329, 332, 344, 352, 354, 356,
+        360, 378, 379, 382]
 # The 19 that hit the 3600s enum timeout in the fulllabel run (0 there = not rigorous).
 SUSPECT = [34, 40, 55, 60, 61, 103, 120, 127, 132, 159, 173, 206, 284, 286, 295, 315,
            329, 344, 379]
@@ -64,8 +64,10 @@ FAST = [t for t in SURV if t not in SUSPECT]
 # Burcroff Lemma 10.6): a 3-free compact Coxeter d-polytope has at least 2d
 # facets, with equality only for the d-cube.  For d = 6 that is 12 > 10, so no
 # 3-free type can realize.  Unconditional, and it makes the whole d=6 chain
-# independent of Burcroff Thm 8.1 (among the 54 survivors the only types lacking
-# a size-3/4 missing face are exactly these two 3-free ones).
+# independent of Burcroff Thm 8.1 (among the 55 survivors the only types lacking
+# a size-3/4 missing face are exactly the three 3-free ones, 44, 159 and 329;
+# tid 44 joined the survivor list on 2026-08-11 when a facet-count inference
+# defect in the filter's vertex derivation was fixed).
 #
 # These are also the two types with no Lannér subdiagram constraints, hence the
 # deepest enumeration grinders; their partial enumeration (139 subtrees each,
@@ -96,7 +98,7 @@ else:
     ESSELMANN_3FREE_KILLED = []
 
 # Two further combinatorial exclusions, each a theorem, both consequences of
-# Lannér's classification (paper Lemmas 4.2 and 4.3):
+# Lannér's classification:
 #
 #   LEMMA 4.2 (bounded dashed degree).  A facet disjoint from t others is a compact
 #   Coxeter (d-1)-polytope with n-1-t facets.  For d-1 >= 5 such a polytope is not
@@ -108,7 +110,7 @@ else:
 #   the vertex list with the d-subsets containing no RECORDED missing face, since
 #   the generator records minimal non-faces only up to size 5.
 #
-# The flags are precomputed by paper/checks/type_consistency.py --emit into
+# The flags are precomputed by checks/type_consistency.py --emit into
 # runs/d{D}_n{NF}/type_flags.json; if that artifact is absent the exclusions are
 # simply not applied, so the driver still runs (conservatively) without it.
 LEMMA_KILLED = []
@@ -125,6 +127,25 @@ if _flags_path.exists():
             # (Kaplinskaja 1974; Esselmann 1996 shows the products of two simplices
             # occur only in dimension 4).
             or not _fl.get(str(t), {}).get("degree2_facet_is_prism", True)))
+
+# `lemmas=valid` (2026-09-28): apply ONLY the exclusion that is
+# valid for acute-angled facets.  The facet arguments of Lemmas 4.2, 4.4, 4.5 treat a
+# facet of a Coxeter polytope as a Coxeter polytope, which is false in general
+# (Borcherds' criterion excludes S0 = A1), and the facet-profile filter rests on the
+# same premise.  What survives is the size-d minimal non-face criterion (a Lannér
+# diagram of order d cannot exist), which also covers every type of dashed degree
+# >= 3 combinatorially.  In this mode the candidates are ALL generated types minus
+# those, and neither the facet filter nor the prism lemma nor the 3-free shortcut
+# is used.
+LEMMAS_VALID = "lemmas=valid" in sys.argv[1:]
+if LEMMAS_VALID:
+    _fl = json.loads(_flags_path.read_text()).get(f"d{D}_n{NF}", {})
+    SURV = sorted(t for t in TYPES
+                  if not _fl.get(str(t), {}).get("has_missing_face_of_size_d", False))
+    SUSPECT, FAST = [], SURV
+    LEMMA_KILLED = sorted(t for t in TYPES
+                          if _fl.get(str(t), {}).get("has_missing_face_of_size_d", False))
+    ESSELMANN_3FREE_KILLED = []
 
 # Output directory.  `out=NAME` selects a different one, which is how a FRESH run
 # is started: without it the driver resumes the existing state and every cached

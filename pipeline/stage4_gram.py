@@ -1810,7 +1810,7 @@ def _kernel_jacobian_rank(label_assign, dotted_pairs, x_hp, n, d, dps=100):
 # labelling that reaches _solve_wild_assignment, recording the full instance
 # (ordinary labels, dashed pairs, wild pairs) together with the numerical
 # verdict.  Pure instrumentation: it never changes a verdict.  The artifact is
-# what the exact wildcard certifier (paper/checks/wild_exact_certify.py) reads,
+# what the exact wildcard certifier (checks/wild_exact_certify.py) reads,
 # so that the numerical screen and the exact refutation are provably run on the
 # same instances rather than on a re-derivation of them.
 WILD_DUMP_PATH = os.environ.get("WILD_DUMP") or None
@@ -2209,7 +2209,7 @@ def _structured_screen(ordinary_float, dotted_pairs, minor_index, n, d,
     # used; otherwise we downgrade to None and let the caller fall back.  This is
     # strictly conservative.  It cannot change any d=5 or d=6 verdict, because no
     # type in either dimension enters the pair path at all
-    # (paper/checks/cascade_reachability.py).
+    # (checks/cascade_reachability.py).
     pair_path_used = False
     while stack:
         pins, unknown = stack.pop()
@@ -2478,7 +2478,7 @@ def _wild_feasible(ordinary_float, dotted_pairs, wild_pairs, pinned, n, d,
 
     # Upper bound on a dashed weight during the wildcard feasibility search.  It is
     # a run parameter, not a theorem, so it is exposed here in order to be varied:
-    # paper/checks/wild_box_sensitivity.py re-runs types with it raised by three
+    # checks/wild_box_sensitivity.py re-runs types with it raised by three
     # orders of magnitude and checks that no verdict changes.
     bounds = ([(1.001, _WILD_BOX_HI)] * k_d
               + [(_WILD_C_MIN, 0.999999)] * len(free_wild))
