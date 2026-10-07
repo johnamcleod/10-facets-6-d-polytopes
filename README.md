@@ -100,7 +100,16 @@ shasum -a 256 data/ground_truth/*.txt
 regenerate the types (and for `checks/dedup_truncation.py --all`). Download
 `otypes08.b08`, `otypes09.b16` and `otypes10.b16` from the
 [Order Type Data Base](http://www.ist.tugraz.at/aichholzer/research/rp/triangulations/ordertypes/)
-into `data/aak/`, then build the chirotope caches:
+into `data/aak/`, and check them against the files used here:
+
+```bash
+shasum -a 256 data/aak/otypes08.b08 data/aak/otypes09.b16 data/aak/otypes10.b16
+# d4a5756295a584a57962fca946b4021cbe5c257481b0bc731ef081d1ca2ea0bd  data/aak/otypes08.b08   (53,040 bytes)
+# e48faf76c3890ef5481b043bc681b05052b2015092837549b2c53e18626038b4  data/aak/otypes09.b16   (5,717,412 bytes)
+# 6b5339bf525d5e7f69addea013170cee7336d2df73643f25ced37eedde2d7909  data/aak/otypes10.b16   (572,381,880 bytes)
+```
+
+Then build the chirotope caches:
 
 ```bash
 for n in 08 09 10; do f=$(ls data/aak/otypes$n.b*); pipeline/c/aak_parse $f ${n#0} data/aak/otypes$n.chi; done
@@ -146,6 +155,7 @@ python3 generate_types.py run --d 6 --max-workers 6     # 287 shards of 50,000 o
 python3 generate_types.py merge --d 6 --compare runs/d6_n10/stage2/types.json
 python3 checks/hypergraph_independent.py                # recompute every hypergraph, no pipeline code
 python3 checks/type_consistency.py --emit               # -> runs/d6_n10/type_flags.json (83 size-6 types)
+python3 checks/size6_completion.py                      # each truncated hypergraph has a unique completion
 python3 checks/dedup_truncation.py --all                # truncated deduplication loses no type (needs data/aak)
 ```
 
@@ -235,6 +245,7 @@ python3 checks/forward_check_margins.py; python3 checks/screen_margins.py   # to
 | paper | claim | code |
 |---|---|---|
 | §3, Prop. 3.2 | 387 types from the order-type database by affine Gale duality | `generate_types.py` → `pipeline/stage2_gale.py:process_order_type`, `pipeline/utils/gale_exact.py`, `pipeline/utils/canonical.py` |
+| §3 | the size-≤5 hypergraph determines the size-6 missing faces | `checks/size6_completion.py` |
 | §3 | truncated deduplication loses no type | `checks/dedup_truncation.py --all` |
 | §3 | the hypergraphs recomputed independently | `checks/hypergraph_independent.py` |
 | §4, Lemma 4.2, Cor. 2.3 | 83 types have a size-6 minimal non-face; the other 304 are searched | `checks/type_consistency.py --emit`; `lemmas=valid` in `run_survivors_rigorous.py` |
